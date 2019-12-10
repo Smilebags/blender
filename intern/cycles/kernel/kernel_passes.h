@@ -338,16 +338,25 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
 ccl_device_inline void kernel_write_result(KernelGlobals *kg,
                                            ccl_global float *buffer,
                                            int sample,
-                                           PathRadiance *L)
+                                           PathRadiance *L,
+                                           float3 wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_WRITE_RESULT);
   PROFILING_OBJECT(PRIM_NONE);
 
   float alpha;
   float3 L_sum = path_radiance_clamp_and_sum(kg, L, &alpha);
+  float3 sum_x_xyz = wavelength_to_xyz(wavelengths.x) * L_sum.x;
+  float3 sum_y_xyz = wavelength_to_xyz(wavelengths.y) * L_sum.y;
+  float3 sum_z_xyz = wavelength_to_xyz(wavelengths.z) * L_sum.z;
+  float3 xyz_sum = make_float3(
+    sum_x_xyz.x + sum_y_xyz.x + sum_z_xyz.x,
+    sum_x_xyz.y + sum_y_xyz.y + sum_z_xyz.y,
+    sum_x_xyz.z + sum_y_xyz.z + sum_z_xyz.z
+  );
 
   if (kernel_data.film.pass_flag & PASSMASK(COMBINED)) {
-    kernel_write_pass_float4(buffer, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
+    kernel_write_pass_float4(buffer, make_float4(xyz_sum.x, xyz_sum.y, xyz_sum.z, alpha));
   }
 
   kernel_write_light_passes(kg, buffer, L);

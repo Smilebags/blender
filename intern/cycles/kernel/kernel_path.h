@@ -701,7 +701,7 @@ ccl_device void kernel_path_trace(
   /* Integrate. */
   kernel_path_integrate(kg, &state, throughput, &ray, &L, buffer, emission_sd);
 
-  kernel_write_result(kg, buffer, sample, &L);
+  kernel_write_result(kg, buffer, sample, &L, state.wavelengths);
 }
 
 #endif /* __SPLIT_KERNEL__ */
