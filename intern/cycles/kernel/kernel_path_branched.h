@@ -534,7 +534,7 @@ ccl_device void kernel_branched_path_trace(
 
   if (ray.t != 0.0f) {
     kernel_branched_path_integrate(kg, rng_hash, sample, ray, buffer, &L);
-    kernel_write_result(kg, buffer, sample, &L);
+    kernel_write_result(kg, buffer, sample, &L, make_float3(0.0, 0.0, 0.0));
   }
 }
 

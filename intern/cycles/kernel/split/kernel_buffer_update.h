@@ -90,7 +90,7 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
       ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
       /* accumulate result in output buffer */
-      kernel_write_result(kg, buffer, sample, L);
+      kernel_write_result(kg, buffer, sample, L, state->wavelengths);
 
       ASSIGN_RAY_STATE(ray_state, ray_index, RAY_TO_REGENERATE);
     }
