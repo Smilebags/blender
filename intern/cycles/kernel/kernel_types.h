@@ -1059,6 +1059,9 @@ typedef struct PathState {
   int volume_bounds_bounce;
   VolumeStack volume_stack[VOLUME_STACK_SIZE];
 #endif
+
+  /* spectral rendering */
+  float3 wavelengths; 
 } PathState;
 
 #ifdef __VOLUME__
