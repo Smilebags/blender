@@ -65,7 +65,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
     state->volume_stack[0].shader = SHADER_NONE;
   }
 #endif
-  float wavelength_offset = path_state_rng_1D(kg, state, 1);
+  float wavelength_offset = path_state_rng_1D(kg, state, PRNG_WAVELENGTH);
   float offset_two = fmod(wavelength_offset + (1.0 / 3.0), 1.0);
   float offset_three = fmod(wavelength_offset + (2.0 / 3.0), 1.0);
   state->wavelengths = make_float3(
