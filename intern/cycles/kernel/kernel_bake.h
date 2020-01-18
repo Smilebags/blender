@@ -63,7 +63,7 @@ ccl_device_inline void compute_light_pass(
 
     /* sample emission */
     if ((pass_filter & BAKE_FILTER_EMISSION) && (sd->flag & SD_EMISSION)) {
-      float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf);
+      float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf, state.wavelengths);
       path_radiance_accum_emission(&L_sample, &state, throughput, emission);
     }
 
@@ -117,7 +117,7 @@ ccl_device_inline void compute_light_pass(
 
     /* sample emission */
     if ((pass_filter & BAKE_FILTER_EMISSION) && (sd->flag & SD_EMISSION)) {
-      float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf);
+      float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf, state.wavelengths);
       path_radiance_accum_emission(&L_sample, &state, throughput, emission);
     }
 
@@ -349,7 +349,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
         out = make_float3(roughness, roughness, roughness);
       }
       else {
-        out = shader_emissive_eval(&sd);
+        out = shader_emissive_eval(&sd, make_float3(0.0f, 0.0f, 0.0f));
       }
       break;
     }
@@ -446,7 +446,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
       /* evaluate */
       int path_flag = 0; /* we can't know which type of BSDF this is for */
       shader_eval_surface(kg, &sd, &state, path_flag | PATH_RAY_EMISSION);
-      out = shader_background_eval(&sd);
+      out = shader_background_eval(&sd, state.wavelengths);
       break;
     }
     default: {
@@ -525,7 +525,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   /* evaluate */
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, path_flag | PATH_RAY_EMISSION);
-  float3 color = shader_background_eval(&sd);
+  float3 color = shader_background_eval(&sd, state.wavelengths);
 
   /* write output */
   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
