@@ -79,12 +79,12 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
     /* Evaluate closures. */
 #ifdef __BACKGROUND_MIS__
     if (ls->type == LIGHT_BACKGROUND) {
-      eval = shader_background_eval(emission_sd);
+      eval = shader_background_eval(emission_sd, state->wavelengths);
     }
     else
 #endif
     {
-      eval = shader_emissive_eval(emission_sd);
+      eval = shader_emissive_eval(emission_sd, state->wavelengths);
     }
   }
 
@@ -92,7 +92,8 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
 
   if (ls->lamp != LAMP_NONE) {
     const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
-    eval *= make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
+    float3 texture_lookup = make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
+    eval *= rec709_to_wavelength_intensities(texture_lookup, state->wavelengths);
   }
 
   return eval;
@@ -207,10 +208,10 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 /* Indirect Primitive Emission */
 
 ccl_device_noinline_cpu float3 indirect_primitive_emission(
-    KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf)
+    KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float3 wavelengths)
 {
   /* evaluate emissive closure */
-  float3 L = shader_emissive_eval(sd);
+  float3 L = shader_emissive_eval(sd, wavelengths);
 
 #ifdef __HAIR__
   if (!(path_flag & PATH_RAY_MIS_SKIP) && (sd->flag & SD_USE_MIS) &&
@@ -320,7 +321,7 @@ ccl_device_noinline_cpu float3 indirect_background(KernelGlobals *kg,
     shader_eval_surface(kg, emission_sd, state, buffer, state->flag | PATH_RAY_EMISSION);
     path_state_modify_bounce(state, false);
 
-    L = shader_background_eval(emission_sd);
+    L = shader_background_eval(emission_sd, state->wavelengths);
   }
 
   /* Background MIS weights. */

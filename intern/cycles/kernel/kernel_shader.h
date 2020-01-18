@@ -1022,10 +1022,11 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, flo
 
 /* Background */
 
-ccl_device float3 shader_background_eval(ShaderData *sd)
+ccl_device float3 shader_background_eval(ShaderData *sd, float3 wavelengths)
 {
   if (sd->flag & SD_EMISSION) {
-    return sd->closure_emission_background;
+    return rec709_to_wavelength_intensities(sd->closure_emission_background, wavelengths);
+    // return sd->closure_emission_background;
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);
@@ -1034,10 +1035,13 @@ ccl_device float3 shader_background_eval(ShaderData *sd)
 
 /* Emission */
 
-ccl_device float3 shader_emissive_eval(ShaderData *sd)
+ccl_device float3 shader_emissive_eval(ShaderData *sd, float3 wavelengths)
 {
   if (sd->flag & SD_EMISSION) {
-    return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;
+    return rec709_to_wavelength_intensities(
+      emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background,
+      wavelengths
+    );
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);
