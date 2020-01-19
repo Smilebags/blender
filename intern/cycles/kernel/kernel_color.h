@@ -600,7 +600,7 @@ ccl_device float3 get_d65_intensities(float3 wavelengths) {
     );
 }
 
-ccl_device float3 rec709_to_wavelength_intensities(float3 rgb, float3 wavelengths)
+ccl_device float3 linear_to_wavelength_intensities(float3 rgb, float3 wavelengths)
 {
     float4 rec709_wavelength_lookup[] = {
       make_float4(380.0, 0.021592459, 0.010542406, 0.967865135),
