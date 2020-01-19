@@ -584,7 +584,8 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
                                                const ShaderClosure *skip_sc,
                                                BsdfEval *result_eval,
                                                float sum_pdf,
-                                               float sum_sample_weight)
+                                               float sum_sample_weight,
+                                               float3 wavelengths)
 {
   /* this is the veach one-sample model with balance heuristic, some pdf
    * factors drop out when using balance heuristic weighting */
@@ -596,7 +597,12 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
       float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
-        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, 1.0f);
+        float3 wavelength_intensities = linear_to_wavelength_intensities(
+          eval * sc->weight,
+          wavelengths
+        );
+
+        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, 1.0f);
         sum_pdf += bsdf_pdf * sc->sample_weight;
       }
 
@@ -613,7 +619,8 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
                                                         const float3 omega_in,
                                                         BsdfEval *result_eval,
                                                         float light_pdf,
-                                                        bool use_mis)
+                                                        bool use_mis,
+                                                        float3 wavelengths)
 {
   for (int i = 0; i < sd->num_closure; i++) {
     const ShaderClosure *sc = &sd->closure[i];
@@ -621,8 +628,12 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
       float bsdf_pdf = 0.0f;
       float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
+        float3 wavelength_intensities = linear_to_wavelength_intensities(
+          eval * sc->weight,
+          wavelengths
+        );
         float mis_weight = use_mis ? power_heuristic(light_pdf, bsdf_pdf) : 1.0f;
-        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, mis_weight);
+        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, mis_weight);
       }
     }
   }
@@ -640,7 +651,8 @@ ccl_device_inline
                      const float3 omega_in,
                      BsdfEval *eval,
                      float light_pdf,
-                     bool use_mis)
+                     bool use_mis,
+                     float3 wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_CLOSURE_EVAL);
 
@@ -649,12 +661,12 @@ ccl_device_inline
 
 #ifdef __BRANCHED_PATH__
   if (kernel_data.integrator.branched)
-    _shader_bsdf_multi_eval_branched(kg, sd, omega_in, eval, light_pdf, use_mis);
+    _shader_bsdf_multi_eval_branched(kg, sd, omega_in, eval, light_pdf, use_mis, wavelengths);
   else
 #endif
   {
     float pdf;
-    _shader_bsdf_multi_eval(kg, sd, omega_in, &pdf, NULL, eval, 0.0f, 0.0f);
+    _shader_bsdf_multi_eval(kg, sd, omega_in, &pdf, NULL, eval, 0.0f, 0.0f, wavelengths);
     if (use_mis) {
       float weight = power_heuristic(light_pdf, pdf);
       bsdf_eval_mis(eval, weight);
@@ -770,7 +782,8 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
                                          BsdfEval *bsdf_eval,
                                          float3 *omega_in,
                                          differential3 *domega_in,
-                                         float *pdf)
+                                         float *pdf,
+                                         float3 wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_CLOSURE_SAMPLE);
 
@@ -794,7 +807,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
-      _shader_bsdf_multi_eval(kg, sd, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight);
+      _shader_bsdf_multi_eval(kg, sd, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight, wavelengths);
     }
   }
 
@@ -1036,7 +1049,7 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, flo
 ccl_device float3 shader_background_eval(ShaderData *sd, float3 wavelengths)
 {
   if (sd->flag & SD_EMISSION) {
-    return rec709_to_wavelength_intensities(sd->closure_emission_background, wavelengths);
+    return linear_to_wavelength_intensities(sd->closure_emission_background, wavelengths);
     // return sd->closure_emission_background;
   }
   else {
@@ -1049,7 +1062,7 @@ ccl_device float3 shader_background_eval(ShaderData *sd, float3 wavelengths)
 ccl_device float3 shader_emissive_eval(ShaderData *sd, float3 wavelengths)
 {
   if (sd->flag & SD_EMISSION) {
-    return rec709_to_wavelength_intensities(
+    return linear_to_wavelength_intensities(
       emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background,
       wavelengths
     );
