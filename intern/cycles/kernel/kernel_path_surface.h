@@ -288,7 +288,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
     int label;
 
     label = shader_bsdf_sample(
-        kg, sd, bsdf_u, bsdf_v, &bsdf_eval, &bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf);
+        kg, sd, bsdf_u, bsdf_v, &bsdf_eval, &bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf, state->wavelengths);
 
     if (bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
       return false;
