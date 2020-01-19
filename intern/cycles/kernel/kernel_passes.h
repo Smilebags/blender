@@ -355,8 +355,10 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
     sum_x_xyz.z + sum_y_xyz.z + sum_z_xyz.z
   );
 
+  float3 linear_sum = xyz_to_rgb(kg, xyz_sum);
+
   if (kernel_data.film.pass_flag & PASSMASK(COMBINED)) {
-    kernel_write_pass_float4(buffer, make_float4(xyz_sum.x, xyz_sum.y, xyz_sum.z, alpha));
+    kernel_write_pass_float4(buffer, make_float4(linear_sum.x, linear_sum.y, linear_sum.z,  alpha));
   }
 
   kernel_write_light_passes(kg, buffer, L);
