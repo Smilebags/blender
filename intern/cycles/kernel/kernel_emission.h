@@ -93,7 +93,7 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
   if (ls->lamp != LAMP_NONE) {
     const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
     float3 texture_lookup = make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
-    eval *= rec709_to_wavelength_intensities(texture_lookup, state->wavelengths);
+    eval *= linear_to_wavelength_intensities(texture_lookup, state->wavelengths);
   }
 
   return eval;
@@ -127,7 +127,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
 #ifdef __VOLUME__
   if (sd->prim != PRIM_NONE)
-    shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
+    shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
   else {
     float bsdf_pdf;
     shader_volume_phase_eval(kg, sd, ls->D, eval, &bsdf_pdf);
@@ -138,7 +138,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
     }
   }
 #else
-  shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
+  shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
 #endif
 
   bsdf_eval_mul3(eval, light_eval / ls->pdf);
