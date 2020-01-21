@@ -79,24 +79,22 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
     /* Evaluate closures. */
 #ifdef __BACKGROUND_MIS__
     if (ls->type == LIGHT_BACKGROUND) {
-      eval = shader_background_eval(emission_sd, state->wavelengths);
+      eval = shader_background_eval(emission_sd);
     }
     else
 #endif
     {
-      eval = shader_emissive_eval(emission_sd, state->wavelengths);
+      eval = shader_emissive_eval(emission_sd);
     }
   }
-
   eval *= ls->eval_fac;
 
   if (ls->lamp != LAMP_NONE) {
     const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
-    float3 texture_lookup = make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
-    eval *= linear_to_wavelength_intensities(texture_lookup, state->wavelengths);
+    eval *= make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
   }
 
-  return eval;
+  return linear_to_wavelength_intensities(eval, state->wavelengths);
 }
 
 ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
@@ -211,7 +209,7 @@ ccl_device_noinline_cpu float3 indirect_primitive_emission(
     KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float3 wavelengths)
 {
   /* evaluate emissive closure */
-  float3 L = shader_emissive_eval(sd, wavelengths);
+  float3 L = shader_emissive_eval(sd);
 
 #ifdef __HAIR__
   if (!(path_flag & PATH_RAY_MIS_SKIP) && (sd->flag & SD_USE_MIS) &&
@@ -225,10 +223,10 @@ ccl_device_noinline_cpu float3 indirect_primitive_emission(
     float pdf = triangle_light_pdf(kg, sd, t);
     float mis_weight = power_heuristic(bsdf_pdf, pdf);
 
-    return L * mis_weight;
+    L *= mis_weight;
   }
 
-  return L;
+  return linear_to_wavelength_intensities(L, wavelengths);
 }
 
 /* Indirect Lamp Emission */
@@ -321,7 +319,7 @@ ccl_device_noinline_cpu float3 indirect_background(KernelGlobals *kg,
     shader_eval_surface(kg, emission_sd, state, buffer, state->flag | PATH_RAY_EMISSION);
     path_state_modify_bounce(state, false);
 
-    L = shader_background_eval(emission_sd, state->wavelengths);
+    L = shader_background_eval(emission_sd);
   }
 
   /* Background MIS weights. */
@@ -335,11 +333,11 @@ ccl_device_noinline_cpu float3 indirect_background(KernelGlobals *kg,
     float pdf = background_light_pdf(kg, ray->P, ray->D);
     float mis_weight = power_heuristic(state->ray_pdf, pdf);
 
-    return L * mis_weight;
+    L *= mis_weight;
   }
 #  endif
 
-  return L;
+  return linear_to_wavelength_intensities(L, state->wavelengths);
 #else
   return make_float3(0.8f, 0.8f, 0.8f);
 #endif
