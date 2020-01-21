@@ -803,7 +803,8 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
+    float3 wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
@@ -822,7 +823,8 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
                                           BsdfEval *bsdf_eval,
                                           float3 *omega_in,
                                           differential3 *domega_in,
-                                          float *pdf)
+                                          float *pdf,
+                                          float3 wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_CLOSURE_SAMPLE);
 
@@ -832,8 +834,10 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   *pdf = 0.0f;
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
-  if (*pdf != 0.0f)
-    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
+  if (*pdf != 0.0f) {
+    float3 wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
+  }
 
   return label;
 }
@@ -1046,11 +1050,10 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, flo
 
 /* Background */
 
-ccl_device float3 shader_background_eval(ShaderData *sd, float3 wavelengths)
+ccl_device float3 shader_background_eval(ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
-    return linear_to_wavelength_intensities(sd->closure_emission_background, wavelengths);
-    // return sd->closure_emission_background;
+    return sd->closure_emission_background;
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);
@@ -1059,13 +1062,10 @@ ccl_device float3 shader_background_eval(ShaderData *sd, float3 wavelengths)
 
 /* Emission */
 
-ccl_device float3 shader_emissive_eval(ShaderData *sd, float3 wavelengths)
+ccl_device float3 shader_emissive_eval(ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
-    return linear_to_wavelength_intensities(
-      emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background,
-      wavelengths
-    );
+      return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);
