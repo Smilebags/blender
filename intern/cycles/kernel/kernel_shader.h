@@ -597,7 +597,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
       float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
-        float3 wavelength_intensities = linear_to_wavelength_intensities(
+        SpectralColor wavelength_intensities = linear_to_wavelength_intensities(
           eval * sc->weight,
           wavelengths
         );
@@ -628,7 +628,7 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
       float bsdf_pdf = 0.0f;
       float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
-        float3 wavelength_intensities = linear_to_wavelength_intensities(
+        SpectralColor wavelength_intensities = linear_to_wavelength_intensities(
           eval * sc->weight,
           wavelengths
         );
@@ -803,7 +803,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    float3 wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    SpectralColor wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
     bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
@@ -835,7 +835,7 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    float3 wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    SpectralColor wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
     bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
   }
 

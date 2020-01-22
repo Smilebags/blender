@@ -484,6 +484,9 @@ typedef struct DebugData {
 } DebugData;
 #endif
 
+typedef float3 SpectralColor;
+typedef float3 SceneLinearColor;
+
 typedef ccl_addr_space struct PathRadianceState {
 #ifdef __PASSES__
   float3 diffuse;
@@ -502,30 +505,30 @@ typedef ccl_addr_space struct PathRadiance {
 #endif
 
   float transparent;
-  float3 emission;
+  SceneLinearColor emission;
 #ifdef __PASSES__
-  float3 background;
-  float3 ao;
+  SceneLinearColor background;
+  SceneLinearColor ao;
 
-  float3 indirect;
-  float3 direct_emission;
+  SceneLinearColor indirect;
+  SceneLinearColor direct_emission;
 
-  float3 color_diffuse;
-  float3 color_glossy;
-  float3 color_transmission;
-  float3 color_subsurface;
+  SceneLinearColor color_diffuse;
+  SceneLinearColor color_glossy;
+  SceneLinearColor color_transmission;
+  SceneLinearColor color_subsurface;
 
-  float3 direct_diffuse;
-  float3 direct_glossy;
-  float3 direct_transmission;
-  float3 direct_subsurface;
-  float3 direct_scatter;
+  SceneLinearColor direct_diffuse;
+  SceneLinearColor direct_glossy;
+  SceneLinearColor direct_transmission;
+  SceneLinearColor direct_subsurface;
+  SceneLinearColor direct_scatter;
 
-  float3 indirect_diffuse;
-  float3 indirect_glossy;
-  float3 indirect_transmission;
-  float3 indirect_subsurface;
-  float3 indirect_scatter;
+  SceneLinearColor indirect_diffuse;
+  SceneLinearColor indirect_glossy;
+  SceneLinearColor indirect_transmission;
+  SceneLinearColor indirect_subsurface;
+  SceneLinearColor indirect_scatter;
 
   float4 shadow;
   float mist;
@@ -560,7 +563,7 @@ typedef ccl_addr_space struct PathRadiance {
 
 #ifdef __DENOISING_FEATURES__
   float3 denoising_normal;
-  float3 denoising_albedo;
+  SceneLinearColor denoising_albedo;
   float denoising_depth;
 #endif /* __DENOISING_FEATURES__ */
 
@@ -574,13 +577,13 @@ typedef struct BsdfEval {
   int use_light_pass;
 #endif
 
-  float3 diffuse;
+  SpectralColor diffuse;
 #ifdef __PASSES__
-  float3 glossy;
-  float3 transmission;
-  float3 transparent;
-  float3 subsurface;
-  float3 scatter;
+  SpectralColor glossy;
+  SpectralColor transmission;
+  SpectralColor transparent;
+  SpectralColor subsurface;
+  SpectralColor scatter;
 #endif
 #ifdef __SHADOW_TRICKS__
   float3 sum_no_mis;
