@@ -346,16 +346,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
 
   float alpha;
   float3 L_sum = path_radiance_clamp_and_sum(kg, L, &alpha);
-  float3 sum_x_xyz = wavelength_to_xyz(wavelengths.x) * L_sum.x;
-  float3 sum_y_xyz = wavelength_to_xyz(wavelengths.y) * L_sum.y;
-  float3 sum_z_xyz = wavelength_to_xyz(wavelengths.z) * L_sum.z;
-  float3 xyz_sum = make_float3(
-    sum_x_xyz.x + sum_y_xyz.x + sum_z_xyz.x,
-    sum_x_xyz.y + sum_y_xyz.y + sum_z_xyz.y,
-    sum_x_xyz.z + sum_y_xyz.z + sum_z_xyz.z
-  );
-
-  float3 linear_sum = xyz_to_rgb(kg, xyz_sum);
+  float3 linear_sum = wavelength_intensities_to_linear(kg, L_sum, wavelengths);
 
   if (kernel_data.film.pass_flag & PASSMASK(COMBINED)) {
     kernel_write_pass_float4(buffer, make_float4(linear_sum.x, linear_sum.y, linear_sum.z,  alpha));
