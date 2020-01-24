@@ -460,8 +460,7 @@ ccl_device float3 wavelength_intensities_to_linear(KernelGlobals *kg, float3 int
     float3 sum_z_xyz = wavelength_to_xyz(wavelengths.z) * intensities.z;
     float3 xyz_sum = sum_x_xyz + sum_y_xyz + sum_z_xyz;
 
-    // TODO: Fix white point correction in a proper way
-    return  xyz_sum;
+    return xyz_to_rgb(kg, xyz_sum);
 }
 
 ccl_device float3 find_position_in_lookup(float4 lookup[], float wavelength)
