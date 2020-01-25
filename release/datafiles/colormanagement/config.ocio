@@ -2,7 +2,7 @@ ocio_profile_version: 1
 
 search_path: LUTs
 strictparsing: true
-luma: [0.241114, 0.711634, 0.0543562]
+luma: [0.256225, 0.678179, 0.0655957]
 
 roles:
   color_picking: sRGB Colourspace
@@ -11,10 +11,10 @@ roles:
   data: Float Data
   default: sRGB Colourspace
   matte_paint: sRGB Colourspace
-  reference: Linear XYZ
-  scene_linear: Linear XYZ
+  reference: Linear
+  scene_linear: Linear
   texture_paint: sRGB Colourspace
-  xyz: sRGB Linear RGB
+  xyz: Linear XYZ IE
 
 displays:
   sRGB Display:
@@ -26,12 +26,12 @@ active_views: [sRGB CCTF, sRGB Colourspace]
 
 colorspaces:
   - !<ColorSpace>
-    name: Linear XYZ
+    name: Linear
     family: Colourspace
     equalitygroup: ""
     bitdepth: 32f
     description: |
-      Linear XYZ
+      Linear BT.709 based reference with illuminant E based white point
     isdata: false
     allocation: lg2
     allocationvars: [-12.4739, 12.5261]
@@ -49,10 +49,10 @@ colorspaces:
     to_reference: !<GroupTransform>
       children:
         - !<FileTransform> {src: sRGB_CCTF_to_Linear.spi1d, interpolation: nearest}
-        - !<MatrixTransform> {matrix: [0.88283, 0.114514, 0.00280126, 0, -0.00768098, 1.00783, -0.000193933, 0, -0.00285913, -0.00917985, 1.01198, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1]}
     from_reference: !<GroupTransform>
       children:
-        - !<MatrixTransform> {matrix: [0.88283, 0.114514, 0.00280126, 0, -0.00768098, 1.00783, -0.000193933, 0, -0.00285913, -0.00917985, 1.01198, 0, 0, 0, 0, 1], direction: inverse}
+        - !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1], direction: inverse}
         - !<FileTransform> {src: sRGB_Linear_to_CCTF.spi1d, interpolation: nearest}
 
   - !<ColorSpace>
@@ -68,24 +68,37 @@ colorspaces:
     to_reference: !<GroupTransform>
       children:
         - !<ExponentTransform> {value: [2.2, 2.2, 2.2, 1]}
-        - !<MatrixTransform> {matrix: [0.88283, 0.114514, 0.00280126, 0, -0.00768098, 1.00783, -0.000193933, 0, -0.00285913, -0.00917985, 1.01198, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1]}
     from_reference: !<GroupTransform>
       children:
-        - !<MatrixTransform> {matrix: [0.88283, 0.114514, 0.00280126, 0, -0.00768098, 1.00783, -0.000193933, 0, -0.00285913, -0.00917985, 1.01198, 0, 0, 0, 0, 1], direction: inverse}
+        - !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1], direction: inverse}
         - !<ExponentTransform> {value: [2.2, 2.2, 2.2, 1], direction: inverse}
 
   - !<ColorSpace>
-    name: sRGB Linear RGB
+    name: sRGB Linear
     family: Chromaticity
     equalitygroup: ""
     bitdepth: 32f
     description: |
-      sRGB IEC 61966-2-1 Linear RGB
+      sRGB IEC 61966-2-1 primaries with linear transfer function
     isdata: false
     allocation: lg2
     allocationvars: [-12.4739, 12.5261]
-    to_reference: !<MatrixTransform> {matrix: [0.437631, 0.368275, 0.152679, 0, 0.241114, 0.711634, 0.0543562, 0, 0.0227557, 0.117002, 0.872653, 0, 0, 0, 0, 1]}
-    from_reference: !<MatrixTransform> {matrix: [0.437631, 0.368275, 0.152679, 0, 0.241114, 0.711634, 0.0543562, 0, 0.0227557, 0.117002, 0.872653, 0, 0, 0, 0, 1], direction: inverse}
+    to_reference: !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1]}
+    from_reference: !<MatrixTransform> {matrix: [0.882747, 0.114509, 0.00274331, 0, -0.00759616, 1.00778, -0.000187851, 0, -0.00283521, -0.00917944, 1.01201, 0, 0, 0, 0, 1], direction: inverse}
+
+  - !<ColorSpace>
+    name: Linear XYZ IE
+    family: Chromaticity
+    equalitygroup: ""
+    bitdepth: 32f
+    description: |
+      XYZ transform with assumed IE white point
+    isdata: false
+    allocation: lg2
+    allocationvars: [-12.4739, 12.5261]
+    to_reference: !<MatrixTransform> {matrix: [0.496921, 0.33909, 0.163989, 0, 0.256225, 0.678179, 0.0655957, 0, 0.0232932, 0.11303, 0.863677, 0, 0, 0, 0, 1], direction: inverse}
+    from_reference: !<MatrixTransform> {matrix: [0.496921, 0.33909, 0.163989, 0, 0.256225, 0.678179, 0.0655957, 0, 0.0232932, 0.11303, 0.863677, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: Float Data
