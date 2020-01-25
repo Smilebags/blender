@@ -411,23 +411,33 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
       float3 noisy, clean;
       path_radiance_split_denoising(kg, L, &noisy, &clean);
       kernel_write_pass_float3_variance(
-          buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR, noisy);
-      kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean, clean);
+        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+        wavelength_intensities_to_linear(kg, noisy, wavelengths)
+      );
+      kernel_write_pass_float3_unaligned(
+        buffer + kernel_data.film.pass_denoising_clean,
+        wavelength_intensities_to_linear(kg, clean, wavelengths)
+      );
     }
     else {
-      kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
-                                            DENOISING_PASS_COLOR,
-                                        ensure_finite3(L_sum));
+      kernel_write_pass_float3_variance(
+        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+        wavelength_intensities_to_linear(kg, ensure_finite3(L_sum), wavelengths)
+      );
     }
 
-    kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
-                                          DENOISING_PASS_NORMAL,
-                                      L->denoising_normal);
-    kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
-                                          DENOISING_PASS_ALBEDO,
-                                      L->denoising_albedo);
+    kernel_write_pass_float3_variance(
+      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
+      L->denoising_normal
+    );
+    kernel_write_pass_float3_variance(
+      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_ALBEDO,
+      wavelength_intensities_to_linear(kg, L->denoising_albedo, wavelengths)
+    );
     kernel_write_pass_float_variance(
-        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH, L->denoising_depth);
+      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH,
+      L->denoising_depth
+    );
   }
 #endif /* __DENOISING_FEATURES__ */
 
