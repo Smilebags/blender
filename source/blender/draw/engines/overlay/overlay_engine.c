@@ -74,7 +74,7 @@ static void OVERLAY_engine_init(void *vedata)
   }
 
   pd->wireframe_mode = (v3d->shading.type == OB_WIRE);
-  pd->clipping_state = (rv3d->rflag & RV3D_CLIPPING) ? DRW_STATE_CLIP_PLANES : 0;
+  pd->clipping_state = RV3D_CLIPPING_ENABLED(v3d, rv3d) ? DRW_STATE_CLIP_PLANES : 0;
   pd->xray_enabled = XRAY_ACTIVE(v3d);
   pd->xray_enabled_and_not_wire = pd->xray_enabled && v3d->shading.type > OB_WIRE;
   pd->clear_in_front = (v3d->shading.type != OB_SOLID);
@@ -177,6 +177,30 @@ BLI_INLINE OVERLAY_DupliData *OVERLAY_duplidata_get(Object *ob, void *vedata, bo
   return NULL;
 }
 
+static bool overlay_object_is_edit_mode(const OVERLAY_PrivateData *pd, const Object *ob)
+{
+  if ((ob->mode & OB_MODE_EDIT) && BKE_object_is_in_editmode(ob)) {
+    /* Also check for context mode as the object mode is not 100% reliable. (see T72490) */
+    switch (ob->type) {
+      case OB_MESH:
+        return pd->ctx_mode == CTX_MODE_EDIT_MESH;
+      case OB_ARMATURE:
+        return pd->ctx_mode == CTX_MODE_EDIT_ARMATURE;
+      case OB_CURVE:
+        return pd->ctx_mode == CTX_MODE_EDIT_CURVE;
+      case OB_SURF:
+        return pd->ctx_mode == CTX_MODE_EDIT_SURFACE;
+      case OB_LATTICE:
+        return pd->ctx_mode == CTX_MODE_EDIT_LATTICE;
+      case OB_MBALL:
+        return pd->ctx_mode == CTX_MODE_EDIT_METABALL;
+      case OB_FONT:
+        return pd->ctx_mode == CTX_MODE_EDIT_TEXT;
+    }
+  }
+  return false;
+}
+
 static void OVERLAY_cache_populate(void *vedata, Object *ob)
 {
   OVERLAY_Data *data = vedata;
@@ -185,7 +209,7 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
   const bool is_select = DRW_state_is_select();
   const bool renderable = DRW_object_is_renderable(ob);
   const bool in_pose_mode = ob->type == OB_ARMATURE && OVERLAY_armature_is_pose_mode(ob, draw_ctx);
-  const bool in_edit_mode = BKE_object_is_in_editmode(ob);
+  const bool in_edit_mode = overlay_object_is_edit_mode(pd, ob);
   const bool in_particle_edit_mode = ob->mode == OB_MODE_PARTICLE_EDIT;
   const bool in_paint_mode = (ob == draw_ctx->obact) &&
                              (draw_ctx->object_mode & OB_MODE_ALL_PAINT);
@@ -202,9 +226,10 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
   const bool draw_bone_selection = (ob->type == OB_MESH) && pd->armature.do_pose_fade_geom &&
                                    !is_select;
   const bool draw_extras =
-      ((pd->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_XTRAS) == 0) ||
-      /* Show if this is the camera we're looking through since it's useful for selecting. */
-      ((draw_ctx->rv3d->persp == RV3D_CAMOB) && ((ID *)draw_ctx->v3d->camera == ob->id.orig_id));
+      (!pd->hide_overlays) &&
+      (((pd->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_XTRAS) == 0) ||
+       /* Show if this is the camera we're looking through since it's useful for selecting. */
+       ((draw_ctx->rv3d->persp == RV3D_CAMOB) && ((ID *)draw_ctx->v3d->camera == ob->id.orig_id)));
 
   const bool draw_motion_paths = (pd->overlay.flag & V3D_OVERLAY_HIDE_MOTION_PATHS) == 0;
 
@@ -224,7 +249,7 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
     OVERLAY_pose_cache_populate(vedata, ob);
   }
 
-  if (in_edit_mode) {
+  if (in_edit_mode && !pd->hide_overlays) {
     switch (ob->type) {
       case OB_MESH:
         OVERLAY_edit_mesh_cache_populate(vedata, ob);
@@ -281,20 +306,22 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
     OVERLAY_motion_path_cache_populate(vedata, ob);
   }
 
-  switch (ob->type) {
-    case OB_ARMATURE:
-      if (draw_bones && (is_select || (!in_edit_mode && !in_pose_mode))) {
-        OVERLAY_armature_cache_populate(vedata, ob);
-      }
-      break;
-    case OB_MBALL:
-      if (!in_edit_mode) {
-        OVERLAY_metaball_cache_populate(vedata, ob);
-      }
-      break;
-    case OB_GPENCIL:
-      OVERLAY_gpencil_cache_populate(vedata, ob);
-      break;
+  if (!pd->hide_overlays) {
+    switch (ob->type) {
+      case OB_ARMATURE:
+        if (draw_bones && (is_select || (!in_edit_mode && !in_pose_mode))) {
+          OVERLAY_armature_cache_populate(vedata, ob);
+        }
+        break;
+      case OB_MBALL:
+        if (!in_edit_mode) {
+          OVERLAY_metaball_cache_populate(vedata, ob);
+        }
+        break;
+      case OB_GPENCIL:
+        OVERLAY_gpencil_cache_populate(vedata, ob);
+        break;
+    }
   }
   /* Non-Meshes */
   if (draw_extras) {
@@ -375,6 +402,7 @@ static void OVERLAY_draw_scene(void *vedata)
 
   OVERLAY_image_draw(vedata);
   OVERLAY_facing_draw(vedata);
+  OVERLAY_extra_blend_draw(vedata);
 
   if (DRW_state_is_fbo()) {
     GPU_framebuffer_bind(fbl->overlay_line_fb);
@@ -408,6 +436,11 @@ static void OVERLAY_draw_scene(void *vedata)
   OVERLAY_image_in_front_draw(vedata);
   OVERLAY_motion_path_draw(vedata);
   OVERLAY_extra_centers_draw(vedata);
+
+  if (DRW_state_is_select()) {
+    /* Edit modes have their own selection code. */
+    return;
+  }
 
   /* Functions after this point can change FBO freely. */
 

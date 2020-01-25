@@ -70,8 +70,8 @@ class NLA_MT_editor_menus(Menu):
     bl_idname = "NLA_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, _context):
-        st = _context.space_data
+    def draw(self, context):
+        st = context.space_data
         layout = self.layout
         layout.menu("NLA_MT_view")
         layout.menu("NLA_MT_select")
@@ -167,6 +167,7 @@ class NLA_MT_edit(Menu):
         layout.operator("nla.duplicate", text="Linked Duplicate").linked = True
         layout.operator("nla.split")
         layout.operator("nla.delete")
+        layout.operator("nla.tracks_delete")
 
         layout.separator()
         layout.operator("nla.mute_toggle")

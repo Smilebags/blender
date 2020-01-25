@@ -164,8 +164,8 @@ static void eevee_cache_finish(void *vedata)
 
   uint tot_samples = scene_eval->eevee.taa_render_samples;
   if (tot_samples == 0) {
-    /* use a high number of samples so the outputs accum buffers
-     * will have the highest possible precision */
+    /* Use a high number of samples so the outputs accumulation buffers
+     * will have the highest possible precision. */
     tot_samples = 1024;
   }
   EEVEE_renderpasses_output_init(sldata, vedata, tot_samples);
@@ -229,8 +229,10 @@ static void eevee_draw_background(void *vedata)
     /* Copy previous persmat to UBO data */
     copy_m4_m4(sldata->common_data.prev_persmat, stl->effects->prev_persmat);
 
-    /* Refresh Probes */
+    /* Refresh Probes
+     * Shadows needs to be updated for correct probes */
     DRW_stats_group_start("Probes Refresh");
+    EEVEE_shadows_update(sldata, vedata);
     EEVEE_lightprobes_refresh(sldata, vedata);
     EEVEE_lightprobes_refresh_planar(sldata, vedata);
     DRW_stats_group_end();

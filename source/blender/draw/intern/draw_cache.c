@@ -68,6 +68,12 @@ typedef struct Vert {
   int class;
 } Vert;
 
+typedef struct VertShaded {
+  float pos[3];
+  int class;
+  float nor[3];
+} VertShaded;
+
 /* Batch's only (free'd as an array) */
 static struct DRWShapeCache {
   GPUBatch *drw_procedural_verts;
@@ -471,7 +477,7 @@ static void sphere_lat_lon_vert(GPUVertBuf *vbo, int *v_ofs, float lat, float lo
   float x = sinf(lat) * cosf(lon);
   float y = cosf(lat);
   float z = sinf(lat) * sinf(lon);
-  GPU_vertbuf_vert_set(vbo, *v_ofs, &(Vert){{x, y, z}, VCLASS_EMPTY_SCALED});
+  GPU_vertbuf_vert_set(vbo, *v_ofs, &(VertShaded){{x, y, z}, VCLASS_EMPTY_SCALED, {x, y, z}});
   (*v_ofs)++;
 }
 
@@ -482,6 +488,8 @@ GPUBatch *DRW_cache_sphere_get(void)
     const int lon_res = 24;
 
     GPUVertFormat format = extra_vert_format();
+    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+
     GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
     int v_len = (lat_res - 1) * lon_res * 6;
     GPU_vertbuf_data_alloc(vbo, v_len);
@@ -818,25 +826,11 @@ GPUBatch *DRW_cache_object_surface_get(Object *ob)
 
 GPUBatch **DRW_cache_object_surface_material_get(struct Object *ob,
                                                  struct GPUMaterial **gpumat_array,
-                                                 uint gpumat_array_len,
-                                                 char **auto_layer_names,
-                                                 int **auto_layer_is_srgb,
-                                                 int *auto_layer_count)
+                                                 uint gpumat_array_len)
 {
-  if (auto_layer_names != NULL) {
-    *auto_layer_names = NULL;
-    *auto_layer_is_srgb = NULL;
-    *auto_layer_count = 0;
-  }
-
   switch (ob->type) {
     case OB_MESH:
-      return DRW_cache_mesh_surface_shaded_get(ob,
-                                               gpumat_array,
-                                               gpumat_array_len,
-                                               auto_layer_names,
-                                               auto_layer_is_srgb,
-                                               auto_layer_count);
+      return DRW_cache_mesh_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
     case OB_CURVE:
       return DRW_cache_curve_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
     case OB_SURF:
@@ -1214,10 +1208,11 @@ GPUBatch *DRW_cache_field_curve_get(void)
 GPUBatch *DRW_cache_field_tube_limit_get(void)
 {
 #define CIRCLE_RESOL 32
+#define SIDE_STIPPLE 32
   if (!SHC.drw_field_tube_limit) {
     GPUVertFormat format = extra_vert_format();
 
-    int v_len = 2 * (CIRCLE_RESOL * 2 + 4);
+    int v_len = 2 * (CIRCLE_RESOL * 2 + 4 * SIDE_STIPPLE / 2);
     GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
     GPU_vertbuf_data_alloc(vbo, v_len);
 
@@ -1225,14 +1220,14 @@ GPUBatch *DRW_cache_field_tube_limit_get(void)
     int flag = VCLASS_EMPTY_SIZE;
     /* Caps */
     for (int i = 0; i < 2; i++) {
-      float z = (float)i * 2.0f - 1.0f;
-      circle_verts(vbo, &v, CIRCLE_RESOL, 1.0f, z, flag);
+      float z = i * 2.0f - 1.0f;
+      circle_dashed_verts(vbo, &v, CIRCLE_RESOL, 1.0f, z, flag);
     }
     /* Side Edges */
     for (int a = 0; a < 4; a++) {
-      for (int i = 0; i < 2; i++) {
-        float z = (float)i * 2.0f - 1.0f;
-        float angle = (2.0f * M_PI * a) / 4.0f;
+      float angle = (2.0f * M_PI * a) / 4.0f;
+      for (int i = 0; i < SIDE_STIPPLE; i++) {
+        float z = (i / (float)SIDE_STIPPLE) * 2.0f - 1.0f;
         GPU_vertbuf_vert_set(vbo, v++, &(Vert){{sinf(angle), cosf(angle), z}, flag});
       }
     }
@@ -1240,16 +1235,18 @@ GPUBatch *DRW_cache_field_tube_limit_get(void)
     SHC.drw_field_tube_limit = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, NULL, GPU_BATCH_OWNS_VBO);
   }
   return SHC.drw_field_tube_limit;
+#undef SIDE_STIPPLE
 #undef CIRCLE_RESOL
 }
 
 GPUBatch *DRW_cache_field_cone_limit_get(void)
 {
 #define CIRCLE_RESOL 32
+#define SIDE_STIPPLE 32
   if (!SHC.drw_field_cone_limit) {
     GPUVertFormat format = extra_vert_format();
 
-    int v_len = 2 * (CIRCLE_RESOL * 2 + 4);
+    int v_len = 2 * (CIRCLE_RESOL * 2 + 4 * SIDE_STIPPLE / 2);
     GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
     GPU_vertbuf_data_alloc(vbo, v_len);
 
@@ -1257,14 +1254,14 @@ GPUBatch *DRW_cache_field_cone_limit_get(void)
     int flag = VCLASS_EMPTY_SIZE;
     /* Caps */
     for (int i = 0; i < 2; i++) {
-      float z = (float)i * 2.0f - 1.0f;
-      circle_verts(vbo, &v, CIRCLE_RESOL, 1.0f, z, flag);
+      float z = i * 2.0f - 1.0f;
+      circle_dashed_verts(vbo, &v, CIRCLE_RESOL, 1.0f, z, flag);
     }
     /* Side Edges */
     for (int a = 0; a < 4; a++) {
-      for (int i = 0; i < 2; i++) {
-        float z = (float)i * 2.0f - 1.0f;
-        float angle = (2.0f * M_PI * a) / 4.0f;
+      float angle = (2.0f * M_PI * a) / 4.0f;
+      for (int i = 0; i < SIDE_STIPPLE; i++) {
+        float z = (i / (float)SIDE_STIPPLE) * 2.0f - 1.0f;
         GPU_vertbuf_vert_set(vbo, v++, &(Vert){{sinf(angle) * z, cosf(angle) * z, z}, flag});
       }
     }
@@ -1272,6 +1269,7 @@ GPUBatch *DRW_cache_field_cone_limit_get(void)
     SHC.drw_field_cone_limit = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, NULL, GPU_BATCH_OWNS_VBO);
   }
   return SHC.drw_field_cone_limit;
+#undef SIDE_STIPPLE
 #undef CIRCLE_RESOL
 }
 
@@ -1628,44 +1626,51 @@ GPUBatch *DRW_cache_speaker_get(void)
 GPUBatch *DRW_cache_lightprobe_cube_get(void)
 {
   if (!SHC.drw_lightprobe_cube) {
-    int v_idx = 0;
+    GPUVertFormat format = extra_vert_format();
+
+    int v_len = (6 + 3 + (1 + 2 * DIAMOND_NSEGMENTS) * 6) * 2;
+    GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+    GPU_vertbuf_data_alloc(vbo, v_len);
+
+    const float r = 14.0f;
+    int v = 0;
+    int flag = VCLASS_SCREENSPACE;
+    /* Icon */
     const float sin_pi_3 = 0.86602540378f;
     const float cos_pi_3 = 0.5f;
-    const float v[7][3] = {
-        {0.0f, 1.0f, 0.0f},
-        {sin_pi_3, cos_pi_3, 0.0f},
-        {sin_pi_3, -cos_pi_3, 0.0f},
-        {0.0f, -1.0f, 0.0f},
-        {-sin_pi_3, -cos_pi_3, 0.0f},
-        {-sin_pi_3, cos_pi_3, 0.0f},
-        {0.0f, 0.0f, 0.0f},
+    const float p[7][2] = {
+        {0.0f, 1.0f},
+        {sin_pi_3, cos_pi_3},
+        {sin_pi_3, -cos_pi_3},
+        {0.0f, -1.0f},
+        {-sin_pi_3, -cos_pi_3},
+        {-sin_pi_3, cos_pi_3},
+        {0.0f, 0.0f},
     };
-
-    /* Position Only 3D format */
-    static GPUVertFormat format = {0};
-    static struct {
-      uint pos;
-    } attr_id;
-    if (format.attr_len == 0) {
-      attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    }
-
-    GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-    GPU_vertbuf_data_alloc(vbo, (6 + 3) * 2);
-
     for (int i = 0; i < 6; i++) {
-      GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[i]);
-      GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[(i + 1) % 6]);
+      float t1[2], t2[2];
+      copy_v2_v2(t1, p[i]);
+      copy_v2_v2(t2, p[(i + 1) % 6]);
+      GPU_vertbuf_vert_set(vbo, v++, &(Vert){{t1[0] * r, t1[1] * r, 0.0f}, flag});
+      GPU_vertbuf_vert_set(vbo, v++, &(Vert){{t2[0] * r, t2[1] * r, 0.0f}, flag});
     }
-
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[1]);
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
-
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[5]);
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
-
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[3]);
-    GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[1][0] * r, p[1][1] * r, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[6][0] * r, p[6][1] * r, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[5][0] * r, p[5][1] * r, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[6][0] * r, p[6][1] * r, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[3][0] * r, p[3][1] * r, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, &(Vert){{p[6][0] * r, p[6][1] * r, 0.0f}, flag});
+    /* Direction Lines */
+    flag = VCLASS_LIGHT_DIST | VCLASS_SCREENSPACE;
+    for (int i = 0; i < 6; i++) {
+      char axes[] = "zZyYxX";
+      float zsta = light_distance_z_get(axes[i], true);
+      float zend = light_distance_z_get(axes[i], false);
+      GPU_vertbuf_vert_set(vbo, v++, &(Vert){{0.0f, 0.0f, zsta}, flag});
+      GPU_vertbuf_vert_set(vbo, v++, &(Vert){{0.0f, 0.0f, zend}, flag});
+      circle_verts(vbo, &v, DIAMOND_NSEGMENTS, 1.2f, zsta, flag);
+      circle_verts(vbo, &v, DIAMOND_NSEGMENTS, 1.2f, zend, flag);
+    }
 
     SHC.drw_lightprobe_cube = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, NULL, GPU_BATCH_OWNS_VBO);
   }
@@ -2718,18 +2723,10 @@ GPUBatch *DRW_cache_mesh_surface_edges_get(Object *ob)
 /* Return list of batches with length equal to max(1, totcol). */
 GPUBatch **DRW_cache_mesh_surface_shaded_get(Object *ob,
                                              struct GPUMaterial **gpumat_array,
-                                             uint gpumat_array_len,
-                                             char **auto_layer_names,
-                                             int **auto_layer_is_srgb,
-                                             int *auto_layer_count)
+                                             uint gpumat_array_len)
 {
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_shaded(ob->data,
-                                                 gpumat_array,
-                                                 gpumat_array_len,
-                                                 auto_layer_names,
-                                                 auto_layer_is_srgb,
-                                                 auto_layer_count);
+  return DRW_mesh_batch_cache_get_surface_shaded(ob->data, gpumat_array, gpumat_array_len);
 }
 
 /* Return list of batches with length equal to max(1, totcol). */
@@ -2880,8 +2877,7 @@ GPUBatch **DRW_cache_curve_surface_shaded_get(Object *ob,
   struct Curve *cu = ob->data;
   struct Mesh *mesh_eval = ob->runtime.mesh_eval;
   if (mesh_eval != NULL) {
-    return DRW_mesh_batch_cache_get_surface_shaded(
-        mesh_eval, gpumat_array, gpumat_array_len, NULL, NULL, NULL);
+    return DRW_mesh_batch_cache_get_surface_shaded(mesh_eval, gpumat_array, gpumat_array_len);
   }
   else {
     return DRW_curve_batch_cache_get_surface_shaded(cu, gpumat_array, gpumat_array_len);
@@ -3021,8 +3017,7 @@ GPUBatch **DRW_cache_text_surface_shaded_get(Object *ob,
     return NULL;
   }
   if (mesh_eval != NULL) {
-    return DRW_mesh_batch_cache_get_surface_shaded(
-        mesh_eval, gpumat_array, gpumat_array_len, NULL, NULL, NULL);
+    return DRW_mesh_batch_cache_get_surface_shaded(mesh_eval, gpumat_array, gpumat_array_len);
   }
   else {
     return DRW_curve_batch_cache_get_surface_shaded(cu, gpumat_array, gpumat_array_len);
@@ -3116,8 +3111,7 @@ GPUBatch **DRW_cache_surf_surface_shaded_get(Object *ob,
   struct Curve *cu = ob->data;
   struct Mesh *mesh_eval = ob->runtime.mesh_eval;
   if (mesh_eval != NULL) {
-    return DRW_mesh_batch_cache_get_surface_shaded(
-        mesh_eval, gpumat_array, gpumat_array_len, NULL, NULL, NULL);
+    return DRW_mesh_batch_cache_get_surface_shaded(mesh_eval, gpumat_array, gpumat_array_len);
   }
   else {
     return DRW_curve_batch_cache_get_surface_shaded(cu, gpumat_array, gpumat_array_len);

@@ -23,11 +23,11 @@
 #ifndef __DRAW_MANAGER_TEXT_H__
 #define __DRAW_MANAGER_TEXT_H__
 
-struct DRWTextStore;
 struct ARegion;
-struct View3D;
+struct DRWTextStore;
 struct Object;
 struct UnitSettings;
+struct View3D;
 
 struct DRWTextStore *DRW_text_cache_create(void);
 void DRW_text_cache_destroy(struct DRWTextStore *dt);
@@ -41,7 +41,7 @@ void DRW_text_cache_add(struct DRWTextStore *dt,
                         short flag,
                         const uchar col[4]);
 
-void DRW_text_cache_draw(struct DRWTextStore *dt, struct ARegion *ar);
+void DRW_text_cache_draw(struct DRWTextStore *dt, struct ARegion *ar, struct View3D *v3d);
 
 void DRW_text_edit_mesh_measure_stats(struct ARegion *ar,
                                       struct View3D *v3d,

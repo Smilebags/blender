@@ -63,8 +63,10 @@ static void rna_WorkSpaceTool_setup(ID *id,
   STRNCPY(tref_rt.op, op_idname);
   tref_rt.index = index;
 
-  STRNCPY(tref_rt.idname_fallback, idname_fallback ? idname_fallback : NULL);
-  STRNCPY(tref_rt.keymap_fallback, keymap_fallback ? keymap_fallback : NULL);
+  /* While it's logical to assign both these values from setup,
+   * it's useful to stored this in DNA for re-use, exceptional case: write to the 'tref'. */
+  STRNCPY(tref->idname_fallback, idname_fallback);
+  STRNCPY(tref_rt.keymap_fallback, keymap_fallback);
 
   WM_toolsystem_ref_set_from_runtime(C, (WorkSpace *)id, tref, &tref_rt, idname);
 }

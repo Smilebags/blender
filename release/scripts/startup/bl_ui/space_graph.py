@@ -93,8 +93,8 @@ class GRAPH_MT_editor_menus(Menu):
     bl_idname = "GRAPH_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, _context):
-        st = _context.space_data
+    def draw(self, context):
+        st = context.space_data
         layout = self.layout
         layout.menu("GRAPH_MT_view")
         layout.menu("GRAPH_MT_select")
@@ -294,7 +294,9 @@ class GRAPH_MT_key(Menu):
         operator_context = layout.operator_context
 
         layout.operator("graph.decimate", text="Decimate (Ratio)").mode = 'RATIO'
-        # Using the modal operation doesn't make sense for this variant as we do not have a modal mode for it, so just execute it.
+
+        # Using the modal operation doesn't make sense for this variant
+        # as we do not have a modal mode for it, so just execute it.
         layout.operator_context = 'EXEC_DEFAULT'
         layout.operator("graph.decimate", text="Decimate (Allowed Change)").mode = 'ERROR'
         layout.operator_context = operator_context

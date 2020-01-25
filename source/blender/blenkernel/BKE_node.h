@@ -545,7 +545,8 @@ void nodeRemoveNode(struct Main *bmain,
 
 struct bNode *BKE_node_copy_ex(struct bNodeTree *ntree,
                                const struct bNode *node_src,
-                               const int flag);
+                               const int flag,
+                               const bool unique_name);
 
 /* Same as BKE_node_copy_ex() but stores pointers to a new node and its sockets in the source
  * node.
@@ -990,6 +991,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_TEX_WHITE_NOISE 704
 #define SH_NODE_VOLUME_INFO 705
 #define SH_NODE_VERTEX_COLOR 706
+#define SH_NODE_OUTPUT_AOV 707
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF 1

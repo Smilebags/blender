@@ -204,6 +204,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
     DRW_shgroup_uniform_bool_copy(grp, "selectEdges", pd->edit_mesh.do_edges || select_edge);
 
     /* Verts */
+    state |= DRW_STATE_WRITE_DEPTH;
     DRW_PASS_CREATE(psl->edit_mesh_verts_ps[i], state | pd->clipping_state);
 
     if (select_vert) {
@@ -360,7 +361,9 @@ void OVERLAY_edit_mesh_draw(OVERLAY_Data *vedata)
   OVERLAY_PrivateData *pd = vedata->stl->pd;
   OVERLAY_FramebufferList *fbl = vedata->fbl;
 
-  GPU_framebuffer_bind(fbl->overlay_default_fb);
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_default_fb);
+  }
 
   DRW_draw_pass(psl->edit_mesh_weight_ps);
   DRW_draw_pass(psl->edit_mesh_analysis_ps);

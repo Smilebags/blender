@@ -2662,10 +2662,14 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag)
     if (color_blend != NULL) {
       color_blend_v3_v3(wt->wcol.inner, color_blend, wcol_state->blend);
     }
-  }
 
-  if (state & UI_ACTIVE) {
-    widget_active_color(&wt->wcol);
+    /* Add "hover" highlight. Ideally this could apply in all cases,
+     * even if UI_SELECT. But currently this causes some flickering
+     * as buttons can be created and updated without respect to mouse
+     * position and so can draw without UI_ACTIVE set.  See D6503. */
+    if (state & UI_ACTIVE) {
+      widget_active_color(&wt->wcol);
+    }
   }
 
   if (state & UI_BUT_REDALERT) {
@@ -3495,6 +3499,50 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
   widget_numbut_draw(wcol, rect, state, roundboxalign, false);
 }
 
+static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+  uiWidgetBase wtb;
+  float rad;
+
+  widget_init(&wtb);
+
+  rad = wcol->roundness * U.widget_unit;
+  round_box_edges(&wtb, roundboxalign, rect, rad);
+
+  /* decoration */
+  shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
+  /* copy size and center to 2nd tria */
+  wtb.tria2 = wtb.tria1;
+
+  widgetbase_draw(&wtb, wcol);
+
+  /* text space, arrows are about 0.6 height of button */
+  rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
+}
+
+/**
+ * Draw menu buttons still with triangles when field is not embossed
+ */
+static void widget_menubut_embossn(uiBut *UNUSED(but),
+                                   uiWidgetColors *wcol,
+                                   rcti *rect,
+                                   int UNUSED(state),
+                                   int UNUSED(roundboxalign))
+{
+  uiWidgetBase wtb;
+
+  widget_init(&wtb);
+  wtb.draw_inner = false;
+  wtb.draw_outline = false;
+
+  /* decoration */
+  shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
+  /* copy size and center to 2nd tria */
+  wtb.tria2 = wtb.tria1;
+
+  widgetbase_draw(&wtb, wcol);
+}
+
 /**
  * Draw number buttons still with triangles when field is not embossed
  */
@@ -3931,6 +3979,10 @@ static void widget_icon_has_anim(
      * triangles when field is not embossed */
     widget_numbut_embossn(but, wcol, rect, state, roundboxalign);
   }
+  else if (but->type == UI_BTYPE_MENU) {
+    /* Draw menu buttons still with down arrow. */
+    widget_menubut_embossn(but, wcol, rect, state, roundboxalign);
+  }
 }
 
 static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
@@ -3948,27 +4000,6 @@ static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roun
   round_box_edges(&wtb, roundboxalign, rect, rad);
 
   widgetbase_draw(&wtb, wcol);
-}
-
-static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
-{
-  uiWidgetBase wtb;
-  float rad;
-
-  widget_init(&wtb);
-
-  rad = wcol->roundness * U.widget_unit;
-  round_box_edges(&wtb, roundboxalign, rect, rad);
-
-  /* decoration */
-  shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
-  /* copy size and center to 2nd tria */
-  wtb.tria2 = wtb.tria1;
-
-  widgetbase_draw(&wtb, wcol);
-
-  /* text space, arrows are about 0.6 height of button */
-  rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
 }
 
 static void widget_menuiconbut(uiWidgetColors *wcol,

@@ -655,7 +655,8 @@ static ShaderNode *add_node(Scene *scene,
         image->builtin_data = b_image.ptr.data;
       }
       else {
-        image->filename = image_user_file_path(b_image_user, b_image, b_scene.frame_current());
+        image->filename = image_user_file_path(
+            b_image_user, b_image, b_scene.frame_current(), true);
         image->builtin_data = NULL;
       }
 
@@ -664,6 +665,12 @@ static ShaderNode *add_node(Scene *scene,
 
       image->animated = b_image_node.image_user().use_auto_refresh();
       image->alpha_type = get_image_alpha_type(b_image);
+
+      image->tiles.clear();
+      BL::Image::tiles_iterator b_iter;
+      for (b_image.tiles.begin(b_iter); b_iter != b_image.tiles.end(); ++b_iter) {
+        image->tiles.push_back(b_iter->number());
+      }
 
       /* TODO: restore */
       /* TODO(sergey): Does not work properly when we change builtin type. */
@@ -703,7 +710,8 @@ static ShaderNode *add_node(Scene *scene,
         env->builtin_data = b_image.ptr.data;
       }
       else {
-        env->filename = image_user_file_path(b_image_user, b_image, b_scene.frame_current());
+        env->filename = image_user_file_path(
+            b_image_user, b_image, b_scene.frame_current(), false);
         env->builtin_data = NULL;
       }
 
@@ -920,6 +928,12 @@ static ShaderNode *add_node(Scene *scene,
     disp->space = (NodeNormalMapSpace)b_disp_node.space();
     disp->attribute = "";
     node = disp;
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeOutputAOV)) {
+    BL::ShaderNodeOutputAOV b_aov_node(b_node);
+    OutputAOVNode *aov = new OutputAOVNode();
+    aov->name = b_aov_node.name();
+    node = aov;
   }
 
   if (node) {

@@ -45,7 +45,7 @@
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
 #include "BKE_ocean.h"
-#include "BKE_smoke.h" /* For smokeModifier_free & smokeModifier_createType */
+#include "BKE_fluid.h" /* For BKE_fluid_modifier_free & BKE_fluid_modifier_create_type_data */
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -187,6 +187,11 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_WIREFRAME,
      "Wireframe",
      "Convert faces into thickened edges"},
+    {eModifierType_Weld,
+     "WELD",
+     ICON_AUTOMERGE_OFF,
+     "Weld",
+     "Find groups of vertices closer then dist and merges them together"},
     {0, "", 0, N_("Deform"), ""},
     {eModifierType_Armature,
      "ARMATURE",
@@ -270,7 +275,6 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_EXPLODE,
      "Explode",
      "Break apart the mesh faces and let them follow particles"},
-    {eModifierType_Fluidsim, "FLUID_SIMULATION", ICON_MOD_FLUIDSIM, "Fluid Simulation", ""},
     {eModifierType_Ocean, "OCEAN", ICON_MOD_OCEAN, "Ocean", "Generate a moving ocean surface"},
     {eModifierType_ParticleInstance,
      "PARTICLE_INSTANCE",
@@ -282,7 +286,7 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_PARTICLES,
      "Particle System",
      "Spawn particles from the shape"},
-    {eModifierType_Smoke, "SMOKE", ICON_MOD_SMOKE, "Smoke", ""},
+    {eModifierType_Fluid, "FLUID", ICON_MOD_FLUIDSIM, "Fluid Simulation", ""},
     {eModifierType_Softbody, "SOFT_BODY", ICON_MOD_SOFT, "Soft Body", ""},
     {eModifierType_Surface, "SURFACE", ICON_MODIFIER, "Surface", ""},
     {0, NULL, 0, NULL, NULL},
@@ -575,7 +579,7 @@ const EnumPropertyItem rna_enum_axis_flag_xyz_items[] = {
 #ifdef RNA_RUNTIME
 #  include "DNA_particle_types.h"
 #  include "DNA_curve_types.h"
-#  include "DNA_smoke_types.h"
+#  include "DNA_fluid_types.h"
 
 #  include "BKE_cachefile.h"
 #  include "BKE_context.h"
@@ -656,8 +660,6 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
       return &RNA_BevelModifier;
     case eModifierType_Shrinkwrap:
       return &RNA_ShrinkwrapModifier;
-    case eModifierType_Fluidsim:
-      return &RNA_FluidSimulationModifier;
     case eModifierType_Mask:
       return &RNA_MaskModifier;
     case eModifierType_SimpleDeform:
@@ -666,8 +668,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
       return &RNA_MultiresModifier;
     case eModifierType_Surface:
       return &RNA_SurfaceModifier;
-    case eModifierType_Smoke:
-      return &RNA_SmokeModifier;
+    case eModifierType_Fluid:
+      return &RNA_FluidModifier;
     case eModifierType_Solidify:
       return &RNA_SolidifyModifier;
     case eModifierType_Screw:
@@ -700,6 +702,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
       return &RNA_LaplacianDeformModifier;
     case eModifierType_Wireframe:
       return &RNA_WireframeModifier;
+    case eModifierType_Weld:
+      return &RNA_WeldModifier;
     case eModifierType_DataTransfer:
       return &RNA_DataTransferModifier;
     case eModifierType_NormalEdit:
@@ -713,6 +717,7 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
     case eModifierType_WeightedNormal:
       return &RNA_WeightedNormalModifier;
     /* Default */
+    case eModifierType_Fluidsim: /* deprecated */
     case eModifierType_None:
     case eModifierType_ShapeKey:
     case NUM_MODIFIER_TYPES:
@@ -803,6 +808,7 @@ RNA_MOD_VGROUP_NAME_SET(WeightVGMix, mask_defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(WeightVGProximity, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(WeightVGProximity, mask_defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(WeightedNormal, defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(Weld, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Wireframe, defgrp_name);
 
 static void rna_ExplodeModifier_vgroup_get(PointerRNA *ptr, char *value)
@@ -1021,25 +1027,27 @@ static void rna_UVProjector_object_set(PointerRNA *ptr,
 
 /* Other rna callbacks */
 
-static void rna_Smoke_set_type(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_fluid_set_type(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  SmokeModifierData *smd = (SmokeModifierData *)ptr->data;
+  FluidModifierData *mmd = (FluidModifierData *)ptr->data;
   Object *ob = (Object *)ptr->owner_id;
 
   /* nothing changed */
-  if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+  if ((mmd->type & MOD_FLUID_TYPE_DOMAIN) && mmd->domain) {
     return;
   }
 
-  smokeModifier_free(smd);       /* XXX TODO: completely free all 3 pointers */
-  smokeModifier_createType(smd); /* create regarding of selected type */
+#  ifdef WITH_FLUID
+  BKE_fluid_modifier_free(mmd);             /* XXX TODO: completely free all 3 pointers */
+  BKE_fluid_modifier_create_type_data(mmd); /* create regarding of selected type */
+#  endif
 
-  switch (smd->type) {
-    case MOD_SMOKE_TYPE_DOMAIN:
+  switch (mmd->type) {
+    case MOD_FLUID_TYPE_DOMAIN:
       ob->dt = OB_WIRE;
       break;
-    case MOD_SMOKE_TYPE_FLOW:
-    case MOD_SMOKE_TYPE_COLL:
+    case MOD_FLUID_TYPE_FLOW:
+    case MOD_FLUID_TYPE_EFFEC:
     case 0:
     default:
       break;
@@ -3599,23 +3607,23 @@ static void rna_def_modifier_cloth(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Hair Grid Resolution", "");
 }
 
-static void rna_def_modifier_smoke(BlenderRNA *brna)
+static void rna_def_modifier_fluid(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem prop_smoke_type_items[] = {
+  static const EnumPropertyItem prop_fluid_type_items[] = {
       {0, "NONE", 0, "None", ""},
-      {MOD_SMOKE_TYPE_DOMAIN, "DOMAIN", 0, "Domain", ""},
-      {MOD_SMOKE_TYPE_FLOW, "FLOW", 0, "Flow", "Inflow/Outflow"},
-      {MOD_SMOKE_TYPE_COLL, "COLLISION", 0, "Collision", ""},
+      {MOD_FLUID_TYPE_DOMAIN, "DOMAIN", 0, "Domain", ""},
+      {MOD_FLUID_TYPE_FLOW, "FLOW", 0, "Flow", "Inflow/Outflow"},
+      {MOD_FLUID_TYPE_EFFEC, "EFFECTOR", 0, "Effector", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
-  srna = RNA_def_struct(brna, "SmokeModifier", "Modifier");
-  RNA_def_struct_ui_text(srna, "Smoke Modifier", "Smoke simulation modifier");
-  RNA_def_struct_sdna(srna, "SmokeModifierData");
-  RNA_def_struct_ui_icon(srna, ICON_MOD_SMOKE);
+  srna = RNA_def_struct(brna, "FluidModifier", "Modifier");
+  RNA_def_struct_ui_text(srna, "Fluid Modifier", "Fluid simulation modifier");
+  RNA_def_struct_sdna(srna, "FluidModifierData");
+  RNA_def_struct_ui_icon(srna, ICON_MOD_FLUIDSIM);
 
   prop = RNA_def_property(srna, "domain_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "domain");
@@ -3625,16 +3633,16 @@ static void rna_def_modifier_smoke(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "flow");
   RNA_def_property_ui_text(prop, "Flow Settings", "");
 
-  prop = RNA_def_property(srna, "coll_settings", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "coll");
-  RNA_def_property_ui_text(prop, "Collision Settings", "");
+  prop = RNA_def_property(srna, "effector_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "effector");
+  RNA_def_property_ui_text(prop, "Effector Settings", "");
 
-  prop = RNA_def_property(srna, "smoke_type", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "fluid_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type");
-  RNA_def_property_enum_items(prop, prop_smoke_type_items);
+  RNA_def_property_enum_items(prop, prop_fluid_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, 0, "rna_Smoke_set_type");
+  RNA_def_property_update(prop, 0, "rna_fluid_set_type");
 }
 
 static void rna_def_modifier_dynamic_paint(BlenderRNA *brna)
@@ -4059,23 +4067,6 @@ static void rna_def_modifier_shrinkwrap(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "shrinkOpts", MOD_SHRINKWRAP_INVERT_VGROUP);
   RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
-}
-
-static void rna_def_modifier_fluidsim(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "FluidSimulationModifier", "Modifier");
-  RNA_def_struct_ui_text(srna, "Fluid Simulation Modifier", "Fluid simulation modifier");
-  RNA_def_struct_sdna(srna, "FluidsimModifierData");
-  RNA_def_struct_ui_icon(srna, ICON_MOD_FLUIDSIM);
-
-  prop = RNA_def_property(srna, "settings", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, NULL, "fss");
-  RNA_def_property_ui_text(
-      prop, "Settings", "Settings for how this object is used in the fluid simulation");
 }
 
 static void rna_def_modifier_mask(BlenderRNA *brna)
@@ -5659,6 +5650,40 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_weld(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "WeldModifier", "Modifier");
+  RNA_def_struct_ui_text(srna, "Weld Modifier", "Weld modifier");
+  RNA_def_struct_sdna(srna, "WeldModifierData");
+  RNA_def_struct_ui_icon(srna, ICON_AUTOMERGE_OFF);
+
+  prop = RNA_def_property(srna, "merge_threshold", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, NULL, "merge_dist");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0, 1, 0.001, 6);
+  RNA_def_property_ui_text(prop, "Merge Distance", "Limit below which to merge vertices");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "max_interactions", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "max_interactions");
+  RNA_def_property_ui_text(
+      prop,
+      "Duplicate Limit",
+      "For a better performance, limits the number of elements found per vertex. "
+      "(0 makes it infinite)");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+  RNA_def_property_ui_text(
+      prop, "Vertex Group", "Vertex group name for selecting the affected areas");
+  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WeldModifier_defgrp_name_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
 static void rna_def_modifier_datatransfer(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -6346,13 +6371,12 @@ void RNA_def_modifier(BlenderRNA *brna)
   rna_def_modifier_collision(brna);
   rna_def_modifier_bevel(brna);
   rna_def_modifier_shrinkwrap(brna);
-  rna_def_modifier_fluidsim(brna);
   rna_def_modifier_mask(brna);
   rna_def_modifier_simpledeform(brna);
   rna_def_modifier_warp(brna);
   rna_def_modifier_multires(brna);
   rna_def_modifier_surface(brna);
-  rna_def_modifier_smoke(brna);
+  rna_def_modifier_fluid(brna);
   rna_def_modifier_solidify(brna);
   rna_def_modifier_screw(brna);
   rna_def_modifier_uvwarp(brna);
@@ -6368,6 +6392,7 @@ void RNA_def_modifier(BlenderRNA *brna)
   rna_def_modifier_meshcache(brna);
   rna_def_modifier_laplaciandeform(brna);
   rna_def_modifier_wireframe(brna);
+  rna_def_modifier_weld(brna);
   rna_def_modifier_datatransfer(brna);
   rna_def_modifier_normaledit(brna);
   rna_def_modifier_meshseqcache(brna);

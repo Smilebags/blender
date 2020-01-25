@@ -174,8 +174,9 @@ static void rna_Image_unpack(Image *image, Main *bmain, ReportList *reports, int
   if (!BKE_image_has_packedfile(image)) {
     BKE_report(reports, RPT_ERROR, "Image not packed");
   }
-  else if (BKE_image_is_animated(image)) {
-    BKE_report(reports, RPT_ERROR, "Unpacking movies or image sequences not supported");
+  else if (BKE_image_has_multiple_ibufs(image)) {
+    BKE_report(
+        reports, RPT_ERROR, "Unpacking movies, image sequences or tiled images not supported");
     return;
   }
   else {
@@ -217,9 +218,9 @@ static void rna_Image_scale(Image *image, ReportList *reports, int width, int he
 
 static int rna_Image_gl_load(Image *image, ReportList *reports, int frame)
 {
-  ImageUser iuser = {NULL};
+  ImageUser iuser;
+  BKE_imageuser_default(&iuser);
   iuser.framenr = frame;
-  iuser.ok = true;
 
   GPUTexture *tex = GPU_texture_from_blender(image, &iuser, GL_TEXTURE_2D);
 

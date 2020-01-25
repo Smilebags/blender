@@ -45,7 +45,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_rigidbody_types.h"
-#include "DNA_smoke_types.h"
+#include "DNA_fluid_types.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -140,7 +140,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       cb->light_point = BUF_INSTANCE(grp_sub, format, DRW_cache_light_point_lines_get());
       cb->light_spot = BUF_INSTANCE(grp_sub, format, DRW_cache_light_spot_lines_get());
       cb->light_sun = BUF_INSTANCE(grp_sub, format, DRW_cache_light_sun_lines_get());
-      cb->probe_cube = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_planar_get());
+      cb->probe_cube = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_cube_get());
       cb->probe_grid = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_grid_get());
       cb->probe_planar = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_planar_get());
       cb->solid_quad = BUF_INSTANCE(grp_sub, format, DRW_cache_quad_get());
@@ -157,13 +157,13 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block_persistent(grp, "globalsBlock", G_draw.block_ubo);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_state_enable(grp_sub, DRW_STATE_CULL_BACK);
+      DRW_shgroup_state_enable(grp_sub, DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK);
       cb->camera_volume = BUF_INSTANCE(grp_sub, format, DRW_cache_camera_volume_get());
       cb->camera_volume_frame = BUF_INSTANCE(grp_sub, format, DRW_cache_camera_volume_wire_get());
       cb->light_spot_cone_back = BUF_INSTANCE(grp_sub, format, DRW_cache_light_spot_volume_get());
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_state_enable(grp_sub, DRW_STATE_CULL_FRONT);
+      DRW_shgroup_state_enable(grp_sub, DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_FRONT);
       cb->light_spot_cone_front = BUF_INSTANCE(grp_sub, format, DRW_cache_light_spot_volume_get());
     }
     {
@@ -623,8 +623,9 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
   copy_m4_m4(instdata.mat, ob->obmat);
   /* FIXME / TODO: clipend has no meaning nowadays.
    * In EEVEE, Only clipsta is used shadowmaping.
-   * Clip end is computed automatically based on light power. */
-  instdata.clip_end = la->clipend;
+   * Clip end is computed automatically based on light power.
+   * For now, always use the custom distance as clipend. */
+  instdata.clip_end = la->att_dist;
   instdata.clip_sta = la->clipsta;
 
   DRW_buffer_add_entry(cb->groundline, instdata.pos);
@@ -637,6 +638,9 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
     DRW_buffer_add_entry(cb->light_sun, color, &instdata);
   }
   else if (la->type == LA_SPOT) {
+    /* Previous implementation was using the clipend distance as cone size.
+     * We cannot do this anymore so we use a fixed size of 10. (see T72871) */
+    rescale_m4(instdata.mat, (float[3]){10.0f, 10.0f, 10.0f});
     /* For cycles and eevee the spot attenuation is
      * y = (1/(1 + x^2) - a)/((1 - a) b)
      * We solve the case where spot attenuation y = 1 and y = 0
@@ -704,7 +708,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
     case LIGHTPROBE_TYPE_CUBE:
       instdata.clip_sta = show_clipping ? prb->clipsta : -1.0;
       instdata.clip_end = show_clipping ? prb->clipend : -1.0;
-      DRW_buffer_add_entry(cb->probe_grid, color_p, &instdata);
+      DRW_buffer_add_entry(cb->probe_cube, color_p, &instdata);
       DRW_buffer_add_entry(cb->groundline, instdata.pos);
 
       if (show_influence) {
@@ -1014,6 +1018,11 @@ static void camera_stereoscopy_extra(OVERLAY_ExtraCallBuffers *cb,
   const bool is_stereo3d_cameras = (v3d->stereo3d_flag & V3D_S3D_DISPCAMERAS) != 0;
   const bool is_stereo3d_plane = (v3d->stereo3d_flag & V3D_S3D_DISPPLANE) != 0;
   const bool is_stereo3d_volume = (v3d->stereo3d_flag & V3D_S3D_DISPVOLUME) != 0;
+
+  if (!is_stereo3d_cameras) {
+    /* Draw single camera. */
+    DRW_buffer_add_entry_struct(cb->camera_frame, instdata);
+  }
 
   for (int eye = 0; eye < 2; eye++) {
     ob = BKE_camera_multiview_render(scene, ob, viewnames[eye]);
@@ -1410,22 +1419,22 @@ static void OVERLAY_volume_extra(OVERLAY_ExtraCallBuffers *cb,
                                  Scene *scene,
                                  float *color)
 {
-  SmokeModifierData *smd = (SmokeModifierData *)md;
-  SmokeDomainSettings *sds = smd->domain;
+  FluidModifierData *mmd = (FluidModifierData *)md;
+  FluidDomainSettings *mds = mmd->domain;
 
   /* Don't show smoke before simulation starts, this could be made an option in the future. */
-  const bool draw_velocity = (sds->draw_velocity && sds->fluid &&
-                              CFRA >= sds->point_cache[0]->startframe);
+  const bool draw_velocity = (mds->draw_velocity && mds->fluid &&
+                              CFRA >= mds->point_cache[0]->startframe);
 
   /* Small cube showing voxel size. */
   {
     float min[3];
-    madd_v3fl_v3fl_v3fl_v3i(min, sds->p0, sds->cell_size, sds->res_min);
+    madd_v3fl_v3fl_v3fl_v3i(min, mds->p0, mds->cell_size, mds->res_min);
     float voxel_cubemat[4][4] = {{0.0f}};
     /* scale small cube to voxel size */
-    voxel_cubemat[0][0] = 1.0f / (float)sds->base_res[0];
-    voxel_cubemat[1][1] = 1.0f / (float)sds->base_res[1];
-    voxel_cubemat[2][2] = 1.0f / (float)sds->base_res[2];
+    voxel_cubemat[0][0] = 1.0f / (float)mds->base_res[0];
+    voxel_cubemat[1][1] = 1.0f / (float)mds->base_res[1];
+    voxel_cubemat[2][2] = 1.0f / (float)mds->base_res[2];
     voxel_cubemat[3][3] = 1.0f;
     /* translate small cube to corner */
     copy_v3_v3(voxel_cubemat[3], min);
@@ -1437,38 +1446,38 @@ static void OVERLAY_volume_extra(OVERLAY_ExtraCallBuffers *cb,
   }
 
   if (draw_velocity) {
-    const bool use_needle = (sds->vector_draw_type == VECTOR_DRAW_NEEDLE);
+    const bool use_needle = (mds->vector_draw_type == VECTOR_DRAW_NEEDLE);
     int line_count = (use_needle) ? 6 : 1;
     int slice_axis = -1;
-    line_count *= sds->res[0] * sds->res[1] * sds->res[2];
+    line_count *= mds->res[0] * mds->res[1] * mds->res[2];
 
-    if (sds->slice_method == MOD_SMOKE_SLICE_AXIS_ALIGNED &&
-        sds->axis_slice_method == AXIS_SLICE_SINGLE) {
+    if (mds->slice_method == FLUID_DOMAIN_SLICE_AXIS_ALIGNED &&
+        mds->axis_slice_method == AXIS_SLICE_SINGLE) {
       float viewinv[4][4];
       DRW_view_viewmat_get(NULL, viewinv, true);
 
-      const int axis = (sds->slice_axis == SLICE_AXIS_AUTO) ? axis_dominant_v3_single(viewinv[2]) :
-                                                              sds->slice_axis - 1;
+      const int axis = (mds->slice_axis == SLICE_AXIS_AUTO) ? axis_dominant_v3_single(viewinv[2]) :
+                                                              mds->slice_axis - 1;
       slice_axis = axis;
-      line_count /= sds->res[axis];
+      line_count /= mds->res[axis];
     }
 
-    GPU_create_smoke_velocity(smd);
+    GPU_create_smoke_velocity(mmd);
 
     GPUShader *sh = OVERLAY_shader_volume_velocity(use_needle);
     DRWShadingGroup *grp = DRW_shgroup_create(sh, data->psl->extra_ps[0]);
-    DRW_shgroup_uniform_texture(grp, "velocityX", sds->tex_velocity_x);
-    DRW_shgroup_uniform_texture(grp, "velocityY", sds->tex_velocity_y);
-    DRW_shgroup_uniform_texture(grp, "velocityZ", sds->tex_velocity_z);
-    DRW_shgroup_uniform_float_copy(grp, "displaySize", sds->vector_scale);
-    DRW_shgroup_uniform_float_copy(grp, "slicePosition", sds->slice_depth);
-    DRW_shgroup_uniform_vec3_copy(grp, "cellSize", sds->cell_size);
-    DRW_shgroup_uniform_vec3_copy(grp, "domainOriginOffset", sds->p0);
-    DRW_shgroup_uniform_ivec3_copy(grp, "adaptiveCellOffset", sds->res_min);
+    DRW_shgroup_uniform_texture(grp, "velocityX", mds->tex_velocity_x);
+    DRW_shgroup_uniform_texture(grp, "velocityY", mds->tex_velocity_y);
+    DRW_shgroup_uniform_texture(grp, "velocityZ", mds->tex_velocity_z);
+    DRW_shgroup_uniform_float_copy(grp, "displaySize", mds->vector_scale);
+    DRW_shgroup_uniform_float_copy(grp, "slicePosition", mds->slice_depth);
+    DRW_shgroup_uniform_vec3_copy(grp, "cellSize", mds->cell_size);
+    DRW_shgroup_uniform_vec3_copy(grp, "domainOriginOffset", mds->p0);
+    DRW_shgroup_uniform_ivec3_copy(grp, "adaptiveCellOffset", mds->res_min);
     DRW_shgroup_uniform_int_copy(grp, "sliceAxis", slice_axis);
     DRW_shgroup_call_procedural_lines(grp, ob, line_count);
 
-    BLI_addtail(&data->stl->pd->smoke_domains, BLI_genericNodeN(smd));
+    BLI_addtail(&data->stl->pd->smoke_domains, BLI_genericNodeN(mmd));
   }
 }
 
@@ -1482,8 +1491,8 @@ static void OVERLAY_volume_free_smoke_textures(OVERLAY_Data *data)
    * all viewport in a redraw at least. */
   LinkData *link;
   while ((link = BLI_pophead(&data->stl->pd->smoke_domains))) {
-    SmokeModifierData *smd = (SmokeModifierData *)link->data;
-    GPU_free_smoke_velocity(smd);
+    FluidModifierData *mmd = (FluidModifierData *)link->data;
+    GPU_free_smoke_velocity(mmd);
     MEM_freeN(link);
   }
 }
@@ -1497,7 +1506,7 @@ static void OVERLAY_object_center(OVERLAY_ExtraCallBuffers *cb,
                                   OVERLAY_PrivateData *pd,
                                   ViewLayer *view_layer)
 {
-  const bool is_library = ob->id.us > 1 || ID_IS_LINKED(ob);
+  const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
 
   if (ob == OBACT(view_layer)) {
     DRW_buffer_add_entry(cb->center_active, ob->obmat[3]);
@@ -1555,9 +1564,9 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
   const bool draw_xform = draw_ctx->object_mode == OB_MODE_OBJECT &&
                           (scene->toolsettings->transform_flag & SCE_XFORM_DATA_ORIGIN) &&
                           (ob->base_flag & BASE_SELECTED) && !is_select_mode;
-  const bool draw_volume = !from_dupli && (md = modifiers_findByType(ob, eModifierType_Smoke)) &&
+  const bool draw_volume = !from_dupli && (md = modifiers_findByType(ob, eModifierType_Fluid)) &&
                            (modifier_isEnabled(scene, md, eModifierMode_Realtime)) &&
-                           (((SmokeModifierData *)md)->domain != NULL);
+                           (((FluidModifierData *)md)->domain != NULL);
 
   float *color;
   int theme_id = DRW_object_wire_theme_get(ob, view_layer, &color);

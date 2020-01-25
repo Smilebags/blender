@@ -1743,6 +1743,13 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   RegionView3D *rv3d = ar->regiondata;
   struct TransformBounds tbounds;
 
+  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
+    gzgroup->use_fallback_keymap = true;
+  }
+  else {
+    gzgroup->use_fallback_keymap = false;
+  }
+
   if (ggd->use_twtype_refresh) {
     ggd->twtype = v3d->gizmo_show_object & ggd->twtype_init;
     if (ggd->twtype != ggd->twtype_prev) {
@@ -1828,13 +1835,6 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   }
   for (int i = MAN_AXIS_RANGE_ROT_START; i < MAN_AXIS_RANGE_ROT_END; i++) {
     ggd->gizmos[i]->select_bias = rotate_select_bias;
-  }
-
-  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
-    gzgroup->use_fallback_keymap = true;
-  }
-  else {
-    gzgroup->use_fallback_keymap = false;
   }
 }
 
@@ -2046,7 +2046,8 @@ void VIEW3D_GGT_xform_gizmo(wmGizmoGroupType *gzgt)
   gzgt->name = "3D View: Transform Gizmo";
   gzgt->idname = "VIEW3D_GGT_xform_gizmo";
 
-  gzgt->flag = WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP;
+  gzgt->flag = WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP |
+               WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
@@ -2081,7 +2082,7 @@ void VIEW3D_GGT_xform_gizmo_context(wmGizmoGroupType *gzgt)
   gzgt->idname = "VIEW3D_GGT_xform_gizmo_context";
 
   gzgt->flag = WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_PERSISTENT |
-               WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP;
+               WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP | WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK;
 
   gzgt->poll = WIDGETGROUP_gizmo_poll_context;
   gzgt->setup = WIDGETGROUP_gizmo_setup;
@@ -2176,6 +2177,13 @@ static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   struct TransformBounds tbounds;
 
+  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
+    gzgroup->use_fallback_keymap = true;
+  }
+  else {
+    gzgroup->use_fallback_keymap = false;
+  }
+
   const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get(scene,
                                                                                SCE_ORIENT_SCALE);
 
@@ -2231,13 +2239,6 @@ static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   /* Needed to test view orientation changes. */
   copy_m3_m4(xgzgroup->prev.viewinv_m3, rv3d->viewinv);
-
-  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
-    gzgroup->use_fallback_keymap = true;
-  }
-  else {
-    gzgroup->use_fallback_keymap = false;
-  }
 }
 
 static void WIDGETGROUP_xform_cage_message_subscribe(const bContext *C,
@@ -2289,7 +2290,8 @@ void VIEW3D_GGT_xform_cage(wmGizmoGroupType *gzgt)
   gzgt->name = "Transform Cage";
   gzgt->idname = "VIEW3D_GGT_xform_cage";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP |
+                WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
@@ -2388,6 +2390,16 @@ static void WIDGETGROUP_xform_shear_refresh(const bContext *C, wmGizmoGroup *gzg
   struct XFormShearWidgetGroup *xgzgroup = gzgroup->customdata;
   struct TransformBounds tbounds;
 
+  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
+    gzgroup->use_fallback_keymap = true;
+  }
+  else {
+    gzgroup->use_fallback_keymap = false;
+  }
+
+  /* Needed to test view orientation changes. */
+  copy_m3_m4(xgzgroup->prev.viewinv_m3, rv3d->viewinv);
+
   const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get(scene,
                                                                                SCE_ORIENT_ROTATE);
 
@@ -2439,16 +2451,6 @@ static void WIDGETGROUP_xform_shear_refresh(const bContext *C, wmGizmoGroup *gzg
       wmGizmo *gz = xgzgroup->gizmo_view[i];
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
     }
-  }
-
-  /* Needed to test view orientation changes. */
-  copy_m3_m4(xgzgroup->prev.viewinv_m3, rv3d->viewinv);
-
-  if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
-    gzgroup->use_fallback_keymap = true;
-  }
-  else {
-    gzgroup->use_fallback_keymap = false;
   }
 }
 
@@ -2530,7 +2532,8 @@ void VIEW3D_GGT_xform_shear(wmGizmoGroupType *gzgt)
   gzgt->name = "Transform Shear";
   gzgt->idname = "VIEW3D_GGT_xform_shear";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP |
+                WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;

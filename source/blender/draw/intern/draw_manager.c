@@ -584,7 +584,7 @@ static void drw_context_state_init(void)
   }
 
   DST.draw_ctx.sh_cfg = GPU_SHADER_CFG_DEFAULT;
-  if (DST.draw_ctx.rv3d && DST.draw_ctx.rv3d->rflag & RV3D_CLIPPING) {
+  if (RV3D_CLIPPING_ENABLED(DST.draw_ctx.v3d, DST.draw_ctx.rv3d)) {
     DST.draw_ctx.sh_cfg = GPU_SHADER_CFG_CLIPPED;
   }
 }
@@ -1235,7 +1235,7 @@ static void drw_engines_draw_text(void)
     PROFILE_START(stime);
 
     if (data->text_draw_cache) {
-      DRW_text_cache_draw(data->text_draw_cache, DST.draw_ctx.ar);
+      DRW_text_cache_draw(data->text_draw_cache, DST.draw_ctx.ar, DST.draw_ctx.v3d);
     }
 
     PROFILE_END_UPDATE(data->render_time, stime);
@@ -1606,6 +1606,8 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
     drw_draw_background_alpha_under();
   }
 
+  drw_debug_draw();
+
   /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
   GPU_flush();
 
@@ -1629,8 +1631,6 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
      * Don't trust them! */
     DRW_state_reset();
   }
-
-  drw_debug_draw();
 
   GPU_depth_test(false);
   drw_engines_draw_text();
@@ -2254,6 +2254,10 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
       FOREACH_OBJECT_IN_MODE_END;
     }
     else {
+      /* When selecting pose-bones in pose mode, check for visibility not select-ability
+       * as pose-bones have their own selection restriction flag. */
+      const bool use_pose_exception = (DST.draw_ctx.object_pose != NULL);
+
       const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
                                               v3d->object_type_exclude_select);
       bool filter_exclude = false;
@@ -2261,8 +2265,19 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
         if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
           continue;
         }
-        if ((ob->base_flag & BASE_SELECTABLE) &&
-            (object_type_exclude_select & (1 << ob->type)) == 0) {
+
+        if (use_pose_exception && (ob->mode & OB_MODE_POSE)) {
+          if ((ob->base_flag & BASE_VISIBLE_VIEWLAYER) == 0) {
+            continue;
+          }
+        }
+        else {
+          if ((ob->base_flag & BASE_SELECTABLE) == 0) {
+            continue;
+          }
+        }
+
+        if ((object_type_exclude_select & (1 << ob->type)) == 0) {
           if (object_filter_fn != NULL) {
             if (ob->base_flag & BASE_FROM_DUPLI) {
               /* pass (use previous filter_exclude value) */
@@ -2468,6 +2483,9 @@ void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
 
   /* Get list of enabled engines */
   {
+    /* Required by `DRW_state_draw_support()` */
+    DST.draw_ctx.v3d = v3d;
+
     drw_engines_enable_basic();
     if (DRW_state_draw_support()) {
       drw_engines_enable_overlays();
@@ -2571,7 +2589,7 @@ static void draw_world_clip_planes_from_rv3d(GPUBatch *batch, const float world_
 /**
  * Clears the Depth Buffer and draws only the specified object.
  */
-void DRW_draw_depth_object(ARegion *ar, GPUViewport *viewport, Object *object)
+void DRW_draw_depth_object(ARegion *ar, View3D *v3d, GPUViewport *viewport, Object *object)
 {
   RegionView3D *rv3d = ar->regiondata;
 
@@ -2588,7 +2606,7 @@ void DRW_draw_depth_object(ARegion *ar, GPUViewport *viewport, Object *object)
   GPU_depth_test(true);
 
   const float(*world_clip_planes)[4] = NULL;
-  if (rv3d->rflag & RV3D_CLIPPING) {
+  if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
     ED_view3d_clipping_set(rv3d);
     ED_view3d_clipping_local(rv3d, object->obmat);
     world_clip_planes = rv3d->clip_local;
@@ -2625,7 +2643,7 @@ void DRW_draw_depth_object(ARegion *ar, GPUViewport *viewport, Object *object)
       break;
   }
 
-  if (rv3d->rflag & RV3D_CLIPPING) {
+  if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
     ED_view3d_clipping_disable();
   }
 
