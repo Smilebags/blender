@@ -67,13 +67,18 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
     state->volume_stack[0].shader = SHADER_NONE;
   }
 #endif
+
+  kg->wavelength_low_bound = 380.0f;
+  kg->wavelength_high_bound = 730.0f;
+
   float wavelength_offset = path_state_rng_1D(kg, state, PRNG_WAVELENGTH);
   float offset_two = fmod(wavelength_offset + (1.0f / 3.0f), 1.0f);
   float offset_three = fmod(wavelength_offset + (2.0f / 3.0f), 1.0f);
+
   state->wavelengths = make_float3(
-    (wavelength_offset * 350) + 380,
-    (offset_two * 350) + 380,
-    (offset_three * 350) + 380
+    float_lerp(kg->wavelength_low_bound, kg->wavelength_high_bound, wavelength_offset),
+    float_lerp(kg->wavelength_low_bound, kg->wavelength_high_bound, offset_two),
+    float_lerp(kg->wavelength_low_bound, kg->wavelength_high_bound, offset_three)
 	);
 }
 
