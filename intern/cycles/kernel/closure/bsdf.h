@@ -462,14 +462,14 @@ ccl_device
 #else
 ccl_device_inline
 #endif
-    float3
+    SceneLinearColor
     bsdf_eval(KernelGlobals *kg,
               ShaderData *sd,
               const ShaderClosure *sc,
               const float3 omega_in,
               float *pdf)
 {
-  float3 eval;
+  SceneLinearColor eval;
 
   if (dot(sd->Ng, omega_in) >= 0.0f) {
     switch (sc->type) {

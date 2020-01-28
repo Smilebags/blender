@@ -25,7 +25,7 @@ ccl_device float3 shader_bsdf_transparency(KernelGlobals *kg, const ShaderData *
 
 ccl_device_inline void bsdf_eval_init(BsdfEval *eval,
                                       ClosureType type,
-                                      float3 value,
+                                      SpectralColor value,
                                       int use_light_pass)
 {
 #ifdef __PASSES__
@@ -61,7 +61,7 @@ ccl_device_inline void bsdf_eval_init(BsdfEval *eval,
 
 ccl_device_inline void bsdf_eval_accum(BsdfEval *eval,
                                        ClosureType type,
-                                       float3 value,
+                                       SpectralColor value,
                                        float mis_weight)
 {
 #ifdef __SHADOW_TRICKS__
@@ -128,7 +128,7 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float value)
   bsdf_eval_mis(eval, value);
 }
 
-ccl_device_inline void bsdf_eval_mul3(BsdfEval *eval, float3 value)
+ccl_device_inline void bsdf_eval_mul3(BsdfEval *eval, SpectralColor value)
 {
 #ifdef __SHADOW_TRICKS__
   eval->sum_no_mis *= value;
@@ -305,7 +305,7 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
                                                     PathRadiance *L,
                                                     ccl_addr_space PathState *state,
                                                     float3 throughput,
-                                                    float3 value)
+                                                    SceneLinearColor value)
 {
 #ifdef __SHADOW_TRICKS__
   if (state->flag & PATH_RAY_SHADOW_CATCHER) {
@@ -313,7 +313,7 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
   }
 #endif
 
-  float3 contribution = throughput * value;
+  SceneLinearColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
   path_radiance_clamp(kg, &contribution, state->bounce - 1);
 #endif
@@ -619,14 +619,14 @@ ccl_device_inline void path_radiance_sum_shadowcatcher(KernelGlobals *kg,
 }
 #endif
 
-ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg,
+ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
                                                      PathRadiance *L,
                                                      float *alpha)
 {
   float3 L_sum;
   /* Light Passes are used */
 #ifdef __PASSES__
-  float3 L_direct, L_indirect;
+  SpectralColor L_direct, L_indirect;
   if (L->use_light_pass) {
     path_radiance_sum_indirect(L);
 

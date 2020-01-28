@@ -30,7 +30,7 @@ ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, float v
 #endif
 }
 
-ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, float3 value)
+ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, SceneLinearColor value)
 {
 #ifdef __ATOMIC_PASS_WRITE__
   ccl_global float *buf_x = buffer + 0;

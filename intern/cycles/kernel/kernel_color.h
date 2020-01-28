@@ -21,7 +21,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float3 xyz_to_rgb(KernelGlobals *kg, float3 xyz)
+ccl_device SceneLinearColor xyz_to_rgb(KernelGlobals *kg, float3 xyz)
 {
   return make_float3(dot(float4_to_float3(kernel_data.film.xyz_to_r), xyz),
                      dot(float4_to_float3(kernel_data.film.xyz_to_g), xyz),
@@ -542,7 +542,7 @@ ccl_device float3 wavelength_to_xyz(float wavelength)
     return find_position_in_lookup_unit_step(wavelength_xyz_lookup, wavelength, 360, 830);
 }
 
-ccl_device float3 wavelength_intensities_to_linear(KernelGlobals *kg, float3 intensities, float3 wavelengths)
+ccl_device SceneLinearColor wavelength_intensities_to_linear(KernelGlobals *kg, SpectralColor intensities, float3 wavelengths)
 {
     float3 sum_x_xyz = wavelength_to_xyz(wavelengths.x) * intensities.x;
     float3 sum_y_xyz = wavelength_to_xyz(wavelengths.y) * intensities.y;
@@ -578,7 +578,7 @@ ccl_device float find_position_in_lookup_2d(float2 lookup[], float wavelength)
     return float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress);
 }
 
-ccl_device float3 linear_to_wavelength_intensities(float3 rgb, float3 wavelengths)
+ccl_device SpectralColor linear_to_wavelength_intensities(SceneLinearColor rgb, float3 wavelengths)
 {
     float4 rec709_wavelength_lookup[] = {
         make_float4(360.0f, 0.000902743f, 0.000440162f, 0.998533177f),

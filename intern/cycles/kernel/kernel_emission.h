@@ -17,7 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Direction Emission */
-ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
+ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
                                                     ShaderData *emission_sd,
                                                     LightSample *ls,
                                                     ccl_addr_space PathState *state,
@@ -27,7 +27,7 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
                                                     float time)
 {
   /* setup shading at emitter */
-  float3 eval = make_float3(0.0f, 0.0f, 0.0f);
+  SceneLinearColor eval = make_float3(0.0f, 0.0f, 0.0f);
 
   if (shader_constant_emission_eval(kg, ls->shader, &eval)) {
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, I) < 0.0f) {
@@ -115,7 +115,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
   /* evaluate closure */
 
-  float3 light_eval = direct_emissive_eval(
+  SpectralColor light_eval = direct_emissive_eval(
       kg, emission_sd, ls, state, -ls->D, dD, ls->t, sd->time);
 
   if (is_zero(light_eval))
@@ -205,7 +205,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
 /* Indirect Primitive Emission */
 
-ccl_device_noinline_cpu float3 indirect_primitive_emission(
+ccl_device_noinline_cpu SpectralColor indirect_primitive_emission(
     KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float3 wavelengths)
 {
   /* evaluate emissive closure */
@@ -257,7 +257,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
     }
 #endif
 
-    float3 lamp_L = direct_emissive_eval(
+    SceneLinearColor lamp_L = direct_emissive_eval(
         kg, emission_sd, &ls, state, -ray->D, ray->dD, ls.t, ray->time);
 
 #ifdef __VOLUME__
@@ -284,7 +284,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
 
 /* Indirect Background */
 
-ccl_device_noinline_cpu float3 indirect_background(KernelGlobals *kg,
+ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
                                                    ShaderData *emission_sd,
                                                    ccl_addr_space PathState *state,
                                                    ccl_global float *buffer,
