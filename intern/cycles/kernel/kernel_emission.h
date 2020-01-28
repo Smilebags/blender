@@ -27,7 +27,7 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
                                                     float time)
 {
   /* setup shading at emitter */
-  SceneLinearColor eval = make_float3(0.0f, 0.0f, 0.0f);
+  RGBColor eval = make_float3(0.0f, 0.0f, 0.0f);
 
   if (shader_constant_emission_eval(kg, ls->shader, &eval)) {
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, I) < 0.0f) {
@@ -257,7 +257,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
     }
 #endif
 
-    SceneLinearColor lamp_L = direct_emissive_eval(
+    RGBColor lamp_L = direct_emissive_eval(
         kg, emission_sd, &ls, state, -ray->D, ray->dD, ls.t, ray->time);
 
 #ifdef __VOLUME__

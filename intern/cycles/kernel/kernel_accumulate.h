@@ -305,7 +305,7 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
                                                     PathRadiance *L,
                                                     ccl_addr_space PathState *state,
                                                     float3 throughput,
-                                                    SceneLinearColor value)
+                                                    RGBColor value)
 {
 #ifdef __SHADOW_TRICKS__
   if (state->flag & PATH_RAY_SHADOW_CATCHER) {
@@ -313,7 +313,7 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
   }
 #endif
 
-  SceneLinearColor contribution = throughput * value;
+  RGBColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
   path_radiance_clamp(kg, &contribution, state->bounce - 1);
 #endif

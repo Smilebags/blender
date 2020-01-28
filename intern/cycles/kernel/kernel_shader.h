@@ -596,7 +596,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
 
     if (sc != skip_sc && CLOSURE_IS_BSDF(sc->type)) {
       float bsdf_pdf = 0.0f;
-      SceneLinearColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
+      RGBColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
         SpectralColor wavelength_intensities = linear_to_wavelength_intensities(
@@ -1021,7 +1021,7 @@ ccl_device float3 shader_bssrdf_sum(ShaderData *sd, float3 *N_, float *texture_b
 
 /* Constant emission optimization */
 
-ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, SceneLinearColor *eval)
+ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, RGBColor *eval)
 {
   int shader_index = shader & SHADER_MASK;
   int shader_flag = kernel_tex_fetch(__shaders, shader_index).flags;
@@ -1039,7 +1039,7 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, Sce
 
 /* Background */
 
-ccl_device SceneLinearColor shader_background_eval(ShaderData *sd)
+ccl_device RGBColor shader_background_eval(ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
     return sd->closure_emission_background;
@@ -1051,7 +1051,7 @@ ccl_device SceneLinearColor shader_background_eval(ShaderData *sd)
 
 /* Emission */
 
-ccl_device SceneLinearColor shader_emissive_eval(ShaderData *sd)
+ccl_device RGBColor shader_emissive_eval(ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
       return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;

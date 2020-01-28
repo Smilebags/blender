@@ -480,7 +480,7 @@ typedef struct DebugData {
 #endif
 
 typedef float3 SpectralColor;
-typedef float3 SceneLinearColor;
+typedef float3 RGBColor;
 
 typedef ccl_addr_space struct PathRadianceState {
 #ifdef __PASSES__
@@ -1003,7 +1003,7 @@ typedef ccl_addr_space struct ccl_align(16) ShaderData
 
   /* Closure weights summed directly, so we can evaluate
    * emission and shadow transparency with MAX_CLOSURE 0. */
-  SceneLinearColor closure_emission_background;
+  RGBColor closure_emission_background;
   float3 closure_transparent_extinction;
 
   /* At the end so we can adjust size in ShaderDataTinyStorage. */

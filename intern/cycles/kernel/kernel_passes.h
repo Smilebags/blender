@@ -384,7 +384,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
 
   float alpha;
   SpectralColor L_sum = path_radiance_clamp_and_sum(kg, L, &alpha);
-  SceneLinearColor linear_sum = wavelength_intensities_to_linear(kg, L_sum, wavelengths);
+  RGBColor linear_sum = wavelength_intensities_to_linear(kg, L_sum, wavelengths);
 
   if (kernel_data.film.pass_flag & PASSMASK(COMBINED)) {
     kernel_write_pass_float4(buffer, make_float4(linear_sum.x, linear_sum.y, linear_sum.z,  alpha));
