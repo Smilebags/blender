@@ -149,7 +149,7 @@ ccl_device_inline void bsdf_eval_mul3(BsdfEval *eval, SpectralColor value)
 #endif
 }
 
-ccl_device_inline float3 bsdf_eval_sum(const BsdfEval *eval)
+ccl_device_inline SpectralColor bsdf_eval_sum(const BsdfEval *eval)
 {
 #ifdef __PASSES__
   if (eval->use_light_pass) {
@@ -261,7 +261,7 @@ ccl_device_inline void path_radiance_bsdf_bounce(KernelGlobals *kg,
     }
     else {
       /* transparent bounce before first hit, or indirectly visible through BSDF */
-      float3 sum = (bsdf_eval_sum(bsdf_eval) + bsdf_eval->transparent) * inverse_pdf;
+      SpectralColor sum = (bsdf_eval_sum(bsdf_eval) + bsdf_eval->transparent) * inverse_pdf;
       *throughput *= sum;
     }
   }
@@ -304,7 +304,7 @@ ccl_device_forceinline void path_radiance_clamp_throughput(KernelGlobals *kg,
 ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
                                                     PathRadiance *L,
                                                     ccl_addr_space PathState *state,
-                                                    float3 throughput,
+                                                    RGBColor throughput,
                                                     RGBColor value)
 {
 #ifdef __SHADOW_TRICKS__
@@ -402,15 +402,15 @@ ccl_device_inline void path_radiance_accum_total_ao(PathRadiance *L,
 ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
                                                  PathRadiance *L,
                                                  ccl_addr_space PathState *state,
-                                                 float3 throughput,
+                                                 SpectralColor throughput,
                                                  BsdfEval *bsdf_eval,
-                                                 float3 shadow,
+                                                 SpectralColor shadow,
                                                  float shadow_fac,
                                                  bool is_lamp)
 {
 #ifdef __SHADOW_TRICKS__
   if (state->flag & PATH_RAY_STORE_SHADOW_INFO) {
-    float3 light = throughput * bsdf_eval->sum_no_mis;
+    SpectralColor light = throughput * bsdf_eval->sum_no_mis;
     L->path_total += light;
     L->path_total_shaded += shadow * light;
 
@@ -420,13 +420,13 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
   }
 #endif
 
-  float3 shaded_throughput = throughput * shadow;
+  SpectralColor shaded_throughput = throughput * shadow;
 
 #ifdef __PASSES__
   if (L->use_light_pass) {
     /* Compute the clamping based on the total contribution.
      * The resulting scale is then be applied to all individual components. */
-    float3 full_contribution = shaded_throughput * bsdf_eval_sum(bsdf_eval);
+    SpectralColor full_contribution = shaded_throughput * bsdf_eval_sum(bsdf_eval);
 #  ifdef __CLAMP_SAMPLE__
     path_radiance_clamp_throughput(kg, &full_contribution, &shaded_throughput, state->bounce);
 #  endif

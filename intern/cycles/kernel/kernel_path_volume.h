@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void kernel_path_volume_connect_light(KernelGlobals *kg,
                                                         ShaderData *sd,
                                                         ShaderData *emission_sd,
-                                                        float3 throughput,
+                                                        SpectralColor throughput,
                                                         ccl_addr_space PathState *state,
                                                         PathRadiance *L)
 {
@@ -51,7 +51,7 @@ ccl_device_inline void kernel_path_volume_connect_light(KernelGlobals *kg,
   }
 
   /* trace shadow ray */
-  float3 shadow;
+  SpectralColor shadow;
 
   const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
 
@@ -64,7 +64,7 @@ ccl_device_inline void kernel_path_volume_connect_light(KernelGlobals *kg,
 
 ccl_device_noinline_cpu bool kernel_path_volume_bounce(KernelGlobals *kg,
                                                        ShaderData *sd,
-                                                       ccl_addr_space float3 *throughput,
+                                                       ccl_addr_space SpectralColor *throughput,
                                                        ccl_addr_space PathState *state,
                                                        PathRadianceState *L_state,
                                                        ccl_addr_space Ray *ray)

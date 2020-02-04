@@ -150,7 +150,7 @@ ccl_device_forceinline VolumeIntegrateResult kernel_path_volume(KernelGlobals *k
                                                                 ShaderData *sd,
                                                                 PathState *state,
                                                                 Ray *ray,
-                                                                float3 *throughput,
+                                                                SpectralColor *throughput,
                                                                 ccl_addr_space Intersection *isect,
                                                                 bool hit,
                                                                 ShaderData *emission_sd,
@@ -514,6 +514,9 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 #  endif /* defined(__BRANCHED_PATH__) || defined(__BAKING__) */
 
+/**
+ * Stores the scene-linear RGB luminance of the sample in PathRadiance *L
+ **/
 ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
                                                   PathState *state,
                                                   float3 throughput,
@@ -535,6 +538,7 @@ ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
 #  endif /* __SUBSURFACE__ */
 
     /* path iteration */
+    // loop until no hit or absorbed
     for (;;) {
       /* Find intersection with objects in scene. */
       Intersection isect;
@@ -680,7 +684,7 @@ ccl_device void kernel_path_trace(
 #  endif
 
   /* Initialize state. */
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+  SpectralColor throughput = make_float3(1.0f, 1.0f, 1.0f);
 
   PathRadiance L;
   path_radiance_init(kg, &L);

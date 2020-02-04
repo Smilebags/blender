@@ -1004,7 +1004,7 @@ typedef ccl_addr_space struct ccl_align(16) ShaderData
   /* Closure weights summed directly, so we can evaluate
    * emission and shadow transparency with MAX_CLOSURE 0. */
   RGBColor closure_emission_background;
-  float3 closure_transparent_extinction;
+  RGBColor closure_transparent_extinction;
 
   /* At the end so we can adjust size in ShaderDataTinyStorage. */
   struct ShaderClosure closure[MAX_CLOSURE];
