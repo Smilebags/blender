@@ -17,12 +17,13 @@ roles:
   xyz: Linear XYZ IE
 
 displays:
+  sRGB-Like Commodity Display:
+    - !<View> {name: Display Native, colorspace: BT.709 2.2 CCTF Colourspace}
   sRGB Display:
-    - !<View> {name: sRGB CCTF, colorspace: sRGB Colourspace}
-    - !<View> {name: sRGB 2.2, colorspace: BT.709 2.2 CCTF Colourspace}
+    - !<View> {name: Display Native, colorspace: sRGB Colourspace}
 
-active_displays: [sRGB Display]
-active_views: [sRGB CCTF, sRGB Colourspace]
+active_displays: [sRGB-Like Commodity Display, sRGB Display]
+active_views: [Display Native]
 
 colorspaces:
   - !<ColorSpace>
