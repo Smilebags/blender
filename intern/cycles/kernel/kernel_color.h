@@ -559,7 +559,7 @@ ccl_device float3 find_position_in_lookup(float4 lookup[], float wavelength)
         upper_bound++;
     }
     int lower_bound = upper_bound -1;
-    float progress = (wavelength - lookup[lower_bound].x) / (lookup[upper_bound][0] - lookup[lower_bound][0]);
+    float progress = (wavelength - lookup[lower_bound].x) / (lookup[upper_bound].x - lookup[lower_bound].x);
     return make_float3(
         float_lerp(lookup[lower_bound].y, lookup[upper_bound].y, progress),
         float_lerp(lookup[lower_bound].z, lookup[upper_bound].z, progress),
