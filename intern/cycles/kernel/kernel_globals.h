@@ -87,8 +87,8 @@ typedef struct KernelGlobals {
 
   ProfilingState profiler;
 
-  float wavelength_low_bound;
-  float wavelength_high_bound;
+  // float wavelength_low_bound;
+  // float wavelength_high_bound;
 } KernelGlobals;
 
 #endif /* __KERNEL_CPU__ */
