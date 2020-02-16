@@ -42,25 +42,25 @@ ccl_device float3 find_position_in_lookup_unit_step(float4 lookup[], float posit
 {
     if(position_to_find <= start) {
         return make_float3(
-            lookup[0][1],
-            lookup[0][2],
-            lookup[0][3]
+            lookup[0].y,
+            lookup[0].z,
+            lookup[0].w
         );
     }
     if(position_to_find >= end) {
         return make_float3(
-            lookup[end][1],
-            lookup[end][2],
-            lookup[end][3]
+            lookup[end].y,
+            lookup[end].z,
+            lookup[end].w
         );
     }
     int lower_bound = int(position_to_find) - start;
     int upper_bound = lower_bound + 1;
     float progress = position_to_find - int(position_to_find);
     return make_float3(
-        float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress),
-        float_lerp(lookup[lower_bound][2], lookup[upper_bound][2], progress),
-        float_lerp(lookup[lower_bound][3], lookup[upper_bound][3], progress)
+        float_lerp(lookup[lower_bound].y, lookup[upper_bound].y, progress),
+        float_lerp(lookup[lower_bound].z, lookup[upper_bound].z, progress),
+        float_lerp(lookup[lower_bound].w, lookup[upper_bound].w, progress)
     );
 }
 
@@ -555,27 +555,27 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg, Spectral
 ccl_device float3 find_position_in_lookup(float4 lookup[], float wavelength)
 {
     int upper_bound = 0;
-    while(lookup[upper_bound][0] < wavelength) {
+    while(lookup[upper_bound].x < wavelength) {
         upper_bound++;
     }
     int lower_bound = upper_bound -1;
-    float progress = (wavelength - lookup[lower_bound][0]) / (lookup[upper_bound][0] - lookup[lower_bound][0]);
+    float progress = (wavelength - lookup[lower_bound].x) / (lookup[upper_bound][0] - lookup[lower_bound][0]);
     return make_float3(
-        float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress),
-        float_lerp(lookup[lower_bound][2], lookup[upper_bound][2], progress),
-        float_lerp(lookup[lower_bound][3], lookup[upper_bound][3], progress)
+        float_lerp(lookup[lower_bound].y, lookup[upper_bound].y, progress),
+        float_lerp(lookup[lower_bound].z, lookup[upper_bound].z, progress),
+        float_lerp(lookup[lower_bound].w, lookup[upper_bound].w, progress)
     );
 }
 
 ccl_device float find_position_in_lookup_2d(float2 lookup[], float wavelength)
 {
     int upper_bound = 0;
-    while(lookup[upper_bound][0] < wavelength) {
+    while(lookup[upper_bound].x < wavelength) {
         upper_bound++;
     }
     int lower_bound = upper_bound -1;
-    float progress = (wavelength - lookup[lower_bound][0]) / (lookup[upper_bound][0] - lookup[lower_bound][0]);
-    return float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress);
+    float progress = (wavelength - lookup[lower_bound].x) / (lookup[upper_bound].x - lookup[lower_bound].x);
+    return float_lerp(lookup[lower_bound].y, lookup[upper_bound].y, progress);
 }
 
 ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float3 wavelengths)
@@ -678,20 +678,20 @@ ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float3 w
         make_float4(830.0f, 0.989627951f, 0.000180551f, 0.010106495f)
     };
     // find position in lookup of first wavelength
-    float3 wavelength_one_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths[0]);
+    float3 wavelength_one_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths.x);
     // multiply the lookups by the RGB factors
     float3 contributions_one = wavelength_one_magnitudes * rgb;
     // add the three components
-    float wavelength_one_brightness = contributions_one[0] + contributions_one[1] + contributions_one[2];
+    float wavelength_one_brightness = contributions_one.x + contributions_one.y + contributions_one.z;
 
     // repeat for other two wavelengths
-    float3 wavelength_two_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths[1]);
+    float3 wavelength_two_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths.y);
     float3 contributions_two = wavelength_two_magnitudes * rgb;
-    float wavelength_two_brightness = contributions_two[0] + contributions_two[1] + contributions_two[2];
+    float wavelength_two_brightness = contributions_two.x + contributions_two.y + contributions_two.z;
 
-    float3 wavelength_three_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths[2]);
+    float3 wavelength_three_magnitudes = find_position_in_lookup(rec709_wavelength_lookup, wavelengths.z);
     float3 contributions_three = wavelength_three_magnitudes * rgb;
-    float wavelength_three_brightness = contributions_three[0] + contributions_three[1] + contributions_three[2];
+    float wavelength_three_brightness = contributions_three.x + contributions_three.y + contributions_three.z;
 
     return make_float3(
         wavelength_one_brightness,
