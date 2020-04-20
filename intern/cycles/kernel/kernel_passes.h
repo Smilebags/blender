@@ -331,7 +331,7 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
   if (light_flag & PASSMASK(VOLUME_DIRECT))
     kernel_write_pass_float3(
       buffer + kernel_data.film.pass_volume_direct,
-      wavelength_intensities_to_linear(kg, L->direct_scatter, wavelengths)
+      wavelength_intensities_to_linear(kg, L->direct_volume, wavelengths)
     );
   if (light_flag & PASSMASK(EMISSION))
     kernel_write_pass_float3(
