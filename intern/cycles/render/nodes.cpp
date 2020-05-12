@@ -1907,10 +1907,11 @@ Node *ConvertNode::create(const NodeType *type)
 
 bool ConvertNode::register_types()
 {
-  const int num_types = 8;
+  const int num_types = 9;
   SocketType::Type types[num_types] = {SocketType::FLOAT,
                                        SocketType::INT,
                                        SocketType::COLOR,
+                                       SocketType::SPECTRAL,
                                        SocketType::VECTOR,
                                        SocketType::POINT,
                                        SocketType::NORMAL,
@@ -1994,6 +1995,11 @@ void ConvertNode::constant_fold(const ConstantFolder &folder)
   }
   else {
     ShaderInput *in = inputs[0];
+
+    if (!in->link || !in->link->parent) {
+      return;
+    }
+
     ShaderNode *prev = in->link->parent;
 
     /* no-op conversion of A to B to A */
@@ -2015,6 +2021,11 @@ void ConvertNode::compile(SVMCompiler &compiler)
 
   ShaderInput *in = inputs[0];
   ShaderOutput *out = outputs[0];
+
+  if (from == SocketType::COLOR && to == SocketType::SPECTRAL) {
+    compiler.add_node(NODE_RGB_TO_SPECTRAL, compiler.stack_assign(in), compiler.stack_assign(out));
+    return;
+  }
 
   if (from == SocketType::FLOAT) {
     if (to == SocketType::INT)
