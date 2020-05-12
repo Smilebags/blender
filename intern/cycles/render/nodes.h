@@ -1628,6 +1628,17 @@ class VectorDisplacementNode : public ShaderNode {
   float scale;
 };
 
+class RGBToSpectralNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(RGBToSpectralNode)
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_0;
+  }
+
+  float3 color;
+};
+
 CCL_NAMESPACE_END
 
 #endif /* __NODES_H__ */
