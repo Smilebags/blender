@@ -509,7 +509,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         svm_node_wavelength(kg, sd, stack, node.y, node.z);
         break;
       case NODE_BLACKBODY:
-        svm_node_blackbody(kg, sd, stack, node.y, node.z);
+        svm_node_blackbody(kg, state, stack, node.y, node.z);
         break;
       case NODE_MAP_RANGE:
         svm_node_map_range(kg, sd, stack, node.y, node.z, node.w, &offset);

@@ -5553,7 +5553,7 @@ NODE_DEFINE(BlackbodyNode)
   NodeType *type = NodeType::add("blackbody", create, NodeType::SHADER);
 
   SOCKET_IN_FLOAT(temperature, "Temperature", 1200.0f);
-  SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_SPECTRAL(color, "Color");
 
   return type;
 }
