@@ -81,12 +81,10 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
     return false;
 
   coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
-  coeff->sigma_t = (sd->flag & SD_EXTINCTION)
-    ? linear_to_wavelength_intensities(sd->closure_transparent_extinction, state->wavelengths)
-    : make_float3(0.0f, 0.0f, 0.0f);
-  coeff->emission = (sd->flag & SD_EMISSION)
-    ? linear_to_wavelength_intensities(sd->closure_emission_background, state->wavelengths)
-    : make_float3(0.0f, 0.0f, 0.0f);
+  coeff->sigma_t = (sd->flag & SD_EXTINCTION) ? sd->closure_transparent_extinction :
+                                                make_float3(0.0f, 0.0f, 0.0f);
+  coeff->emission = (sd->flag & SD_EMISSION) ? sd->closure_emission_background :
+                                               make_float3(0.0f, 0.0f, 0.0f);
 
   if (sd->flag & SD_SCATTER) {
     for (int i = 0; i < sd->num_closure; i++) {

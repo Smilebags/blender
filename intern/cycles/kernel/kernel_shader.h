@@ -599,10 +599,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
       RGBColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = linear_to_wavelength_intensities(
-          eval * sc->weight,
-          wavelengths
-        );
+        SpectralColor wavelength_intensities = eval * sc->weight;
 
         bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, 1.0f);
         sum_pdf += bsdf_pdf * sc->sample_weight;
@@ -630,10 +627,7 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
       float bsdf_pdf = 0.0f;
       float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = linear_to_wavelength_intensities(
-          eval * sc->weight,
-          wavelengths
-        );
+        SpectralColor wavelength_intensities = eval * sc->weight;
         float mis_weight = use_mis ? power_heuristic(light_pdf, bsdf_pdf) : 1.0f;
         bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, mis_weight);
       }
@@ -805,7 +799,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    SpectralColor wavelength_intensities = eval * sc->weight;
     bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
@@ -838,7 +832,7 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = linear_to_wavelength_intensities(eval * sc->weight, wavelengths);
+    SpectralColor wavelength_intensities = eval * sc->weight;
     bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
   }
 

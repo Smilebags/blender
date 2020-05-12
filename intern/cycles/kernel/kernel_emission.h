@@ -94,7 +94,7 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
     eval *= make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
   }
 
-  return linear_to_wavelength_intensities(eval, state->wavelengths);
+  return eval;
 }
 
 ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
@@ -227,7 +227,7 @@ ccl_device_noinline_cpu SpectralColor indirect_primitive_emission(
     L *= mis_weight;
   }
 
-  return linear_to_wavelength_intensities(L, wavelengths);
+  return L;
 }
 
 /* Indirect Lamp Emission */
@@ -338,7 +338,7 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
   }
 #  endif
 
-  return linear_to_wavelength_intensities(L, state->wavelengths);
+  return L;
 #else
   return make_float3(0.8f, 0.8f, 0.8f);
 #endif
