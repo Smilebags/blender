@@ -810,7 +810,8 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
-      _shader_bsdf_multi_eval(kg, sd, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight, wavelengths);
+      _shader_bsdf_multi_eval(
+          kg, sd, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight, wavelengths);
     }
   }
 
@@ -1054,7 +1055,7 @@ ccl_device RGBColor shader_background_eval(ShaderData *sd)
 ccl_device RGBColor shader_emissive_eval(ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
-      return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;
+    return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;
   }
   else {
     return make_float3(0.0f, 0.0f, 0.0f);

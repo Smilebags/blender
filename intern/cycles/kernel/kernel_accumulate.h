@@ -620,8 +620,8 @@ ccl_device_inline void path_radiance_sum_shadowcatcher(KernelGlobals *kg,
 #endif
 
 ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
-                                                     PathRadiance *L,
-                                                     float *alpha)
+                                                            PathRadiance *L,
+                                                            float *alpha)
 {
   float3 L_sum;
   /* Light Passes are used */

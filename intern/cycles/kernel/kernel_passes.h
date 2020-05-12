@@ -295,74 +295,52 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
 
   if (light_flag & PASSMASK(DIFFUSE_INDIRECT))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_diffuse_indirect,
-      wavelength_intensities_to_linear(kg, L->indirect_diffuse, wavelengths)
-    );
+        buffer + kernel_data.film.pass_diffuse_indirect,
+        wavelength_intensities_to_linear(kg, L->indirect_diffuse, wavelengths));
   if (light_flag & PASSMASK(GLOSSY_INDIRECT))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_glossy_indirect,
-      wavelength_intensities_to_linear(kg, L->indirect_glossy, wavelengths)
-    );
+        buffer + kernel_data.film.pass_glossy_indirect,
+        wavelength_intensities_to_linear(kg, L->indirect_glossy, wavelengths));
   if (light_flag & PASSMASK(TRANSMISSION_INDIRECT))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_transmission_indirect,
-      wavelength_intensities_to_linear(kg, L->indirect_transmission, wavelengths)
-    );
+        buffer + kernel_data.film.pass_transmission_indirect,
+        wavelength_intensities_to_linear(kg, L->indirect_transmission, wavelengths));
   if (light_flag & PASSMASK(VOLUME_INDIRECT))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_volume_indirect,
-      wavelength_intensities_to_linear(kg, L->indirect_volume, wavelengths)
-    );
+        buffer + kernel_data.film.pass_volume_indirect,
+        wavelength_intensities_to_linear(kg, L->indirect_volume, wavelengths));
   if (light_flag & PASSMASK(DIFFUSE_DIRECT))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_diffuse_direct,
-      wavelength_intensities_to_linear(kg, L->direct_diffuse, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_direct,
+                             wavelength_intensities_to_linear(kg, L->direct_diffuse, wavelengths));
   if (light_flag & PASSMASK(GLOSSY_DIRECT))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_glossy_direct,
-      wavelength_intensities_to_linear(kg, L->direct_glossy, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_direct,
+                             wavelength_intensities_to_linear(kg, L->direct_glossy, wavelengths));
   if (light_flag & PASSMASK(TRANSMISSION_DIRECT))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_transmission_direct,
-      wavelength_intensities_to_linear(kg, L->direct_transmission, wavelengths)
-    );
+        buffer + kernel_data.film.pass_transmission_direct,
+        wavelength_intensities_to_linear(kg, L->direct_transmission, wavelengths));
   if (light_flag & PASSMASK(VOLUME_DIRECT))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_volume_direct,
-      wavelength_intensities_to_linear(kg, L->direct_volume, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_volume_direct,
+                             wavelength_intensities_to_linear(kg, L->direct_volume, wavelengths));
   if (light_flag & PASSMASK(EMISSION))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_emission,
-      wavelength_intensities_to_linear(kg, L->emission, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_emission,
+                             wavelength_intensities_to_linear(kg, L->emission, wavelengths));
   if (light_flag & PASSMASK(BACKGROUND))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_background,
-      wavelength_intensities_to_linear(kg, L->background, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_background,
+                             wavelength_intensities_to_linear(kg, L->background, wavelengths));
   if (light_flag & PASSMASK(AO))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_ao,
-      wavelength_intensities_to_linear(kg, L->ao, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_ao,
+                             wavelength_intensities_to_linear(kg, L->ao, wavelengths));
   if (light_flag & PASSMASK(DIFFUSE_COLOR))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_diffuse_color,
-      wavelength_intensities_to_linear(kg, L->color_diffuse, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_color,
+                             wavelength_intensities_to_linear(kg, L->color_diffuse, wavelengths));
   if (light_flag & PASSMASK(GLOSSY_COLOR))
-    kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_glossy_color,
-      wavelength_intensities_to_linear(kg, L->color_glossy, wavelengths)
-    );
+    kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_color,
+                             wavelength_intensities_to_linear(kg, L->color_glossy, wavelengths));
   if (light_flag & PASSMASK(TRANSMISSION_COLOR))
     kernel_write_pass_float3(
-      buffer + kernel_data.film.pass_transmission_color,
-      wavelength_intensities_to_linear(kg, L->color_transmission, wavelengths)
-    );
+        buffer + kernel_data.film.pass_transmission_color,
+        wavelength_intensities_to_linear(kg, L->color_transmission, wavelengths));
   if (light_flag & PASSMASK(SHADOW)) {
     float4 shadow = L->shadow;
     shadow.w = kernel_data.film.pass_shadow_scale;
@@ -373,11 +351,8 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
 #endif
 }
 
-ccl_device_inline void kernel_write_result(KernelGlobals *kg,
-                                           ccl_global float *buffer,
-                                           int sample,
-                                           PathRadiance *L,
-                                           float3 wavelengths)
+ccl_device_inline void kernel_write_result(
+    KernelGlobals *kg, ccl_global float *buffer, int sample, PathRadiance *L, float3 wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_WRITE_RESULT);
   PROFILING_OBJECT(PRIM_NONE);
@@ -387,7 +362,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
   RGBColor linear_sum = wavelength_intensities_to_linear(kg, L_sum, wavelengths);
 
   if (kernel_data.film.pass_flag & PASSMASK(COMBINED)) {
-    kernel_write_pass_float4(buffer, make_float4(linear_sum.x, linear_sum.y, linear_sum.z,  alpha));
+    kernel_write_pass_float4(buffer, make_float4(linear_sum.x, linear_sum.y, linear_sum.z, alpha));
   }
 
   kernel_write_light_passes(kg, buffer, L, wavelengths);
@@ -407,34 +382,26 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg,
     if (kernel_data.film.pass_denoising_clean) {
       float3 noisy, clean;
       path_radiance_split_denoising(kg, L, &noisy, &clean);
-      kernel_write_pass_float3_variance(
-        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-        wavelength_intensities_to_linear(kg, noisy, wavelengths)
-      );
-      kernel_write_pass_float3_unaligned(
-        buffer + kernel_data.film.pass_denoising_clean,
-        wavelength_intensities_to_linear(kg, clean, wavelengths)
-      );
+      kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
+                                            DENOISING_PASS_COLOR,
+                                        wavelength_intensities_to_linear(kg, noisy, wavelengths));
+      kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean,
+                                         wavelength_intensities_to_linear(kg, clean, wavelengths));
     }
     else {
       kernel_write_pass_float3_variance(
-        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-        wavelength_intensities_to_linear(kg, ensure_finite3(L_sum), wavelengths)
-      );
+          buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+          wavelength_intensities_to_linear(kg, ensure_finite3(L_sum), wavelengths));
     }
 
+    kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
+                                          DENOISING_PASS_NORMAL,
+                                      L->denoising_normal);
     kernel_write_pass_float3_variance(
-      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
-      L->denoising_normal
-    );
-    kernel_write_pass_float3_variance(
-      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_ALBEDO,
-      wavelength_intensities_to_linear(kg, L->denoising_albedo, wavelengths)
-    );
+        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_ALBEDO,
+        wavelength_intensities_to_linear(kg, L->denoising_albedo, wavelengths));
     kernel_write_pass_float_variance(
-      buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH,
-      L->denoising_depth
-    );
+        buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH, L->denoising_depth);
   }
 #endif /* __DENOISING_FEATURES__ */
 
