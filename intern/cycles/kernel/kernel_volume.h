@@ -67,7 +67,7 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
  * evaluate shader to get absorption, scattering and emission at P
  * param sd contains the closures which will be used for setting the coefficients
  * the 3 components of the emission, scattering and absorbtion of the volume
-*/
+ */
 ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
                                             ShaderData *sd,
                                             ccl_addr_space PathState *state,
@@ -81,12 +81,10 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
     return false;
 
   coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
-  coeff->sigma_t = (sd->flag & SD_EXTINCTION)
-    ? linear_to_wavelength_intensities(sd->closure_transparent_extinction, state->wavelengths)
-    : make_float3(0.0f, 0.0f, 0.0f);
-  coeff->emission = (sd->flag & SD_EMISSION)
-    ? linear_to_wavelength_intensities(sd->closure_emission_background, state->wavelengths)
-    : make_float3(0.0f, 0.0f, 0.0f);
+  coeff->sigma_t = (sd->flag & SD_EXTINCTION) ? sd->closure_transparent_extinction :
+                                                make_float3(0.0f, 0.0f, 0.0f);
+  coeff->emission = (sd->flag & SD_EMISSION) ? sd->closure_emission_background :
+                                               make_float3(0.0f, 0.0f, 0.0f);
 
   if (sd->flag & SD_SCATTER) {
     for (int i = 0; i < sd->num_closure; i++) {
@@ -386,9 +384,9 @@ ccl_device float3 kernel_volume_distance_pdf(float max_t, float3 sigma_t, float 
 /* Emission */
 
 ccl_device SpectralColor kernel_volume_emission_integrate(VolumeShaderCoefficients *coeff,
-                                                   int closure_flag,
-                                                   SpectralColor transmittance,
-                                                   float distance)
+                                                          int closure_flag,
+                                                          SpectralColor transmittance,
+                                                          float distance)
 {
   /* integral E * exp(-sigma_t * t) from 0 to t = E * (1 - exp(-sigma_t * t))/sigma_t
    * this goes to E * t as sigma_t goes to zero
@@ -536,7 +534,8 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
     SpectralColor emission = kernel_volume_emission_integrate(
         &coeff, closure_flag, transmittance, ray->t);
 
-    RGBColor rgb_emission = wavelength_intensities_to_linear(kg, emission, state->wavelengths * *throughput);
+    RGBColor rgb_emission = wavelength_intensities_to_linear(
+        kg, emission, state->wavelengths * *throughput);
     path_radiance_accum_emission(kg, L, state, make_float3(1.0f, 1.0f, 1.0f), rgb_emission);
   }
 
@@ -663,7 +662,8 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
       if (L && (closure_flag & SD_EMISSION)) {
         SpectralColor emission = kernel_volume_emission_integrate(
             &coeff, closure_flag, transmittance, dt);
-        RGBColor rgb_emission = wavelength_intensities_to_linear(kg, emission, state->wavelengths * tp);
+        RGBColor rgb_emission = wavelength_intensities_to_linear(
+            kg, emission, state->wavelengths * tp);
         path_radiance_accum_emission(kg, L, state, make_float3(1.0f, 1.0f, 1.0f), rgb_emission);
       }
 

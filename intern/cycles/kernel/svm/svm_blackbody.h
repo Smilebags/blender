@@ -34,15 +34,35 @@ CCL_NAMESPACE_BEGIN
 
 /* Blackbody Node */
 
+ccl_static_constant float h = 6.62607015e-34f;
+ccl_static_constant float c = 2.99792458e+8f;
+ccl_static_constant float kb = 1.380649e-23f;
+ccl_static_constant float b = 2.897771955e-3f;
+
+ccl_device_inline float blackbody_intensity(float temperature, float wavelength)
+{
+  float wavelength_i = 1.0f / wavelength;
+  float wavelength_i2 = wavelength_i * wavelength_i;
+  float wavelength_i5 = wavelength_i2 * wavelength_i2 * wavelength_i;
+
+  return (2 * h * c * c * wavelength_i5) / (exp(h * c / (kb * wavelength * temperature)) - 1.0f);
+}
+
 ccl_device void svm_node_blackbody(
-    KernelGlobals *kg, ShaderData *sd, float *stack, uint temperature_offset, uint col_offset)
+    KernelGlobals *kg, PathState *state, float *stack, uint temperature_offset, uint col_offset)
 {
   /* Input */
   float temperature = stack_load_float(stack, temperature_offset);
 
-  float3 color_rgb = svm_math_blackbody_color(temperature);
+  float peak_wavelength = clamp(b / temperature, 360.0e-9f, 730.0e-9f);
+  float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
 
-  stack_store_float3(stack, col_offset, color_rgb);
+  float3 spectral = make_float3(
+      blackbody_intensity(temperature, state->wavelengths.x * 1e-9f) / peak_intensity,
+      blackbody_intensity(temperature, state->wavelengths.y * 1e-9f) / peak_intensity,
+      blackbody_intensity(temperature, state->wavelengths.z * 1e-9f) / peak_intensity);
+
+  stack_store_float3(stack, col_offset, spectral);
 }
 
 CCL_NAMESPACE_END

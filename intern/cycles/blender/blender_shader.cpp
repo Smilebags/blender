@@ -177,6 +177,10 @@ static void set_default_value(ShaderInput *input,
       node->set(socket, float4_to_float3(get_float4(b_sock.ptr, "default_value")));
       break;
     }
+    case SocketType::SPECTRAL: {
+      node->set(socket, float4_to_float3(get_float4(b_sock.ptr, "default_value")));
+      break;
+    }
     case SocketType::NORMAL:
     case SocketType::POINT:
     case SocketType::VECTOR: {

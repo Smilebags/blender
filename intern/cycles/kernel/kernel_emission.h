@@ -18,13 +18,13 @@ CCL_NAMESPACE_BEGIN
 
 /* Direction Emission */
 ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
-                                                    ShaderData *emission_sd,
-                                                    LightSample *ls,
-                                                    ccl_addr_space PathState *state,
-                                                    float3 I,
-                                                    differential3 dI,
-                                                    float t,
-                                                    float time)
+                                                           ShaderData *emission_sd,
+                                                           LightSample *ls,
+                                                           ccl_addr_space PathState *state,
+                                                           float3 I,
+                                                           differential3 dI,
+                                                           float t,
+                                                           float time)
 {
   /* setup shading at emitter */
   RGBColor eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -91,10 +91,15 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
 
   if (ls->lamp != LAMP_NONE) {
     const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
-    eval *= make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
+
+    SpectralColor spectral = linear_to_wavelength_intensities(
+        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]),
+        state->wavelengths);
+
+    eval *= spectral;
   }
 
-  return linear_to_wavelength_intensities(eval, state->wavelengths);
+  return eval;
 }
 
 ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
@@ -125,7 +130,8 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
 #ifdef __VOLUME__
   if (sd->prim != PRIM_NONE)
-    shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
+    shader_bsdf_eval(
+        kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
   else {
     float bsdf_pdf;
     shader_volume_phase_eval(kg, sd, ls->D, eval, &bsdf_pdf);
@@ -226,7 +232,7 @@ ccl_device_noinline_cpu SpectralColor indirect_primitive_emission(
     L *= mis_weight;
   }
 
-  return linear_to_wavelength_intensities(L, wavelengths);
+  return L;
 }
 
 /* Indirect Lamp Emission */
@@ -285,10 +291,10 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
 /* Indirect Background */
 
 ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
-                                                   ShaderData *emission_sd,
-                                                   ccl_addr_space PathState *state,
-                                                   ccl_global float *buffer,
-                                                   ccl_addr_space Ray *ray)
+                                                          ShaderData *emission_sd,
+                                                          ccl_addr_space PathState *state,
+                                                          ccl_global float *buffer,
+                                                          ccl_addr_space Ray *ray)
 {
 #ifdef __BACKGROUND__
   int shader = kernel_data.background.surface_shader;
@@ -337,7 +343,7 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
   }
 #  endif
 
-  return linear_to_wavelength_intensities(L, state->wavelengths);
+  return L;
 #else
   return make_float3(0.8f, 0.8f, 0.8f);
 #endif

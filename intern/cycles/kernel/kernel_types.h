@@ -243,7 +243,7 @@ enum PathTraceDimension {
   PRNG_LENS_U = 2,
   PRNG_LENS_V = 3,
   PRNG_TIME = 4,
-  PRNG_WAVELENGTH  = 5,
+  PRNG_WAVELENGTH = 5,
   PRNG_UNUSED_1 = 6, /* for some reason (6, 7) is a bad sobol pattern */
   PRNG_UNUSED_2 = 7, /* with a low number of samples (< 64) */
   PRNG_BASE_NUM = 10,
@@ -1067,7 +1067,7 @@ typedef struct PathState {
 #endif
 
   /* spectral rendering */
-  float3 wavelengths; 
+  float3 wavelengths;
 } PathState;
 
 #ifdef __VOLUME__

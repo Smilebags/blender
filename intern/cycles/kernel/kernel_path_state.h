@@ -76,10 +76,9 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   float offset_three = fmod(wavelength_offset + (2.0f / 3.0f), 1.0f);
 
   state->wavelengths = make_float3(
-    float_lerp(wavelength_low_bound, wavelength_high_bound, wavelength_offset),
-    float_lerp(wavelength_low_bound, wavelength_high_bound, offset_two),
-    float_lerp(wavelength_low_bound, wavelength_high_bound, offset_three)
-	);
+      float_lerp(wavelength_low_bound, wavelength_high_bound, wavelength_offset),
+      float_lerp(wavelength_low_bound, wavelength_high_bound, offset_two),
+      float_lerp(wavelength_low_bound, wavelength_high_bound, offset_three));
 }
 
 ccl_device_inline void path_state_next(KernelGlobals *kg,
