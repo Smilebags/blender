@@ -523,12 +523,31 @@ ccl_device_inline SpectralColor safe_divide_color(SpectralColor a, SpectralColor
   return color;
 }
 
+ccl_device_inline float3 safe_divide_color(float3 a, float3 b)
+{
+  float3 color;
+
+  color[0] = (b[0] != 0.0f) ? a[0] / b[0] : 0.0f;
+  color[1] = (b[1] != 0.0f) ? a[1] / b[1] : 0.0f;
+  color[2] = (b[2] != 0.0f) ? a[2] / b[2] : 0.0f;
+
+  return color;
+}
+
 ccl_device_inline SpectralColor safe_divide_even_color(SpectralColor a, SpectralColor b)
 {
   SpectralColor s = safe_divide_color(a, b);
   float f = reduce_add_spectral(s);
 
   return make_spectral_color(f / WAVELENGTHS_PER_RAY);
+}
+
+ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
+{
+  float3 s = safe_divide_color(a, b);
+  float f = s[0] + s[1] + s[2];
+
+  return make_float3(f / 3);
 }
 
 ccl_device_inline SpectralColor saturate(SpectralColor a)
