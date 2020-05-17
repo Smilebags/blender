@@ -535,8 +535,11 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
         &coeff, closure_flag, transmittance, ray->t);
 
     RGBColor rgb_emission = wavelength_intensities_to_linear(
-        kg, emission, state->wavelengths * *throughput);
-    path_radiance_accum_emission(kg, L, state, make_float3(1.0f, 1.0f, 1.0f), rgb_emission);
+        kg, emission, state->wavelengths);
+
+    RGBColor rgb_throughput = wavelength_intensities_to_linear(
+        kg, emission, *throughput);
+    path_radiance_accum_emission(kg, L, state, rgb_throughput, rgb_emission);
   }
 
   /* modify throughput */
