@@ -22,12 +22,12 @@ CCL_NAMESPACE_BEGIN
  * http://library.imageworks.com/pdfs/imageworks-library-BSSRDF-sampling.pdf
  */
 
-ccl_device_inline float3
+ccl_device_inline SpectralColor
 subsurface_scatter_eval(ShaderData *sd, const ShaderClosure *sc, float disk_r, float r, bool all)
 {
   /* this is the veach one-sample model with balance heuristic, some pdf
    * factors drop out when using balance heuristic weighting */
-  float3 eval_sum = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor eval_sum = make_spectral_color(0.0f);
   float pdf_sum = 0.0f;
   float sample_weight_inv = 0.0f;
 
@@ -54,7 +54,7 @@ subsurface_scatter_eval(ShaderData *sd, const ShaderClosure *sc, float disk_r, f
       float sample_weight = (all) ? 1.0f : sc->sample_weight * sample_weight_inv;
 
       /* compute pdf */
-      float3 eval = bssrdf_eval(sc, r);
+      SpectralColor eval = bssrdf_eval(sc, r);
       float pdf = bssrdf_pdf(sc, disk_r);
 
       eval_sum += sc->weight * eval;
@@ -62,12 +62,16 @@ subsurface_scatter_eval(ShaderData *sd, const ShaderClosure *sc, float disk_r, f
     }
   }
 
-  return (pdf_sum > 0.0f) ? eval_sum / pdf_sum : make_float3(0.0f, 0.0f, 0.0f);
+  return (pdf_sum > 0.0f) ? eval_sum / pdf_sum : make_spectral_color(0.0f);
 }
 
 /* replace closures with a single diffuse bsdf closure after scatter step */
-ccl_device void subsurface_scatter_setup_diffuse_bsdf(
-    KernelGlobals *kg, ShaderData *sd, ClosureType type, float roughness, float3 weight, float3 N)
+ccl_device void subsurface_scatter_setup_diffuse_bsdf(KernelGlobals *kg,
+                                                      ShaderData *sd,
+                                                      ClosureType type,
+                                                      float roughness,
+                                                      SpectralColor weight,
+                                                      float3 N)
 {
   sd->flag &= ~SD_CLOSURE_FLAGS;
   sd->num_closure = 0;
@@ -105,33 +109,29 @@ ccl_device void subsurface_scatter_setup_diffuse_bsdf(
 }
 
 /* optionally do blurring of color and/or bump mapping, at the cost of a shader evaluation */
-ccl_device float3 subsurface_color_pow(float3 color, float exponent)
+ccl_device SpectralColor subsurface_color_pow(SpectralColor color, float exponent)
 {
-  color = max(color, make_float3(0.0f, 0.0f, 0.0f));
+  color = max(color, make_spectral_color(0.0f));
 
-  if (exponent == 1.0f) {
-    /* nothing to do */
-  }
-  else if (exponent == 0.5f) {
-    color.x = sqrtf(color.x);
-    color.y = sqrtf(color.y);
-    color.z = sqrtf(color.z);
-  }
-  else {
-    color.x = powf(color.x, exponent);
-    color.y = powf(color.y, exponent);
-    color.z = powf(color.z, exponent);
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    color[i] = (exponent == 1.0f) ?
+                   color[i] :
+                   ((exponent == 0.5f) ? sqrtf(color[i]) : powf(color[i], exponent));
   }
 
   return color;
 }
 
-ccl_device void subsurface_color_bump_blur(
-    KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, float3 *eval, float3 *N)
+ccl_device void subsurface_color_bump_blur(KernelGlobals *kg,
+                                           ShaderData *sd,
+                                           ccl_addr_space PathState *state,
+                                           SpectralColor *eval,
+                                           float3 *N)
 {
   /* average color and texture blur at outgoing point */
   float texture_blur;
-  float3 out_color = shader_bssrdf_sum(sd, NULL, &texture_blur);
+  SpectralColor out_color = shader_bssrdf_sum(sd, NULL, &texture_blur);
 
   /* do we have bump mapping? */
   bool bump = (sd->flag & SD_HAS_BSSRDF_BUMP) != 0;
@@ -139,7 +139,7 @@ ccl_device void subsurface_color_bump_blur(
   if (bump || texture_blur > 0.0f) {
     /* average color and normal at incoming point */
     shader_eval_surface(kg, sd, state, NULL, state->flag);
-    float3 in_color = shader_bssrdf_sum(sd, (bump) ? N : NULL, NULL);
+    SpectralColor in_color = shader_bssrdf_sum(sd, (bump) ? N : NULL, NULL);
 
     /* we simply divide out the average color and multiply with the average
      * of the other one. we could try to do this per closure but it's quite
@@ -243,7 +243,7 @@ ccl_device_inline int subsurface_scatter_disk(KernelGlobals *kg,
     }
 #endif /* __OBJECT_MOTION__ */
     else {
-      ss_isect->weight[hit] = make_float3(0.0f, 0.0f, 0.0f);
+      ss_isect->weight[hit] = make_spectral_color(0.0f);
       continue;
     }
 
@@ -269,7 +269,7 @@ ccl_device_inline int subsurface_scatter_disk(KernelGlobals *kg,
     float r = len(hit_P - sd->P);
 
     /* Evaluate profiles. */
-    float3 eval = subsurface_scatter_eval(sd, sc, disk_r, r, all) * w;
+    SpectralColor eval = subsurface_scatter_eval(sd, sc, disk_r, r, all) * w;
 
     ss_isect->weight[hit] = eval;
   }
@@ -305,7 +305,7 @@ ccl_device_noinline void subsurface_scatter_multi_setup(KernelGlobals *kg,
   shader_setup_from_subsurface(kg, sd, &ss_isect->hits[hit], ray);
 
   /* Optionally blur colors and bump mapping. */
-  float3 weight = ss_isect->weight[hit];
+  SpectralColor weight = ss_isect->weight[hit];
   float3 N = sd->N;
   subsurface_color_bump_blur(kg, sd, state, &weight, &N);
 
@@ -320,37 +320,33 @@ ccl_device_noinline void subsurface_scatter_multi_setup(KernelGlobals *kg,
 
 ccl_device void subsurface_random_walk_remap(const float A,
                                              const float d,
-                                             float *sigma_t,
-                                             float *sigma_s)
+                                             float &sigma_t,
+                                             float &sigma_s)
 {
   /* Compute attenuation and scattering coefficients from albedo. */
   const float a = 1.0f - expf(A * (-5.09406f + A * (2.61188f - A * 4.31805f)));
   const float s = 1.9f - A + 3.5f * sqr(A - 0.8f);
 
-  *sigma_t = 1.0f / fmaxf(d * s, 1e-16f);
-  *sigma_s = *sigma_t * a;
+  sigma_t = 1.0f / fmaxf(d * s, 1e-16f);
+  sigma_s = sigma_t * a;
 }
 
 ccl_device void subsurface_random_walk_coefficients(const ShaderClosure *sc,
-                                                    float3 *sigma_t,
-                                                    float3 *sigma_s,
-                                                    float3 *weight)
+                                                    SpectralColor &sigma_t,
+                                                    SpectralColor &sigma_s,
+                                                    SpectralColor &weight)
 {
   const Bssrdf *bssrdf = (const Bssrdf *)sc;
-  const float3 A = bssrdf->albedo;
-  const float3 d = bssrdf->radius;
-  float sigma_t_x, sigma_t_y, sigma_t_z;
-  float sigma_s_x, sigma_s_y, sigma_s_z;
+  const SpectralColor A = bssrdf->albedo;
+  const SpectralColor d = bssrdf->radius;
 
-  subsurface_random_walk_remap(A.x, d.x, &sigma_t_x, &sigma_s_x);
-  subsurface_random_walk_remap(A.y, d.y, &sigma_t_y, &sigma_s_y);
-  subsurface_random_walk_remap(A.z, d.z, &sigma_t_z, &sigma_s_z);
-
-  *sigma_t = make_float3(sigma_t_x, sigma_t_y, sigma_t_z);
-  *sigma_s = make_float3(sigma_s_x, sigma_s_y, sigma_s_z);
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    subsurface_random_walk_remap(A[i], d[i], sigma_t[i], sigma_s[i]);
+  }
 
   /* Closure mixing and Fresnel weights separate from albedo. */
-  *weight = safe_divide_color(bssrdf->weight, A);
+  weight = safe_divide_color(bssrdf->weight, A);
 }
 
 #ifdef __KERNEL_OPTIX__
@@ -376,9 +372,9 @@ ccl_device_noinline
   }
 
   /* Convert subsurface to volume coefficients. */
-  float3 sigma_t, sigma_s;
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
-  subsurface_random_walk_coefficients(sc, &sigma_t, &sigma_s, &throughput);
+  SpectralColor sigma_t, sigma_s;
+  SpectralColor throughput = make_spectral_color(1.0f);
+  subsurface_random_walk_coefficients(sc, sigma_t, sigma_s, throughput);
 
   /* Setup ray. */
 #ifdef __SPLIT_KERNEL__
@@ -414,8 +410,8 @@ ccl_device_noinline
 
     /* Sample color channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
-    float3 albedo = safe_divide_color(sigma_s, sigma_t);
-    float3 channel_pdf;
+    SpectralColor albedo = safe_divide_color(sigma_s, sigma_t);
+    SpectralColor channel_pdf;
     int channel = kernel_volume_sample_channel(albedo, throughput, rphase, &channel_pdf);
 
     /* Distance sampling. */
@@ -445,7 +441,7 @@ ccl_device_noinline
     ray->P += t * ray->D;
 
     /* Update throughput. */
-    float3 transmittance = volume_color_transmittance(sigma_t, t);
+    SpectralColor transmittance = volume_color_transmittance(sigma_t, t);
     float pdf = dot(channel_pdf, (hit) ? transmittance : sigma_t * transmittance);
     throughput *= ((hit) ? transmittance : sigma_s * transmittance) / pdf;
 
@@ -456,7 +452,7 @@ ccl_device_noinline
 
     /* Russian roulette. */
     float terminate = path_state_rng_1D(kg, state, PRNG_TERMINATE);
-    float probability = min(max3(fabs(throughput)), 1.0f);
+    float probability = min(reduce_max_spectral(fabs(throughput)), 1.0f);
     if (terminate >= probability) {
       break;
     }

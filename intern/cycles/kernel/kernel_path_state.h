@@ -41,11 +41,11 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   if (kernel_data.film.pass_denoising_data) {
     state->flag |= PATH_RAY_STORE_SHADOW_INFO;
     state->denoising_feature_weight = 1.0f;
-    state->denoising_feature_throughput = make_float3(1.0f, 1.0f, 1.0f);
+    state->denoising_feature_throughput = make_spectral_color(1.0f);
   }
   else {
     state->denoising_feature_weight = 0.0f;
-    state->denoising_feature_throughput = make_float3(0.0f, 0.0f, 0.0f);
+    state->denoising_feature_throughput = make_spectral_color(0.0f);
   }
 #endif /* __DENOISING_FEATURES__ */
 
@@ -68,17 +68,18 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  float wavelength_low_bound = 380.0f;
-  float wavelength_high_bound = 730.0f;
+  ccl_static_constant float wavelength_low_bound = 380.0f;
+  ccl_static_constant float wavelength_high_bound = 730.0f;
 
   float wavelength_offset = path_state_rng_1D(kg, state, PRNG_WAVELENGTH);
-  float offset_two = fmod(wavelength_offset + (1.0f / 3.0f), 1.0f);
-  float offset_three = fmod(wavelength_offset + (2.0f / 3.0f), 1.0f);
 
-  state->wavelengths = make_float3(
-      float_lerp(wavelength_low_bound, wavelength_high_bound, wavelength_offset),
-      float_lerp(wavelength_low_bound, wavelength_high_bound, offset_two),
-      float_lerp(wavelength_low_bound, wavelength_high_bound, offset_three));
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    state->wavelengths[i] = float_lerp(
+        wavelength_low_bound,
+        wavelength_high_bound,
+        fmod(wavelength_offset + (1.0f * i / WAVELENGTHS_PER_RAY), 1.0f));
+  }
 }
 
 ccl_device_inline void path_state_next(KernelGlobals *kg,
@@ -216,7 +217,7 @@ ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg,
 
 ccl_device_inline float path_state_continuation_probability(KernelGlobals *kg,
                                                             ccl_addr_space PathState *state,
-                                                            const float3 throughput)
+                                                            const SpectralColor throughput)
 {
   if (state->flag & PATH_RAY_TERMINATE_IMMEDIATE) {
     /* Ray is to be terminated immediately. */
@@ -249,7 +250,7 @@ ccl_device_inline float path_state_continuation_probability(KernelGlobals *kg,
 
   /* Probabilistic termination: use sqrt() to roughly match typical view
    * transform and do path termination a bit later on average. */
-  return min(sqrtf(max3(fabs(throughput)) * state->branch_factor), 1.0f);
+  return min(sqrtf(reduce_max_spectral(fabs(throughput)) * state->branch_factor), 1.0f);
 }
 
 /* TODO(DingTo): Find more meaningful name for this */

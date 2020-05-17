@@ -479,17 +479,16 @@ typedef struct DebugData {
 } DebugData;
 #endif
 
-typedef float3 SpectralColor;
 typedef float3 RGBColor;
 
 typedef ccl_addr_space struct PathRadianceState {
 #ifdef __PASSES__
-  float3 diffuse;
-  float3 glossy;
-  float3 transmission;
-  float3 volume;
+  SpectralColor diffuse;
+  SpectralColor glossy;
+  SpectralColor transmission;
+  SpectralColor volume;
 
-  float3 direct;
+  SpectralColor direct;
 #endif
 } PathRadianceState;
 
@@ -532,16 +531,16 @@ typedef ccl_addr_space struct PathRadiance {
 
 #ifdef __SHADOW_TRICKS__
   /* Total light reachable across the path, ignoring shadow blocked queries. */
-  float3 path_total;
+  SpectralColor path_total;
   /* Total light reachable across the path with shadow blocked queries
    * applied here.
    *
    * Dividing this figure by path_total will give estimate of shadow pass.
    */
-  float3 path_total_shaded;
+  SpectralColor path_total_shaded;
 
   /* Color of the background on which shadow is alpha-overed. */
-  float3 shadow_background_color;
+  SpectralColor shadow_background_color;
 
   /* Path radiance sum and throughput at the moment when ray hits shadow
    * catcher object.
@@ -811,7 +810,7 @@ typedef struct AttributeDescriptor {
  * padded to be 16 bytes, while it's only 12 bytes on the GPU. */
 
 #define SHADER_CLOSURE_BASE \
-  float3 weight; \
+  SpectralColor weight; \
   ClosureType type; \
   float sample_weight; \
   float3 N
@@ -999,12 +998,12 @@ typedef ccl_addr_space struct ccl_align(16) ShaderData
   int num_closure;
   int num_closure_left;
   float randb_closure;
-  float3 svm_closure_weight;
+  SpectralColor svm_closure_weight;
 
   /* Closure weights summed directly, so we can evaluate
    * emission and shadow transparency with MAX_CLOSURE 0. */
-  RGBColor closure_emission_background;
-  RGBColor closure_transparent_extinction;
+  SpectralColor closure_emission_background;
+  SpectralColor closure_transparent_extinction;
 
   /* At the end so we can adjust size in ShaderDataTinyStorage. */
   struct ShaderClosure closure[MAX_CLOSURE];
@@ -1049,7 +1048,7 @@ typedef struct PathState {
 
 #ifdef __DENOISING_FEATURES__
   float denoising_feature_weight;
-  float3 denoising_feature_throughput;
+  SpectralColor denoising_feature_throughput;
 #endif /* __DENOISING_FEATURES__ */
 
   /* multiple importance sampling */
@@ -1067,7 +1066,7 @@ typedef struct PathState {
 #endif
 
   /* spectral rendering */
-  float3 wavelengths;
+  float wavelengths[WAVELENGTHS_PER_RAY];
 } PathState;
 
 #ifdef __VOLUME__
@@ -1082,7 +1081,7 @@ typedef struct VolumeState {
 /* Struct to gather multiple nearby intersections. */
 typedef struct LocalIntersection {
   Ray ray;
-  float3 weight[LOCAL_MAX_HITS];
+  SpectralColor weight[LOCAL_MAX_HITS];
 
   int num_hits;
   struct Intersection hits[LOCAL_MAX_HITS];
@@ -1098,7 +1097,7 @@ typedef struct SubsurfaceIndirectRays {
   int num_rays;
 
   struct Ray rays[BSSRDF_MAX_HITS];
-  float3 throughputs[BSSRDF_MAX_HITS];
+  SpectralColor throughputs[BSSRDF_MAX_HITS];
   struct PathRadianceState L_state[BSSRDF_MAX_HITS];
 } SubsurfaceIndirectRays;
 static_assert(BSSRDF_MAX_HITS <= LOCAL_MAX_HITS, "BSSRDF hits too high.");

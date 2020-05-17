@@ -48,7 +48,7 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
   Ray ray = kernel_split_state.light_ray[ray_index];
   PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
   ShaderData *sd = kernel_split_sd(sd, ray_index);
-  float3 throughput = kernel_split_state.throughput[ray_index];
+  SpectralColor throughput = kernel_split_state.throughput[ray_index];
 
   BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
   ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
@@ -83,7 +83,7 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
 #endif /* defined(__BRANCHED_PATH__) || defined(__SHADOW_TRICKS__)*/
   {
     /* trace shadow ray */
-    float3 shadow;
+    SpectralColor shadow;
 
     if (!shadow_blocked(kg, sd, emission_sd, state, &ray, &shadow)) {
       /* accumulate */

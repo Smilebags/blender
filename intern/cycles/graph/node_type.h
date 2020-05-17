@@ -191,7 +191,8 @@ struct NodeType {
 #define SOCKET_COLOR(name, ui_name, default_value, ...) \
   SOCKET_DEFINE(name, ui_name, default_value, float3, SocketType::COLOR, 0, ##__VA_ARGS__)
 #define SOCKET_SPECTRAL(name, ui_name, default_value, ...) \
-  SOCKET_DEFINE(name, ui_name, default_value, float3, SocketType::SPECTRAL, 0, ##__VA_ARGS__)
+  SOCKET_DEFINE( \
+      name, ui_name, default_value, SpectralColor, SocketType::SPECTRAL, 0, ##__VA_ARGS__)
 #define SOCKET_VECTOR(name, ui_name, default_value, ...) \
   SOCKET_DEFINE(name, ui_name, default_value, float3, SocketType::VECTOR, 0, ##__VA_ARGS__)
 #define SOCKET_POINT(name, ui_name, default_value, ...) \
@@ -310,7 +311,7 @@ struct NodeType {
   SOCKET_DEFINE(name, \
                 ui_name, \
                 default_value, \
-                float3, \
+                SpectralColor, \
                 SocketType::SPECTRAL, \
                 SocketType::LINKABLE, \
                 ##__VA_ARGS__)

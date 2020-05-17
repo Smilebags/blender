@@ -26,7 +26,7 @@ ccl_device_inline void compute_light_pass(
   PathRadiance L_sample;
   PathState state;
   Ray ray;
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+  SpectralColor throughput = make_spectral_color(1.0f);
 
   /* emission and indirect shader data memory used by various functions */
   ShaderData emission_sd, indirect_sd;
@@ -63,8 +63,8 @@ ccl_device_inline void compute_light_pass(
 
     /* sample emission */
     if ((pass_filter & BAKE_FILTER_EMISSION) && (sd->flag & SD_EMISSION)) {
-      float3 emission = indirect_primitive_emission(
-          kg, sd, 0.0f, state.flag, state.ray_pdf, state.wavelengths);
+      SpectralColor emission = indirect_primitive_emission(
+          kg, sd, 0.0f, state.flag, state.ray_pdf);
       path_radiance_accum_emission(kg, &L_sample, &state, throughput, emission);
     }
 
@@ -118,8 +118,8 @@ ccl_device_inline void compute_light_pass(
 
     /* sample emission */
     if ((pass_filter & BAKE_FILTER_EMISSION) && (sd->flag & SD_EMISSION)) {
-      float3 emission = indirect_primitive_emission(
-          kg, sd, 0.0f, state.flag, state.ray_pdf, state.wavelengths);
+      SpectralColor emission = indirect_primitive_emission(
+          kg, sd, 0.0f, state.flag, state.ray_pdf);
       path_radiance_accum_emission(kg, &L_sample, &state, throughput, emission);
     }
 
@@ -169,9 +169,9 @@ ccl_device_inline float bake_clamp_mirror_repeat(float u, float max)
   return ((((int)fu) & 1) ? 1.0f - u : u) * max;
 }
 
-ccl_device_inline float3 kernel_bake_shader_bsdf(KernelGlobals *kg,
-                                                 ShaderData *sd,
-                                                 const ShaderEvalType type)
+ccl_device_inline SpectralColor kernel_bake_shader_bsdf(KernelGlobals *kg,
+                                                        ShaderData *sd,
+                                                        const ShaderEvalType type)
 {
   switch (type) {
     case SHADER_EVAL_DIFFUSE:
@@ -182,28 +182,28 @@ ccl_device_inline float3 kernel_bake_shader_bsdf(KernelGlobals *kg,
       return shader_bsdf_transmission(kg, sd);
     default:
       kernel_assert(!"Unknown bake type passed to BSDF evaluate");
-      return make_float3(0.0f, 0.0f, 0.0f);
+      return make_spectral_color(0.0f);
   }
 }
 
-ccl_device float3 kernel_bake_evaluate_direct_indirect(KernelGlobals *kg,
-                                                       ShaderData *sd,
-                                                       PathState *state,
-                                                       float3 direct,
-                                                       float3 indirect,
-                                                       const ShaderEvalType type,
-                                                       const int pass_filter)
+ccl_device SpectralColor kernel_bake_evaluate_direct_indirect(KernelGlobals *kg,
+                                                              ShaderData *sd,
+                                                              PathState *state,
+                                                              SpectralColor direct,
+                                                              SpectralColor indirect,
+                                                              const ShaderEvalType type,
+                                                              const int pass_filter)
 {
-  float3 color;
+  SpectralColor color;
   const bool is_color = (pass_filter & BAKE_FILTER_COLOR) != 0;
   const bool is_direct = (pass_filter & BAKE_FILTER_DIRECT) != 0;
   const bool is_indirect = (pass_filter & BAKE_FILTER_INDIRECT) != 0;
-  float3 out = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor out = make_spectral_color(0.0f);
 
   if (is_color) {
     if (is_direct || is_indirect) {
       /* Leave direct and diffuse channel colored. */
-      color = make_float3(1.0f, 1.0f, 1.0f);
+      color = make_spectral_color(1.0f);
     }
     else {
       /* surface color of the pass only */
@@ -241,7 +241,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
   uint4 in = input[i * 2];
   uint4 diff = input[i * 2 + 1];
 
-  float3 out = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor out = make_spectral_color(0.0f);
 
   int object = in.x;
   int prim = in.y;
@@ -339,12 +339,13 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
           N = shader_bsdf_average_normal(kg, &sd);
         }
 
+        /* TODO: Fixme! */
         /* encoding: normal = (2 * color) - 1 */
-        out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
+        // out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
       }
       else if (type == SHADER_EVAL_ROUGHNESS) {
         float roughness = shader_bsdf_average_roughness(&sd);
-        out = make_float3(roughness, roughness, roughness);
+        out = make_spectral_color(roughness);
       }
       else {
         out = shader_emissive_eval(&sd);
@@ -352,7 +353,8 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
       break;
     }
     case SHADER_EVAL_UV: {
-      out = primitive_uv(kg, &sd);
+      /* TODO: Fixme! */
+      //   out = primitive_uv(kg, &sd);
       break;
     }
 #  ifdef __PASSES__
@@ -389,7 +391,8 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
       break;
     }
     case SHADER_EVAL_SHADOW: {
-      out = make_float3(L.shadow.x, L.shadow.y, L.shadow.z);
+      /* TODO: Fixme! */
+      //   out = make_float3(L.shadow.x, L.shadow.y, L.shadow.z);
       break;
     }
     case SHADER_EVAL_DIFFUSE: {
@@ -437,7 +440,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
     }
     default: {
       /* no real shader, returning the position of the verts for debugging */
-      out = normalize(P);
+      //   out = normalize(P);
       break;
     }
   }
@@ -511,10 +514,11 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   /* evaluate */
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
-  float3 color = shader_background_eval(&sd);
+  SpectralColor color = shader_background_eval(&sd);
 
+  /* TODO: Fixme! */
   /* write output */
-  output[i] += make_float4(color.x, color.y, color.z, 0.0f);
+  //   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
 }
 
 CCL_NAMESPACE_END

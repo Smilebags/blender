@@ -103,29 +103,29 @@ ccl_device_forceinline float3 mf_sample_vndf(const float3 wi,
 
 /* Phase function for reflective materials. */
 ccl_device_forceinline float3 mf_sample_phase_glossy(const float3 wi,
-                                                     float3 *weight,
+                                                     SpectralColor *weight,
                                                      const float3 wm)
 {
   return -wi + 2.0f * wm * dot(wi, wm);
 }
 
-ccl_device_forceinline float3 mf_eval_phase_glossy(const float3 w,
-                                                   const float lambda,
-                                                   const float3 wo,
-                                                   const float2 alpha)
+ccl_device_forceinline SpectralColor mf_eval_phase_glossy(const float3 w,
+                                                          const float lambda,
+                                                          const float3 wo,
+                                                          const float2 alpha)
 {
   if (w.z > 0.9999f)
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
 
   const float3 wh = normalize(wo - w);
   if (wh.z < 0.0f)
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
 
   float pArea = (w.z < -0.9999f) ? 1.0f : lambda * w.z;
 
   const float dotW_WH = dot(-w, wh);
   if (dotW_WH < 0.0f)
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
 
   float phase = max(0.0f, dotW_WH) * 0.25f / max(pArea * dotW_WH, 1e-7f);
   if (alpha.x == alpha.y)
@@ -133,7 +133,7 @@ ccl_device_forceinline float3 mf_eval_phase_glossy(const float3 w,
   else
     phase *= D_ggx_aniso(wh, alpha);
 
-  return make_float3(phase, phase, phase);
+  return make_spectral_color(phase);
 }
 
 /* Phase function for dielectric transmissive materials, including both reflection and refraction
@@ -153,22 +153,24 @@ ccl_device_forceinline float3 mf_sample_phase_glass(
   return normalize(wm * (cosI * inv_eta + cosT) - wi * inv_eta);
 }
 
-ccl_device_forceinline float3 mf_eval_phase_glass(const float3 w,
-                                                  const float lambda,
-                                                  const float3 wo,
-                                                  const bool wo_outside,
-                                                  const float2 alpha,
-                                                  const float eta)
+ccl_device_forceinline SpectralColor mf_eval_phase_glass(const float3 w,
+                                                         const float lambda,
+                                                         const float3 wo,
+                                                         const bool wo_outside,
+                                                         const float2 alpha,
+                                                         const float eta)
 {
-  if (w.z > 0.9999f)
-    return make_float3(0.0f, 0.0f, 0.0f);
+  if (w.z > 0.9999f) {
+    return make_spectral_color(0.0f);
+  }
 
   float pArea = (w.z < -0.9999f) ? 1.0f : lambda * w.z;
   float v;
   if (wo_outside) {
     const float3 wh = normalize(wo - w);
-    if (wh.z < 0.0f)
-      return make_float3(0.0f, 0.0f, 0.0f);
+    if (wh.z < 0.0f) {
+      return make_spectral_color(0.0f);
+    }
 
     const float dotW_WH = dot(-w, wh);
     v = fresnel_dielectric_cos(dotW_WH, eta) * max(0.0f, dotW_WH) * D_ggx(wh, alpha.x) * 0.25f /
@@ -179,15 +181,16 @@ ccl_device_forceinline float3 mf_eval_phase_glass(const float3 w,
     if (wh.z < 0.0f)
       wh = -wh;
     const float dotW_WH = dot(-w, wh), dotWO_WH = dot(wo, wh);
-    if (dotW_WH < 0.0f)
-      return make_float3(0.0f, 0.0f, 0.0f);
+    if (dotW_WH < 0.0f) {
+      return make_spectral_color(0.0f);
+    }
 
     float temp = dotW_WH + eta * dotWO_WH;
     v = (1.0f - fresnel_dielectric_cos(dotW_WH, eta)) * max(0.0f, dotW_WH) * max(0.0f, -dotWO_WH) *
         D_ggx(wh, alpha.x) / (pArea * temp * temp);
   }
 
-  return make_float3(v, v, v);
+  return make_spectral_color(v);
 }
 
 /* === Utility functions for the random walks === */
@@ -378,8 +381,8 @@ ccl_device int bsdf_microfacet_multi_ggx_common_setup(MicrofacetBsdf *bsdf)
 {
   bsdf->alpha_x = clamp(bsdf->alpha_x, 1e-4f, 1.0f);
   bsdf->alpha_y = clamp(bsdf->alpha_y, 1e-4f, 1.0f);
-  bsdf->extra->color = saturate3(bsdf->extra->color);
-  bsdf->extra->cspec0 = saturate3(bsdf->extra->cspec0);
+  bsdf->extra->color = saturate(bsdf->extra->color);
+  bsdf->extra->cspec0 = saturate(bsdf->extra->cspec0);
 
   return SD_BSDF | SD_BSDF_HAS_EVAL | SD_BSDF_NEEDS_LCG;
 }
@@ -436,26 +439,26 @@ ccl_device int bsdf_microfacet_multi_ggx_refraction_setup(MicrofacetBsdf *bsdf)
   return bsdf_microfacet_multi_ggx_common_setup(bsdf);
 }
 
-ccl_device float3 bsdf_microfacet_multi_ggx_eval_transmit(const ShaderClosure *sc,
-                                                          const float3 I,
-                                                          const float3 omega_in,
-                                                          float *pdf,
-                                                          ccl_addr_space uint *lcg_state)
+ccl_device SpectralColor bsdf_microfacet_multi_ggx_eval_transmit(const ShaderClosure *sc,
+                                                                 const float3 I,
+                                                                 const float3 omega_in,
+                                                                 float *pdf,
+                                                                 ccl_addr_space uint *lcg_state)
 {
   *pdf = 0.0f;
-  return make_float3(0.0f, 0.0f, 0.0f);
+  return make_spectral_color(0.0f);
 }
 
-ccl_device float3 bsdf_microfacet_multi_ggx_eval_reflect(const ShaderClosure *sc,
-                                                         const float3 I,
-                                                         const float3 omega_in,
-                                                         float *pdf,
-                                                         ccl_addr_space uint *lcg_state)
+ccl_device SpectralColor bsdf_microfacet_multi_ggx_eval_reflect(const ShaderClosure *sc,
+                                                                const float3 I,
+                                                                const float3 omega_in,
+                                                                float *pdf,
+                                                                ccl_addr_space uint *lcg_state)
 {
   const MicrofacetBsdf *bsdf = (const MicrofacetBsdf *)sc;
 
   if (bsdf->alpha_x * bsdf->alpha_y < 1e-7f) {
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
   }
 
   bool use_fresnel = (bsdf->type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_FRESNEL_ID);
@@ -495,7 +498,7 @@ ccl_device int bsdf_microfacet_multi_ggx_sample(KernelGlobals *kg,
                                                 float3 dIdy,
                                                 float randu,
                                                 float randv,
-                                                float3 *eval,
+                                                SpectralColor *eval,
                                                 float3 *omega_in,
                                                 float3 *domega_in_dx,
                                                 float3 *domega_in_dy,
@@ -510,7 +513,7 @@ ccl_device int bsdf_microfacet_multi_ggx_sample(KernelGlobals *kg,
   if (bsdf->alpha_x * bsdf->alpha_y < 1e-7f) {
     *omega_in = 2 * dot(Z, I) * Z - I;
     *pdf = 1e6f;
-    *eval = make_float3(1e6f, 1e6f, 1e6f);
+    *eval = make_spectral_color(1e6f);
 #ifdef __RAY_DIFFERENTIALS__
     *domega_in_dx = (2 * dot(Z, dIdx)) * Z - dIdx;
     *domega_in_dy = (2 * dot(Z, dIdy)) * Z - dIdy;
@@ -560,7 +563,7 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_setup(MicrofacetBsdf *bsdf)
   bsdf->alpha_x = clamp(bsdf->alpha_x, 1e-4f, 1.0f);
   bsdf->alpha_y = bsdf->alpha_x;
   bsdf->ior = max(0.0f, bsdf->ior);
-  bsdf->extra->color = saturate3(bsdf->extra->color);
+  bsdf->extra->color = saturate(bsdf->extra->color);
 
   bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
 
@@ -573,8 +576,8 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_fresnel_setup(MicrofacetBsdf *bsd
   bsdf->alpha_x = clamp(bsdf->alpha_x, 1e-4f, 1.0f);
   bsdf->alpha_y = bsdf->alpha_x;
   bsdf->ior = max(0.0f, bsdf->ior);
-  bsdf->extra->color = saturate3(bsdf->extra->color);
-  bsdf->extra->cspec0 = saturate3(bsdf->extra->cspec0);
+  bsdf->extra->color = saturate(bsdf->extra->color);
+  bsdf->extra->cspec0 = saturate(bsdf->extra->cspec0);
 
   bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_FRESNEL_ID;
 
@@ -583,16 +586,17 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_fresnel_setup(MicrofacetBsdf *bsd
   return SD_BSDF | SD_BSDF_HAS_EVAL | SD_BSDF_NEEDS_LCG;
 }
 
-ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_transmit(const ShaderClosure *sc,
-                                                                const float3 I,
-                                                                const float3 omega_in,
-                                                                float *pdf,
-                                                                ccl_addr_space uint *lcg_state)
+ccl_device SpectralColor
+bsdf_microfacet_multi_ggx_glass_eval_transmit(const ShaderClosure *sc,
+                                              const float3 I,
+                                              const float3 omega_in,
+                                              float *pdf,
+                                              ccl_addr_space uint *lcg_state)
 {
   const MicrofacetBsdf *bsdf = (const MicrofacetBsdf *)sc;
 
   if (bsdf->alpha_x * bsdf->alpha_y < 1e-7f) {
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
   }
 
   float3 X, Y, Z;
@@ -615,16 +619,17 @@ ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_transmit(const ShaderClos
                        bsdf->extra->color);
 }
 
-ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_reflect(const ShaderClosure *sc,
-                                                               const float3 I,
-                                                               const float3 omega_in,
-                                                               float *pdf,
-                                                               ccl_addr_space uint *lcg_state)
+ccl_device SpectralColor
+bsdf_microfacet_multi_ggx_glass_eval_reflect(const ShaderClosure *sc,
+                                             const float3 I,
+                                             const float3 omega_in,
+                                             float *pdf,
+                                             ccl_addr_space uint *lcg_state)
 {
   const MicrofacetBsdf *bsdf = (const MicrofacetBsdf *)sc;
 
   if (bsdf->alpha_x * bsdf->alpha_y < 1e-7f) {
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return make_spectral_color(0.0f);
   }
 
   bool use_fresnel = (bsdf->type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_FRESNEL_ID);
@@ -657,7 +662,7 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_sample(KernelGlobals *kg,
                                                       float3 dIdy,
                                                       float randu,
                                                       float randv,
-                                                      float3 *eval,
+                                                      SpectralColor *eval,
                                                       float3 *omega_in,
                                                       float3 *domega_in_dx,
                                                       float3 *domega_in_dy,
@@ -691,7 +696,7 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_sample(KernelGlobals *kg,
                                        &inside);
 
     *pdf = 1e6f;
-    *eval = make_float3(1e6f, 1e6f, 1e6f);
+    *eval = make_spectral_color(1e6f);
     if (randu < fresnel) {
       *omega_in = R;
 #ifdef __RAY_DIFFERENTIALS__

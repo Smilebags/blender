@@ -23,14 +23,14 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
                                                ShaderData *emission_sd,
                                                PathRadiance *L,
                                                ccl_addr_space PathState *state,
-                                               float3 throughput)
+                                               SpectralColor throughput)
 {
   int num_samples = kernel_data.integrator.ao_samples;
   float num_samples_inv = 1.0f / num_samples;
   float ao_factor = kernel_data.background.ao_factor;
   float3 ao_N;
-  float3 ao_bsdf = shader_bsdf_ao(kg, sd, ao_factor, &ao_N);
-  float3 ao_alpha = shader_bsdf_alpha(kg, sd);
+  SpectralColor ao_bsdf = shader_bsdf_ao(kg, sd, ao_factor, &ao_N);
+  SpectralColor ao_alpha = shader_bsdf_alpha(kg, sd);
 
   for (int j = 0; j < num_samples; j++) {
     float bsdf_u, bsdf_v;
@@ -44,7 +44,7 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
 
     if (dot(sd->Ng, ao_D) > 0.0f && ao_pdf != 0.0f) {
       Ray light_ray;
-      float3 ao_shadow;
+      SpectralColor ao_shadow;
 
       light_ray.P = ray_offset(sd->P, sd->Ng);
       light_ray.D = ao_D;
@@ -71,7 +71,7 @@ ccl_device_forceinline void kernel_branched_path_volume(KernelGlobals *kg,
                                                         ShaderData *sd,
                                                         PathState *state,
                                                         Ray *ray,
-                                                        float3 *throughput,
+                                                        SpectralColor *throughput,
                                                         ccl_addr_space Intersection *isect,
                                                         bool hit,
                                                         ShaderData *indirect_sd,
@@ -118,7 +118,7 @@ ccl_device_forceinline void kernel_branched_path_volume(KernelGlobals *kg,
       for (int j = 0; j < num_samples; j++) {
         PathState ps = *state;
         Ray pray = *ray;
-        float3 tp = *throughput;
+        SpectralColor tp = *throughput;
 
         /* branch RNG state */
         path_state_branch(&ps, j, num_samples);
@@ -165,7 +165,7 @@ ccl_device_forceinline void kernel_branched_path_volume(KernelGlobals *kg,
     for (int j = 0; j < num_samples; j++) {
       PathState ps = *state;
       Ray pray = *ray;
-      float3 tp = (*throughput) * num_samples_inv;
+      SpectralColor tp = (*throughput) * num_samples_inv;
 
       /* branch RNG state */
       path_state_branch(&ps, j, num_samples);
@@ -202,7 +202,7 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_indirect_light(KernelG
                                                                          ShaderData *sd,
                                                                          ShaderData *indirect_sd,
                                                                          ShaderData *emission_sd,
-                                                                         float3 throughput,
+                                                                         SpectralColor throughput,
                                                                          float num_samples_adjust,
                                                                          PathState *state,
                                                                          PathRadiance *L)
@@ -251,7 +251,7 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_indirect_light(KernelG
 
     for (int j = 0; j < num_samples; j++) {
       PathState ps = *state;
-      float3 tp = throughput;
+      SpectralColor tp = throughput;
       Ray bsdf_ray;
 #    ifdef __SHADOW_TRICKS__
       float shadow_transparency = L->shadow_transparency;
@@ -288,7 +288,7 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
                                                         PathRadiance *L,
                                                         PathState *state,
                                                         Ray *ray,
-                                                        float3 throughput)
+                                                        SpectralColor throughput)
 {
   for (int i = 0; i < sd->num_closure; i++) {
     ShaderClosure *sc = &sd->closure[i];
@@ -374,7 +374,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
                                                PathRadiance *L)
 {
   /* initialize */
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+  SpectralColor throughput = make_spectral_color(1.0f);
 
   path_radiance_init(kg, L);
 
@@ -542,7 +542,15 @@ ccl_device void kernel_branched_path_trace(
 
   if (ray.t != 0.0f) {
     kernel_branched_path_integrate(kg, rng_hash, sample, ray, buffer, &L);
-    kernel_write_result(kg, buffer, sample, &L, make_float3(0.0, 0.0, 0.0));
+
+    /* TODO: Fixme! */
+    float t[WAVELENGTHS_PER_RAY];
+    SPECTRAL_COLOR_FOR_EACH(i)
+    {
+      t[i] = 0.0f;
+    }
+
+    kernel_write_result(kg, buffer, sample, &L, t);
   }
 }
 

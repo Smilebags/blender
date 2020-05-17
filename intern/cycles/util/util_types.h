@@ -130,6 +130,8 @@ CCL_NAMESPACE_END
 
 #include "util/util_types_vector3.h"
 
+#include "util/util_types_spectral_color.h"
+
 /* Vectorized types implementation. */
 #include "util/util_types_uchar2_impl.h"
 #include "util/util_types_uchar3_impl.h"
@@ -149,6 +151,8 @@ CCL_NAMESPACE_END
 #include "util/util_types_float8_impl.h"
 
 #include "util/util_types_vector3_impl.h"
+
+#include "util/util_types_spectral_color_impl.h"
 
 /* SSE types. */
 #ifndef __KERNEL_GPU__

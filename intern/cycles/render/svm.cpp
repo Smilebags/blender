@@ -192,11 +192,13 @@ int SVMCompiler::stack_size(SocketType::Type type)
     case SocketType::VECTOR:
     case SocketType::NORMAL:
     case SocketType::POINT:
-    case SocketType::SPECTRAL:
       size = 3;
       break;
     case SocketType::CLOSURE:
       size = 0;
+      break;
+    case SocketType::SPECTRAL:
+      size = WAVELENGTHS_PER_RAY;
       break;
     default:
       assert(0);

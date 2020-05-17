@@ -132,7 +132,7 @@ ccl_device_noinline bool kernel_split_branched_path_surface_indirect_light_iter(
 
   ShaderData *sd = saved_sd;
   PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-  float3 throughput = branched_state->throughput;
+  SpectralColor throughput = branched_state->throughput;
   ccl_global PathState *ps = &kernel_split_state.path_state[ray_index];
 
   float sum_sample_weight = 0.0f;
@@ -185,7 +185,7 @@ ccl_device_noinline bool kernel_split_branched_path_surface_indirect_light_iter(
 
       ps->rng_hash = cmj_hash(branched_state->path_state.rng_hash, i);
 
-      ccl_global float3 *tp = &kernel_split_state.throughput[ray_index];
+      ccl_global SpectralColor *tp = &kernel_split_state.throughput[ray_index];
       *tp = throughput;
 
       ccl_global Ray *bsdf_ray = &kernel_split_state.ray[ray_index];

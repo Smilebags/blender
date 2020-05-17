@@ -111,7 +111,7 @@ void closure_bsdf_principled_hair_prepare(OSL::RendererServices *, int id, void 
 
 class CClosurePrimitive {
  public:
-  virtual void setup(ShaderData *sd, int path_flag, float3 weight) = 0;
+  virtual void setup(ShaderData *sd, int path_flag, SpectralColor weight) = 0;
 
   OSL::ustring label;
 };
@@ -130,7 +130,7 @@ class CBSDFClosure : public CClosurePrimitive {
     structname params; \
     float3 unused; \
 \
-    void setup(ShaderData *sd, int path_flag, float3 weight) \
+    void setup(ShaderData *sd, int path_flag, SpectralColor weight) \
     { \
       if (!skip(sd, path_flag, TYPE)) { \
         structname *bsdf = (structname *)bsdf_alloc_osl(sd, sizeof(structname), weight, &params); \

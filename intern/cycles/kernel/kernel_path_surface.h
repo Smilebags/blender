@@ -25,7 +25,7 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_connect_light(
     ShaderData *sd,
     ShaderData *emission_sd,
     ccl_addr_space PathState *state,
-    float3 throughput,
+    SpectralColor throughput,
     float num_samples_adjust,
     PathRadiance *L,
     int sample_all_lights)
@@ -114,7 +114,7 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_connect_light(
       }
 
       /* trace shadow ray */
-      float3 shadow;
+      SpectralColor shadow;
 
       const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
 
@@ -145,7 +145,7 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg,
                                                     const ShaderClosure *sc,
                                                     int sample,
                                                     int num_samples,
-                                                    ccl_addr_space float3 *throughput,
+                                                    ccl_addr_space SpectralColor *throughput,
                                                     ccl_addr_space PathState *state,
                                                     PathRadianceState *L_state,
                                                     ccl_addr_space Ray *ray,
@@ -161,16 +161,8 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg,
       kg, state->rng_hash, state, sample, num_samples, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
   int label;
 
-  label = shader_bsdf_sample_closure(kg,
-                                     sd,
-                                     sc,
-                                     bsdf_u,
-                                     bsdf_v,
-                                     &bsdf_eval,
-                                     &bsdf_omega_in,
-                                     &bsdf_domega_in,
-                                     &bsdf_pdf,
-                                     state->wavelengths);
+  label = shader_bsdf_sample_closure(
+      kg, sd, sc, bsdf_u, bsdf_v, &bsdf_eval, &bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf);
 
   if (bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
     return false;
@@ -222,7 +214,7 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg,
 ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
                                                          ShaderData *sd,
                                                          ShaderData *emission_sd,
-                                                         float3 throughput,
+                                                         SpectralColor throughput,
                                                          ccl_addr_space PathState *state,
                                                          PathRadiance *L)
 {
@@ -277,7 +269,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
 /* path tracing: bounce off or through surface to with new direction stored in ray */
 ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
                                            ShaderData *sd,
-                                           ccl_addr_space float3 *throughput,
+                                           ccl_addr_space SpectralColor *throughput,
                                            ccl_addr_space PathState *state,
                                            PathRadianceState *L_state,
                                            ccl_addr_space Ray *ray)
@@ -295,15 +287,8 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
     path_state_rng_2D(kg, state, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
     int label;
 
-    label = shader_bsdf_sample(kg,
-                               sd,
-                               bsdf_u,
-                               bsdf_v,
-                               &bsdf_eval,
-                               &bsdf_omega_in,
-                               &bsdf_domega_in,
-                               &bsdf_pdf,
-                               state->wavelengths);
+    label = shader_bsdf_sample(
+        kg, sd, bsdf_u, bsdf_v, &bsdf_eval, &bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf);
 
     if (bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
       return false;

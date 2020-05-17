@@ -86,7 +86,7 @@ ccl_device_forceinline bool kernel_path_scene_intersect(KernelGlobals *kg,
 ccl_device_forceinline void kernel_path_lamp_emission(KernelGlobals *kg,
                                                       ccl_addr_space PathState *state,
                                                       Ray *ray,
-                                                      float3 throughput,
+                                                      SpectralColor throughput,
                                                       ccl_addr_space Intersection *isect,
                                                       ShaderData *emission_sd,
                                                       PathRadiance *L)
@@ -115,7 +115,7 @@ ccl_device_forceinline void kernel_path_lamp_emission(KernelGlobals *kg,
 ccl_device_forceinline void kernel_path_background(KernelGlobals *kg,
                                                    ccl_addr_space PathState *state,
                                                    ccl_addr_space Ray *ray,
-                                                   float3 throughput,
+                                                   SpectralColor throughput,
                                                    ShaderData *sd,
                                                    ccl_global float *buffer,
                                                    PathRadiance *L)
@@ -138,7 +138,7 @@ ccl_device_forceinline void kernel_path_background(KernelGlobals *kg,
 
 #ifdef __BACKGROUND__
   /* sample background shader */
-  float3 L_background = indirect_background(kg, sd, state, buffer, ray);
+  SpectralColor L_background = indirect_background(kg, sd, state, buffer, ray);
   path_radiance_accum_background(kg, L, state, throughput, L_background);
 #endif /* __BACKGROUND__ */
 }
@@ -255,7 +255,7 @@ ccl_device_forceinline bool kernel_path_shader_apply(KernelGlobals *kg,
                                                      ShaderData *sd,
                                                      ccl_addr_space PathState *state,
                                                      ccl_addr_space Ray *ray,
-                                                     float3 throughput,
+                                                     SpectralColor throughput,
                                                      ShaderData *emission_sd,
                                                      PathRadiance *L,
                                                      ccl_global float *buffer)
@@ -267,7 +267,7 @@ ccl_device_forceinline bool kernel_path_shader_apply(KernelGlobals *kg,
     if (state->flag & PATH_RAY_TRANSPARENT_BACKGROUND) {
       state->flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_STORE_SHADOW_INFO);
 
-      float3 bg = make_float3(0.0f, 0.0f, 0.0f);
+      SpectralColor bg = make_spectral_color(0.0f);
       if (!kernel_data.background.transparent) {
         bg = indirect_background(kg, emission_sd, state, NULL, ray);
       }
@@ -285,9 +285,9 @@ ccl_device_forceinline bool kernel_path_shader_apply(KernelGlobals *kg,
   if (((sd->flag & SD_HOLDOUT) || (sd->object_flag & SD_OBJECT_HOLDOUT_MASK)) &&
       (state->flag & PATH_RAY_TRANSPARENT_BACKGROUND)) {
     if (kernel_data.background.transparent) {
-      float3 holdout_weight;
+      SpectralColor holdout_weight;
       if (sd->object_flag & SD_OBJECT_HOLDOUT_MASK) {
-        holdout_weight = make_float3(1.0f, 1.0f, 1.0f);
+        holdout_weight = make_spectral_color(1.0f);
       }
       else {
         holdout_weight = shader_holdout_eval(kg, sd);
@@ -319,8 +319,8 @@ ccl_device_forceinline bool kernel_path_shader_apply(KernelGlobals *kg,
 #ifdef __EMISSION__
   /* emission */
   if (sd->flag & SD_EMISSION) {
-    float3 emission = indirect_primitive_emission(
-        kg, sd, sd->ray_length, state->flag, state->ray_pdf, state->wavelengths);
+    SpectralColor emission = indirect_primitive_emission(
+        kg, sd, sd->ray_length, state->flag, state->ray_pdf);
     path_radiance_accum_emission(kg, L, state, throughput, emission);
   }
 #endif /* __EMISSION__ */
@@ -339,8 +339,8 @@ ccl_device_noinline
                    ShaderData *emission_sd,
                    PathRadiance *L,
                    ccl_addr_space PathState *state,
-                   float3 throughput,
-                   float3 ao_alpha)
+                   SpectralColor throughput,
+                   SpectralColor ao_alpha)
 {
   PROFILING_INIT(kg, PROFILING_AO);
 
@@ -351,7 +351,7 @@ ccl_device_noinline
 
   float ao_factor = kernel_data.background.ao_factor;
   float3 ao_N;
-  float3 ao_bsdf = shader_bsdf_ao(kg, sd, ao_factor, &ao_N);
+  SpectralColor ao_bsdf = shader_bsdf_ao(kg, sd, ao_factor, &ao_N);
   float3 ao_D;
   float ao_pdf;
 
@@ -359,7 +359,7 @@ ccl_device_noinline
 
   if (dot(sd->Ng, ao_D) > 0.0f && ao_pdf != 0.0f) {
     Ray light_ray;
-    float3 ao_shadow;
+    SpectralColor ao_shadow;
 
     light_ray.P = ray_offset(sd->P, sd->Ng);
     light_ray.D = ao_D;
@@ -385,7 +385,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
                                      ShaderData *sd,
                                      ShaderData *emission_sd,
                                      Ray *ray,
-                                     float3 throughput,
+                                     SpectralColor throughput,
                                      PathState *state,
                                      PathRadiance *L)
 {
@@ -468,7 +468,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #    ifdef __AO__
         /* ambient occlusion */
         if (kernel_data.integrator.use_ambient_occlusion) {
-          kernel_path_ao(kg, sd, emission_sd, L, state, throughput, make_float3(0.0f, 0.0f, 0.0f));
+          kernel_path_ao(kg, sd, emission_sd, L, state, throughput, make_spectral_color(0.0f));
         }
 #    endif /* __AO__ */
 
@@ -519,7 +519,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
  **/
 ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
                                                   PathState *state,
-                                                  float3 throughput,
+                                                  SpectralColor throughput,
                                                   Ray *ray,
                                                   PathRadiance *L,
                                                   ccl_global float *buffer,
@@ -684,7 +684,7 @@ ccl_device void kernel_path_trace(
 #  endif
 
   /* Initialize state. */
-  SpectralColor throughput = make_float3(1.0f, 1.0f, 1.0f);
+  SpectralColor throughput = make_spectral_color(1.0f);
 
   PathRadiance L;
   path_radiance_init(kg, &L);

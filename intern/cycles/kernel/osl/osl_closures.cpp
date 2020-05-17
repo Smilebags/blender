@@ -203,7 +203,7 @@ CLOSURE_FLOAT3_PARAM(DiffuseClosure, params.N),
  public:
   PrincipledSheenBsdf params;
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     if (!skip(sd, path_flag, LABEL_DIFFUSE)) {
       PrincipledSheenBsdf *bsdf = (PrincipledSheenBsdf *)bsdf_alloc_osl(
@@ -228,7 +228,7 @@ class PrincipledHairClosure : public CBSDFClosure {
  public:
   PrincipledHairBSDF params;
 
-  PrincipledHairBSDF *alloc(ShaderData *sd, int path_flag, float3 weight)
+  PrincipledHairBSDF *alloc(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     PrincipledHairBSDF *bsdf = (PrincipledHairBSDF *)bsdf_alloc_osl(
         sd, sizeof(PrincipledHairBSDF), weight, &params);
@@ -246,7 +246,7 @@ class PrincipledHairClosure : public CBSDFClosure {
     return bsdf;
   }
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     if (!skip(sd, path_flag, LABEL_GLOSSY)) {
       PrincipledHairBSDF *bsdf = (PrincipledHairBSDF *)alloc(sd, path_flag, weight);
@@ -282,7 +282,7 @@ class PrincipledClearcoatClosure : public CBSDFClosure {
   MicrofacetBsdf params;
   float clearcoat, clearcoat_roughness;
 
-  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, float3 weight)
+  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = (MicrofacetBsdf *)bsdf_alloc_osl(
         sd, sizeof(MicrofacetBsdf), weight, &params);
@@ -300,13 +300,13 @@ class PrincipledClearcoatClosure : public CBSDFClosure {
     bsdf->ior = 1.5f;
     bsdf->alpha_x = clearcoat_roughness;
     bsdf->alpha_y = clearcoat_roughness;
-    bsdf->extra->color = make_float3(0.0f, 0.0f, 0.0f);
-    bsdf->extra->cspec0 = make_float3(0.04f, 0.04f, 0.04f);
+    bsdf->extra->color = make_spectral_color(0.0f);
+    bsdf->extra->cspec0 = make_spectral_color(0.04f);
     bsdf->extra->clearcoat = clearcoat;
     return bsdf;
   }
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -513,10 +513,10 @@ bool CBSDFClosure::skip(const ShaderData *sd, int path_flag, int scattering)
 class MicrofacetFresnelClosure : public CBSDFClosure {
  public:
   MicrofacetBsdf params;
-  float3 color;
-  float3 cspec0;
+  SpectralColor color;
+  SpectralColor cspec0;
 
-  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, float3 weight)
+  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     /* Technically, the MultiGGX Glass closure may also transmit. However,
      * since this is set statically and only used for caustic flags, this
@@ -546,7 +546,7 @@ class MicrofacetFresnelClosure : public CBSDFClosure {
 
 class MicrofacetGGXFresnelClosure : public MicrofacetFresnelClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -575,7 +575,7 @@ CCLOSURE_PREPARE(closure_bsdf_microfacet_ggx_fresnel_prepare, MicrofacetGGXFresn
 
 class MicrofacetGGXAnisoFresnelClosure : public MicrofacetFresnelClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -608,9 +608,9 @@ CCLOSURE_PREPARE(closure_bsdf_microfacet_ggx_aniso_fresnel_prepare,
 class MicrofacetMultiClosure : public CBSDFClosure {
  public:
   MicrofacetBsdf params;
-  float3 color;
+  SpectralColor color;
 
-  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, float3 weight)
+  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     /* Technically, the MultiGGX closure may also transmit. However,
      * since this is set statically and only used for caustic flags, this
@@ -632,7 +632,7 @@ class MicrofacetMultiClosure : public CBSDFClosure {
 
     bsdf->extra = extra;
     bsdf->extra->color = color;
-    bsdf->extra->cspec0 = make_float3(0.0f, 0.0f, 0.0f);
+    bsdf->extra->cspec0 = make_spectral_color(0.0f);
     bsdf->extra->clearcoat = 0.0f;
     return bsdf;
   }
@@ -640,7 +640,7 @@ class MicrofacetMultiClosure : public CBSDFClosure {
 
 class MicrofacetMultiGGXClosure : public MicrofacetMultiClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -668,7 +668,7 @@ CCLOSURE_PREPARE(closure_bsdf_microfacet_multi_ggx_prepare, MicrofacetMultiGGXCl
 
 class MicrofacetMultiGGXAnisoClosure : public MicrofacetMultiClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -700,7 +700,7 @@ class MicrofacetMultiGGXGlassClosure : public MicrofacetMultiClosure {
   {
   }
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -731,10 +731,10 @@ CCLOSURE_PREPARE(closure_bsdf_microfacet_multi_ggx_glass_prepare, MicrofacetMult
 class MicrofacetMultiFresnelClosure : public CBSDFClosure {
  public:
   MicrofacetBsdf params;
-  float3 color;
-  float3 cspec0;
+  SpectralColor color;
+  SpectralColor cspec0;
 
-  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, float3 weight)
+  MicrofacetBsdf *alloc(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     /* Technically, the MultiGGX closure may also transmit. However,
      * since this is set statically and only used for caustic flags, this
@@ -764,7 +764,7 @@ class MicrofacetMultiFresnelClosure : public CBSDFClosure {
 
 class MicrofacetMultiGGXFresnelClosure : public MicrofacetMultiFresnelClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -794,7 +794,7 @@ CCLOSURE_PREPARE(closure_bsdf_microfacet_multi_ggx_fresnel_prepare,
 
 class MicrofacetMultiGGXAnisoFresnelClosure : public MicrofacetMultiFresnelClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -828,7 +828,7 @@ class MicrofacetMultiGGXGlassFresnelClosure : public MicrofacetMultiFresnelClosu
   {
   }
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     MicrofacetBsdf *bsdf = alloc(sd, path_flag, weight);
     if (!bsdf) {
@@ -863,7 +863,7 @@ class TransparentClosure : public CBSDFClosure {
   ShaderClosure params;
   float3 unused;
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     bsdf_transparent_setup(sd, weight, path_flag);
   }
@@ -882,7 +882,7 @@ CCLOSURE_PREPARE(closure_bsdf_transparent_prepare, TransparentClosure)
 
 class VolumeAbsorptionClosure : public CBSDFClosure {
  public:
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     volume_extinction_setup(sd, weight);
   }
@@ -901,7 +901,7 @@ class VolumeHenyeyGreensteinClosure : public CBSDFClosure {
  public:
   HenyeyGreensteinVolume params;
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     volume_extinction_setup(sd, weight);
 

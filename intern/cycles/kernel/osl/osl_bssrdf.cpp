@@ -69,7 +69,7 @@ class CBSSRDFClosure : public CClosurePrimitive {
     params.roughness = 0.0f;
   }
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     if (method == u_cubic) {
       alloc(sd, path_flag, weight, CLOSURE_BSSRDF_CUBIC_ID);
@@ -91,7 +91,7 @@ class CBSSRDFClosure : public CClosurePrimitive {
     }
   }
 
-  void alloc(ShaderData *sd, int path_flag, float3 weight, ClosureType type)
+  void alloc(ShaderData *sd, int path_flag, SpectralColor weight, ClosureType type)
   {
     Bssrdf *bssrdf = bssrdf_alloc(sd, weight);
 
@@ -100,7 +100,7 @@ class CBSSRDFClosure : public CClosurePrimitive {
        * adds considerably noise due to probabilities of continuing path
        * getting lower and lower */
       if (path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
-        params.radius = make_float3(0.0f, 0.0f, 0.0f);
+        params.radius = make_spectral_color(0.0f);
       }
 
       /* create one closure per color channel */

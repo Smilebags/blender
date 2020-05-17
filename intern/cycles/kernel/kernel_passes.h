@@ -60,8 +60,8 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
   }
 
   float3 normal = make_float3(0.0f, 0.0f, 0.0f);
-  float3 diffuse_albedo = make_float3(0.0f, 0.0f, 0.0f);
-  float3 specular_albedo = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor diffuse_albedo = make_spectral_color(0.0f);
+  SpectralColor specular_albedo = make_spectral_color(0.0f);
   float sum_weight = 0.0f, sum_nonspecular_weight = 0.0f;
 
   for (int i = 0; i < sd->num_closure; i++) {
@@ -74,7 +74,7 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
     normal += sc->N * sc->sample_weight;
     sum_weight += sc->sample_weight;
 
-    float3 closure_albedo = sc->weight;
+    SpectralColor closure_albedo = sc->weight;
     /* Closures that include a Fresnel term typically have weights close to 1 even though their
      * actual contribution is significantly lower.
      * To account for this, we scale their weight by the average fresnel factor (the same is also
@@ -111,8 +111,8 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
     normal = transform_direction(&worldtocamera, normal);
 
     L->denoising_normal += ensure_finite3(state->denoising_feature_weight * normal);
-    L->denoising_albedo += ensure_finite3(state->denoising_feature_weight *
-                                          state->denoising_feature_throughput * diffuse_albedo);
+    L->denoising_albedo += ensure_finite(state->denoising_feature_weight *
+                                         state->denoising_feature_throughput * diffuse_albedo);
 
     state->denoising_feature_weight = 0.0f;
   }
@@ -175,7 +175,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg,
                                                 PathRadiance *L,
                                                 ShaderData *sd,
                                                 ccl_addr_space PathState *state,
-                                                float3 throughput)
+                                                SpectralColor throughput)
 {
 #ifdef __PASSES__
   int path_flag = state->flag;
@@ -276,7 +276,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg,
       mist = powf(mist, mist_falloff);
 
     /* modulate by transparency */
-    float3 alpha = shader_bsdf_alpha(kg, sd);
+    SpectralColor alpha = shader_bsdf_alpha(kg, sd);
     L->mist += (1.0f - mist) * average(throughput * alpha);
   }
 #endif
@@ -285,7 +285,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg,
 ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
                                                  ccl_global float *buffer,
                                                  PathRadiance *L,
-                                                 float3 wavelengths)
+                                                 float *wavelengths)
 {
 #ifdef __PASSES__
   int light_flag = kernel_data.film.light_pass_flag;
@@ -352,7 +352,7 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
 }
 
 ccl_device_inline void kernel_write_result(
-    KernelGlobals *kg, ccl_global float *buffer, int sample, PathRadiance *L, float3 wavelengths)
+    KernelGlobals *kg, ccl_global float *buffer, int sample, PathRadiance *L, float *wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_WRITE_RESULT);
   PROFILING_OBJECT(PRIM_NONE);
@@ -380,7 +380,7 @@ ccl_device_inline void kernel_write_result(
         kg, buffer + kernel_data.film.pass_denoising_data, sample, 0.0f, 0.0f);
 #  endif
     if (kernel_data.film.pass_denoising_clean) {
-      float3 noisy, clean;
+      SpectralColor noisy, clean;
       path_radiance_split_denoising(kg, L, &noisy, &clean);
       kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +
                                             DENOISING_PASS_COLOR,
@@ -391,7 +391,7 @@ ccl_device_inline void kernel_write_result(
     else {
       kernel_write_pass_float3_variance(
           buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-          wavelength_intensities_to_linear(kg, ensure_finite3(L_sum), wavelengths));
+          wavelength_intensities_to_linear(kg, ensure_finite(L_sum), wavelengths));
     }
 
     kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data +

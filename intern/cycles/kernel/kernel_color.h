@@ -589,42 +589,33 @@ ccl_device float3 wavelength_to_xyz(float wavelength)
 
 ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
                                                      SpectralColor intensities,
-                                                     float3 wavelengths)
+                                                     float *wavelengths)
 {
-  float3 sum_x_xyz = wavelength_to_xyz(wavelengths.x) * intensities.x;
-  float3 sum_y_xyz = wavelength_to_xyz(wavelengths.y) * intensities.y;
-  float3 sum_z_xyz = wavelength_to_xyz(wavelengths.z) * intensities.z;
-  float3 xyz_sum = sum_x_xyz + sum_y_xyz + sum_z_xyz;
+  float3 xyz_sum = make_float3(0.0f);
+  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(wavelengths, i, wavelength)
+  {
+    xyz_sum += wavelength_to_xyz(wavelength) * intensities[i];
+  }
 
   return xyz_to_rgb(kg, xyz_sum);
 }
 
-ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float3 wavelengths)
+ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float *wavelengths)
 {
-  // find position in lookup of first wavelength
-  float3 wavelength_one_magnitudes = find_position_in_lookup_unit_step(
-      rec709_wavelength_lookup, wavelengths.x, 360, 830, 5);
-  // multiply the lookups by the RGB factors
-  float3 contributions_one = wavelength_one_magnitudes * rgb;
-  // add the three components
-  float wavelength_one_brightness = contributions_one.x + contributions_one.y +
-                                    contributions_one.z;
 
-  // repeat for other two wavelengths
-  float3 wavelength_two_magnitudes = find_position_in_lookup_unit_step(
-      rec709_wavelength_lookup, wavelengths.y, 360, 830, 5);
-  float3 contributions_two = wavelength_two_magnitudes * rgb;
-  float wavelength_two_brightness = contributions_two.x + contributions_two.y +
-                                    contributions_two.z;
+  SpectralColor intensities;
+  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(wavelengths, i, wavelength)
+  {
+    // find position in lookup of wavelength
+    float3 magnitudes = find_position_in_lookup_unit_step(
+        rec709_wavelength_lookup, wavelength, 360, 830, 5);
+    // multiply the lookups by the RGB factors
+    float3 contributions = magnitudes * rgb;
+    // add the three components
+    intensities[i] = contributions.x + contributions.y + contributions.z;
+  }
 
-  float3 wavelength_three_magnitudes = find_position_in_lookup_unit_step(
-      rec709_wavelength_lookup, wavelengths.z, 360, 830, 5);
-  float3 contributions_three = wavelength_three_magnitudes * rgb;
-  float wavelength_three_brightness = contributions_three.x + contributions_three.y +
-                                      contributions_three.z;
-
-  return make_float3(
-      wavelength_one_brightness, wavelength_two_brightness, wavelength_three_brightness);
+  return intensities;
 }
 
 CCL_NAMESPACE_END

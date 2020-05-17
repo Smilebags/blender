@@ -57,12 +57,13 @@ ccl_device void svm_node_blackbody(
   float peak_wavelength = clamp(b / temperature, 360.0e-9f, 730.0e-9f);
   float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
 
-  float3 spectral = make_float3(
-      blackbody_intensity(temperature, state->wavelengths.x * 1e-9f) / peak_intensity,
-      blackbody_intensity(temperature, state->wavelengths.y * 1e-9f) / peak_intensity,
-      blackbody_intensity(temperature, state->wavelengths.z * 1e-9f) / peak_intensity);
+  SpectralColor spectral;
+  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(state->wavelengths, i, wavelength)
+  {
+    spectral[i] = blackbody_intensity(temperature, wavelength * 1e-9f) / peak_intensity;
+  }
 
-  stack_store_float3(stack, col_offset, spectral);
+  stack_store_spectral(stack, col_offset, spectral);
 }
 
 CCL_NAMESPACE_END

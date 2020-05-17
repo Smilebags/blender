@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 
 /* VOLUME EXTINCTION */
 
-ccl_device void volume_extinction_setup(ShaderData *sd, float3 weight)
+ccl_device void volume_extinction_setup(ShaderData *sd, SpectralColor weight)
 {
   if (sd->flag & SD_EXTINCTION) {
     sd->closure_transparent_extinction += weight;
@@ -70,10 +70,10 @@ ccl_device bool volume_henyey_greenstein_merge(const ShaderClosure *a, const Sha
   return (volume_a->g == volume_b->g);
 }
 
-ccl_device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc,
-                                                      const float3 I,
-                                                      float3 omega_in,
-                                                      float *pdf)
+ccl_device SpectralColor volume_henyey_greenstein_eval_phase(const ShaderClosure *sc,
+                                                             const float3 I,
+                                                             float3 omega_in,
+                                                             float *pdf)
 {
   const HenyeyGreensteinVolume *volume = (const HenyeyGreensteinVolume *)sc;
   float g = volume->g;
@@ -87,7 +87,7 @@ ccl_device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc,
     *pdf = single_peaked_henyey_greenstein(cos_theta, g);
   }
 
-  return make_float3(*pdf, *pdf, *pdf);
+  return make_spectral_color(*pdf);
 }
 
 ccl_device float3
@@ -128,7 +128,7 @@ ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc,
                                                float3 dIdy,
                                                float randu,
                                                float randv,
-                                               float3 *eval,
+                                               SpectralColor *eval,
                                                float3 *omega_in,
                                                float3 *domega_in_dx,
                                                float3 *domega_in_dy,
@@ -139,7 +139,7 @@ ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc,
 
   /* note that I points towards the viewer and so is used negated */
   *omega_in = henyey_greenstrein_sample(-I, g, randu, randv, pdf);
-  *eval = make_float3(*pdf, *pdf, *pdf); /* perfect importance sampling */
+  *eval = make_spectral_color(*pdf); /* perfect importance sampling */
 
 #ifdef __RAY_DIFFERENTIALS__
   /* todo: implement ray differential estimation */
@@ -152,10 +152,10 @@ ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc,
 
 /* VOLUME CLOSURE */
 
-ccl_device float3 volume_phase_eval(const ShaderData *sd,
-                                    const ShaderClosure *sc,
-                                    float3 omega_in,
-                                    float *pdf)
+ccl_device SpectralColor volume_phase_eval(const ShaderData *sd,
+                                           const ShaderClosure *sc,
+                                           float3 omega_in,
+                                           float *pdf)
 {
   kernel_assert(sc->type == CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
 
@@ -166,7 +166,7 @@ ccl_device int volume_phase_sample(const ShaderData *sd,
                                    const ShaderClosure *sc,
                                    float randu,
                                    float randv,
-                                   float3 *eval,
+                                   SpectralColor *eval,
                                    float3 *omega_in,
                                    differential3 *domega_in,
                                    float *pdf)
@@ -188,7 +188,7 @@ ccl_device int volume_phase_sample(const ShaderData *sd,
                                               pdf);
       break;
     default:
-      *eval = make_float3(0.0f, 0.0f, 0.0f);
+      *eval = make_spectral_color(0.0f);
       label = LABEL_NONE;
       break;
   }

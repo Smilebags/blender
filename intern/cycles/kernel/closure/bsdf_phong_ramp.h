@@ -46,18 +46,19 @@ typedef ccl_addr_space struct PhongRampBsdf {
 
 static_assert(sizeof(ShaderClosure) >= sizeof(PhongRampBsdf), "PhongRampBsdf is too large!");
 
-ccl_device float3 bsdf_phong_ramp_get_color(const float3 colors[8], float pos)
+ccl_device SpectralColor bsdf_phong_ramp_get_color(const float3 colors[8], float pos)
 {
-  int MAXCOLORS = 8;
+  //   int MAXCOLORS = 8;
 
-  float npos = pos * (float)(MAXCOLORS - 1);
-  int ipos = float_to_int(npos);
-  if (ipos < 0)
-    return colors[0];
-  if (ipos >= (MAXCOLORS - 1))
-    return colors[MAXCOLORS - 1];
-  float offset = npos - (float)ipos;
-  return colors[ipos] * (1.0f - offset) + colors[ipos + 1] * offset;
+  //   float npos = pos * (float)(MAXCOLORS - 1);
+  //   int ipos = float_to_int(npos);
+  //   if (ipos < 0)
+  //     return colors[0];
+  //   if (ipos >= (MAXCOLORS - 1))
+  //     return colors[MAXCOLORS - 1];
+  //   float offset = npos - (float)ipos;
+  //   return colors[ipos] * (1.0f - offset) + colors[ipos + 1] * offset;
+  return make_spectral_color(0.0f);
 }
 
 ccl_device int bsdf_phong_ramp_setup(PhongRampBsdf *bsdf)
@@ -67,10 +68,10 @@ ccl_device int bsdf_phong_ramp_setup(PhongRampBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_phong_ramp_eval_reflect(const ShaderClosure *sc,
-                                               const float3 I,
-                                               const float3 omega_in,
-                                               float *pdf)
+ccl_device SpectralColor bsdf_phong_ramp_eval_reflect(const ShaderClosure *sc,
+                                                      const float3 I,
+                                                      const float3 omega_in,
+                                                      float *pdf)
 {
   const PhongRampBsdf *bsdf = (const PhongRampBsdf *)sc;
   float m_exponent = bsdf->exponent;
@@ -90,7 +91,7 @@ ccl_device float3 bsdf_phong_ramp_eval_reflect(const ShaderClosure *sc,
     }
   }
 
-  return make_float3(0.0f, 0.0f, 0.0f);
+  return make_spectral_color(0.0f);
 }
 
 ccl_device float3 bsdf_phong_ramp_eval_transmit(const ShaderClosure *sc,
@@ -108,7 +109,7 @@ ccl_device int bsdf_phong_ramp_sample(const ShaderClosure *sc,
                                       float3 dIdy,
                                       float randu,
                                       float randv,
-                                      float3 *eval,
+                                      SpectralColor *eval,
                                       float3 *omega_in,
                                       float3 *domega_in_dx,
                                       float3 *domega_in_dy,

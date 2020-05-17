@@ -158,7 +158,8 @@ static SocketType::Type convert_socket_type(BL::NodeSocket &b_socket)
 static void set_default_value(ShaderInput *input,
                               BL::NodeSocket &b_sock,
                               BL::BlendData &b_data,
-                              BL::ID &b_id)
+                              BL::ID &b_id,
+                              ShaderGraph *graph)
 {
   Node *node = input->parent;
   const SocketType &socket = input->socket_type;
@@ -178,7 +179,18 @@ static void set_default_value(ShaderInput *input,
       break;
     }
     case SocketType::SPECTRAL: {
-      node->set(socket, float4_to_float3(get_float4(b_sock.ptr, "default_value")));
+      if (b_sock.is_linked()) {
+        break;
+      }
+
+      /* Connect RGB node to unconnected spectral socket to force color to spectral conversion. */
+      RGBColor color = float4_to_float3(get_float4(b_sock.ptr, "default_value"));
+
+      RGBToSpectralNode *node = new RGBToSpectralNode();
+      node->set(node->input("Color")->socket_type, color);
+
+      graph->add(node);
+      graph->connect(node->output("Spectral"), input);
       break;
     }
     case SocketType::NORMAL:
@@ -1072,7 +1084,7 @@ static void add_nodes(Scene *scene,
 
         input_map[b_input->ptr.data] = proxy->inputs[0];
 
-        set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree);
+        set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree, graph);
       }
       for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
         SocketType::Type output_type = convert_socket_type(*b_output);
@@ -1124,7 +1136,7 @@ static void add_nodes(Scene *scene,
 
             input_map[b_input->ptr.data] = proxy->inputs[0];
 
-            set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree);
+            set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree, graph);
           }
         }
       }
@@ -1151,7 +1163,7 @@ static void add_nodes(Scene *scene,
           }
           input_map[b_input->ptr.data] = input;
 
-          set_default_value(input, *b_input, b_data, b_ntree);
+          set_default_value(input, *b_input, b_data, b_ntree, graph);
         }
         for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
           ShaderOutput *output = node_find_output_by_name(node, *b_node, *b_output);

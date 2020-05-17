@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
  * BSDF evaluation result, split per BSDF type. This is used to accumulate
  * render passes separately. */
 
-ccl_device float3 shader_bsdf_transparency(KernelGlobals *kg, const ShaderData *sd);
+ccl_device SpectralColor shader_bsdf_transparency(KernelGlobals *kg, const ShaderData *sd);
 
 ccl_device_inline void bsdf_eval_init(BsdfEval *eval,
                                       ClosureType type,
@@ -32,11 +32,11 @@ ccl_device_inline void bsdf_eval_init(BsdfEval *eval,
   eval->use_light_pass = use_light_pass;
 
   if (eval->use_light_pass) {
-    eval->diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    eval->glossy = make_float3(0.0f, 0.0f, 0.0f);
-    eval->transmission = make_float3(0.0f, 0.0f, 0.0f);
-    eval->transparent = make_float3(0.0f, 0.0f, 0.0f);
-    eval->volume = make_float3(0.0f, 0.0f, 0.0f);
+    eval->diffuse = make_spectral_color(0.0f);
+    eval->glossy = make_spectral_color(0.0f);
+    eval->transmission = make_spectral_color(0.0f);
+    eval->transparent = make_spectral_color(0.0f);
+    eval->volume = make_spectral_color(0.0f);
 
     if (type == CLOSURE_BSDF_TRANSPARENT_ID)
       eval->transparent = value;
@@ -55,7 +55,7 @@ ccl_device_inline void bsdf_eval_init(BsdfEval *eval,
     eval->diffuse = value;
   }
 #ifdef __SHADOW_TRICKS__
-  eval->sum_no_mis = make_float3(0.0f, 0.0f, 0.0f);
+  eval->sum_no_mis = make_spectral_color(0.0f);
 #endif
 }
 
@@ -174,47 +174,47 @@ ccl_device_inline void path_radiance_init(KernelGlobals *kg, PathRadiance *L)
   L->use_light_pass = kernel_data.film.use_light_pass;
 
   if (kernel_data.film.use_light_pass) {
-    L->indirect = make_float3(0.0f, 0.0f, 0.0f);
-    L->direct_emission = make_float3(0.0f, 0.0f, 0.0f);
+    L->indirect = make_spectral_color(0.0f);
+    L->direct_emission = make_spectral_color(0.0f);
 
-    L->color_diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    L->color_glossy = make_float3(0.0f, 0.0f, 0.0f);
-    L->color_transmission = make_float3(0.0f, 0.0f, 0.0f);
+    L->color_diffuse = make_spectral_color(0.0f);
+    L->color_glossy = make_spectral_color(0.0f);
+    L->color_transmission = make_spectral_color(0.0f);
 
-    L->direct_diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    L->direct_glossy = make_float3(0.0f, 0.0f, 0.0f);
-    L->direct_transmission = make_float3(0.0f, 0.0f, 0.0f);
-    L->direct_volume = make_float3(0.0f, 0.0f, 0.0f);
+    L->direct_diffuse = make_spectral_color(0.0f);
+    L->direct_glossy = make_spectral_color(0.0f);
+    L->direct_transmission = make_spectral_color(0.0f);
+    L->direct_volume = make_spectral_color(0.0f);
 
-    L->indirect_diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    L->indirect_glossy = make_float3(0.0f, 0.0f, 0.0f);
-    L->indirect_transmission = make_float3(0.0f, 0.0f, 0.0f);
-    L->indirect_volume = make_float3(0.0f, 0.0f, 0.0f);
+    L->indirect_diffuse = make_spectral_color(0.0f);
+    L->indirect_glossy = make_spectral_color(0.0f);
+    L->indirect_transmission = make_spectral_color(0.0f);
+    L->indirect_volume = make_spectral_color(0.0f);
 
     L->transparent = 0.0f;
-    L->emission = make_float3(0.0f, 0.0f, 0.0f);
-    L->background = make_float3(0.0f, 0.0f, 0.0f);
-    L->ao = make_float3(0.0f, 0.0f, 0.0f);
+    L->emission = make_spectral_color(0.0f);
+    L->background = make_spectral_color(0.0f);
+    L->ao = make_spectral_color(0.0f);
     L->shadow = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
     L->mist = 0.0f;
 
-    L->state.diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.glossy = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.transmission = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.volume = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.direct = make_float3(0.0f, 0.0f, 0.0f);
+    L->state.diffuse = make_spectral_color(0.0f);
+    L->state.glossy = make_spectral_color(0.0f);
+    L->state.transmission = make_spectral_color(0.0f);
+    L->state.volume = make_spectral_color(0.0f);
+    L->state.direct = make_spectral_color(0.0f);
   }
   else
 #endif
   {
     L->transparent = 0.0f;
-    L->emission = make_float3(0.0f, 0.0f, 0.0f);
+    L->emission = make_spectral_color(0.0f);
   }
 
 #ifdef __SHADOW_TRICKS__
-  L->path_total = make_float3(0.0f, 0.0f, 0.0f);
-  L->path_total_shaded = make_float3(0.0f, 0.0f, 0.0f);
-  L->shadow_background_color = make_float3(0.0f, 0.0f, 0.0f);
+  L->path_total = make_spectral_color(0.0f);
+  L->path_total_shaded = make_spectral_color(0.0f);
+  L->shadow_background_color = make_spectral_color(0.0f);
   L->shadow_throughput = 0.0f;
   L->shadow_transparency = 1.0f;
   L->has_shadow_catcher = 0;
@@ -222,7 +222,7 @@ ccl_device_inline void path_radiance_init(KernelGlobals *kg, PathRadiance *L)
 
 #ifdef __DENOISING_FEATURES__
   L->denoising_normal = make_float3(0.0f, 0.0f, 0.0f);
-  L->denoising_albedo = make_float3(0.0f, 0.0f, 0.0f);
+  L->denoising_albedo = make_spectral_color(0.0f);
   L->denoising_depth = 0.0f;
 #endif
 
@@ -236,7 +236,7 @@ ccl_device_inline void path_radiance_init(KernelGlobals *kg, PathRadiance *L)
 
 ccl_device_inline void path_radiance_bsdf_bounce(KernelGlobals *kg,
                                                  PathRadianceState *L_state,
-                                                 ccl_addr_space float3 *throughput,
+                                                 ccl_addr_space SpectralColor *throughput,
                                                  BsdfEval *bsdf_eval,
                                                  float bsdf_pdf,
                                                  int bounce,
@@ -248,7 +248,7 @@ ccl_device_inline void path_radiance_bsdf_bounce(KernelGlobals *kg,
   if (kernel_data.film.use_light_pass) {
     if (bounce == 0 && !(bsdf_label & LABEL_TRANSPARENT)) {
       /* first on directly visible surface */
-      float3 value = *throughput * inverse_pdf;
+      SpectralColor value = *throughput * inverse_pdf;
 
       L_state->diffuse = bsdf_eval->diffuse * value;
       L_state->glossy = bsdf_eval->glossy * value;
@@ -273,29 +273,29 @@ ccl_device_inline void path_radiance_bsdf_bounce(KernelGlobals *kg,
 }
 
 #ifdef __CLAMP_SAMPLE__
-ccl_device_forceinline void path_radiance_clamp(KernelGlobals *kg, float3 *L, int bounce)
+ccl_device_forceinline void path_radiance_clamp(KernelGlobals *kg, SpectralColor &L, int bounce)
 {
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
-  float sum = reduce_add(fabs(*L));
+  float sum = reduce_add_spectral(fabs(L));
   if (sum > limit) {
-    *L *= limit / sum;
+    L *= limit / sum;
   }
 }
 
 ccl_device_forceinline void path_radiance_clamp_throughput(KernelGlobals *kg,
-                                                           float3 *L,
-                                                           float3 *throughput,
+                                                           SpectralColor &L,
+                                                           SpectralColor &throughput,
                                                            int bounce)
 {
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
 
-  float sum = reduce_add(fabs(*L));
+  float sum = reduce_add_spectral(fabs(L));
   if (sum > limit) {
     float clamp_factor = limit / sum;
-    *L *= clamp_factor;
-    *throughput *= clamp_factor;
+    L *= clamp_factor;
+    throughput *= clamp_factor;
   }
 }
 
@@ -304,8 +304,8 @@ ccl_device_forceinline void path_radiance_clamp_throughput(KernelGlobals *kg,
 ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
                                                     PathRadiance *L,
                                                     ccl_addr_space PathState *state,
-                                                    RGBColor throughput,
-                                                    RGBColor value)
+                                                    SpectralColor throughput,
+                                                    SpectralColor value)
 {
 #ifdef __SHADOW_TRICKS__
   if (state->flag & PATH_RAY_SHADOW_CATCHER) {
@@ -313,9 +313,9 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
   }
 #endif
 
-  RGBColor contribution = throughput * value;
+  SpectralColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
-  path_radiance_clamp(kg, &contribution, state->bounce - 1);
+  path_radiance_clamp(kg, contribution, state->bounce - 1);
 #endif
 
 #ifdef __PASSES__
@@ -337,10 +337,10 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
 ccl_device_inline void path_radiance_accum_ao(KernelGlobals *kg,
                                               PathRadiance *L,
                                               ccl_addr_space PathState *state,
-                                              float3 throughput,
-                                              float3 alpha,
-                                              float3 bsdf,
-                                              float3 ao)
+                                              SpectralColor throughput,
+                                              SpectralColor alpha,
+                                              SpectralColor bsdf,
+                                              SpectralColor ao)
 {
 #ifdef __PASSES__
   /* Store AO pass. */
@@ -352,7 +352,7 @@ ccl_device_inline void path_radiance_accum_ao(KernelGlobals *kg,
 #ifdef __SHADOW_TRICKS__
   /* For shadow catcher, accumulate ratio. */
   if (state->flag & PATH_RAY_STORE_SHADOW_INFO) {
-    float3 light = throughput * bsdf;
+    SpectralColor light = throughput * bsdf;
     L->path_total += light;
     L->path_total_shaded += ao * light;
 
@@ -362,7 +362,7 @@ ccl_device_inline void path_radiance_accum_ao(KernelGlobals *kg,
   }
 #endif
 
-  float3 contribution = throughput * bsdf * ao;
+  SpectralColor contribution = throughput * bsdf * ao;
 
 #ifdef __PASSES__
   if (L->use_light_pass) {
@@ -384,8 +384,8 @@ ccl_device_inline void path_radiance_accum_ao(KernelGlobals *kg,
 
 ccl_device_inline void path_radiance_accum_total_ao(PathRadiance *L,
                                                     ccl_addr_space PathState *state,
-                                                    float3 throughput,
-                                                    float3 bsdf)
+                                                    SpectralColor throughput,
+                                                    SpectralColor bsdf)
 {
 #ifdef __SHADOW_TRICKS__
   if (state->flag & PATH_RAY_STORE_SHADOW_INFO) {
@@ -428,7 +428,7 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
      * The resulting scale is then be applied to all individual components. */
     SpectralColor full_contribution = shaded_throughput * bsdf_eval_sum(bsdf_eval);
 #  ifdef __CLAMP_SAMPLE__
-    path_radiance_clamp_throughput(kg, &full_contribution, &shaded_throughput, state->bounce);
+    path_radiance_clamp_throughput(kg, full_contribution, shaded_throughput, state->bounce);
 #  endif
 
     if (state->bounce == 0) {
@@ -452,15 +452,15 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
   else
 #endif
   {
-    float3 contribution = shaded_throughput * bsdf_eval->diffuse;
-    path_radiance_clamp(kg, &contribution, state->bounce);
+    SpectralColor contribution = shaded_throughput * bsdf_eval->diffuse;
+    path_radiance_clamp(kg, contribution, state->bounce);
     L->emission += contribution;
   }
 }
 
 ccl_device_inline void path_radiance_accum_total_light(PathRadiance *L,
                                                        ccl_addr_space PathState *state,
-                                                       float3 throughput,
+                                                       SpectralColor throughput,
                                                        const BsdfEval *bsdf_eval)
 {
 #ifdef __SHADOW_TRICKS__
@@ -478,8 +478,8 @@ ccl_device_inline void path_radiance_accum_total_light(PathRadiance *L,
 ccl_device_inline void path_radiance_accum_background(KernelGlobals *kg,
                                                       PathRadiance *L,
                                                       ccl_addr_space PathState *state,
-                                                      float3 throughput,
-                                                      float3 value)
+                                                      SpectralColor throughput,
+                                                      SpectralColor value)
 {
 
 #ifdef __SHADOW_TRICKS__
@@ -493,9 +493,9 @@ ccl_device_inline void path_radiance_accum_background(KernelGlobals *kg,
   }
 #endif
 
-  float3 contribution = throughput * value;
+  SpectralColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
-  path_radiance_clamp(kg, &contribution, state->bounce - 1);
+  path_radiance_clamp(kg, contribution, state->bounce - 1);
 #endif
 
 #ifdef __PASSES__
@@ -521,15 +521,15 @@ ccl_device_inline void path_radiance_accum_background(KernelGlobals *kg,
 
 ccl_device_inline void path_radiance_accum_transparent(PathRadiance *L,
                                                        ccl_addr_space PathState *state,
-                                                       float3 throughput)
+                                                       SpectralColor throughput)
 {
   L->transparent += average(throughput);
 }
 
 #ifdef __SHADOW_TRICKS__
 ccl_device_inline void path_radiance_accum_shadowcatcher(PathRadiance *L,
-                                                         float3 throughput,
-                                                         float3 background)
+                                                         SpectralColor throughput,
+                                                         SpectralColor background)
 {
   L->shadow_throughput += average(throughput);
   L->shadow_background_color += throughput * background;
@@ -563,13 +563,13 @@ ccl_device_inline void path_radiance_reset_indirect(PathRadiance *L)
 {
 #ifdef __PASSES__
   if (L->use_light_pass) {
-    L->state.diffuse = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.glossy = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.transmission = make_float3(0.0f, 0.0f, 0.0f);
-    L->state.volume = make_float3(0.0f, 0.0f, 0.0f);
+    L->state.diffuse = make_spectral_color(0.0f);
+    L->state.glossy = make_spectral_color(0.0f);
+    L->state.transmission = make_spectral_color(0.0f);
+    L->state.volume = make_spectral_color(0.0f);
 
-    L->direct_emission = make_float3(0.0f, 0.0f, 0.0f);
-    L->indirect = make_float3(0.0f, 0.0f, 0.0f);
+    L->direct_emission = make_spectral_color(0.0f);
+    L->indirect = make_spectral_color(0.0f);
   }
 #endif
 }
@@ -589,7 +589,7 @@ ccl_device_inline void path_radiance_copy_indirect(PathRadiance *L, const PathRa
 #ifdef __SHADOW_TRICKS__
 ccl_device_inline void path_radiance_sum_shadowcatcher(KernelGlobals *kg,
                                                        PathRadiance *L,
-                                                       float3 *L_sum,
+                                                       SpectralColor *L_sum,
                                                        float *alpha)
 {
   /* Calculate current shadow of the path. */
@@ -623,7 +623,7 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
                                                             PathRadiance *L,
                                                             float *alpha)
 {
-  float3 L_sum;
+  SpectralColor L_sum;
   /* Light Passes are used */
 #ifdef __PASSES__
   SpectralColor L_direct, L_indirect;
@@ -639,24 +639,29 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
       L_direct += L->background;
 
     L_sum = L_direct + L_indirect;
-    float sum = fabsf((L_sum).x) + fabsf((L_sum).y) + fabsf((L_sum).z);
+
+    float sum = 0;
+    SPECTRAL_COLOR_FOR_EACH(i)
+    {
+      sum += fabsf(L_sum[i]);
+    }
 
     /* Reject invalid value */
     if (!isfinite_safe(sum)) {
       kernel_assert(!"Non-finite sum in path_radiance_clamp_and_sum!");
-      L_sum = make_float3(0.0f, 0.0f, 0.0f);
+      L_sum = make_spectral_color(0.0f);
 
-      L->direct_diffuse = make_float3(0.0f, 0.0f, 0.0f);
-      L->direct_glossy = make_float3(0.0f, 0.0f, 0.0f);
-      L->direct_transmission = make_float3(0.0f, 0.0f, 0.0f);
-      L->direct_volume = make_float3(0.0f, 0.0f, 0.0f);
+      L->direct_diffuse = make_spectral_color(0.0f);
+      L->direct_glossy = make_spectral_color(0.0f);
+      L->direct_transmission = make_spectral_color(0.0f);
+      L->direct_volume = make_spectral_color(0.0f);
 
-      L->indirect_diffuse = make_float3(0.0f, 0.0f, 0.0f);
-      L->indirect_glossy = make_float3(0.0f, 0.0f, 0.0f);
-      L->indirect_transmission = make_float3(0.0f, 0.0f, 0.0f);
-      L->indirect_volume = make_float3(0.0f, 0.0f, 0.0f);
+      L->indirect_diffuse = make_spectral_color(0.0f);
+      L->indirect_glossy = make_spectral_color(0.0f);
+      L->indirect_transmission = make_spectral_color(0.0f);
+      L->indirect_volume = make_spectral_color(0.0f);
 
-      L->emission = make_float3(0.0f, 0.0f, 0.0f);
+      L->emission = make_spectral_color(0.0f);
     }
   }
 
@@ -667,10 +672,15 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
     L_sum = L->emission;
 
     /* Reject invalid value */
-    float sum = fabsf((L_sum).x) + fabsf((L_sum).y) + fabsf((L_sum).z);
+    float sum = 0;
+    SPECTRAL_COLOR_FOR_EACH(i)
+    {
+      sum += fabsf(L_sum[i]);
+    }
+
     if (!isfinite_safe(sum)) {
       kernel_assert(!"Non-finite final sum in path_radiance_clamp_and_sum!");
-      L_sum = make_float3(0.0f, 0.0f, 0.0f);
+      L_sum = make_spectral_color(0.0f);
     }
   }
 
@@ -689,8 +699,8 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
 
 ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg,
                                                      PathRadiance *L,
-                                                     float3 *noisy,
-                                                     float3 *clean)
+                                                     SpectralColor *noisy,
+                                                     SpectralColor *clean)
 {
 #ifdef __PASSES__
   kernel_assert(L->use_light_pass);
@@ -713,7 +723,7 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg,
 #  undef ADD_COMPONENT
 #else
   *noisy = L->emission;
-  *clean = make_float3(0.0f, 0.0f, 0.0f);
+  *clean = make_spectral_color(0.0f);
 #endif
 
 #ifdef __SHADOW_TRICKS__
@@ -722,8 +732,8 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg,
   }
 #endif
 
-  *noisy = ensure_finite3(*noisy);
-  *clean = ensure_finite3(*clean);
+  *noisy = ensure_finite(*noisy);
+  *clean = ensure_finite(*clean);
 }
 
 ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance *L_sample)

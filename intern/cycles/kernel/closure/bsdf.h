@@ -103,7 +103,7 @@ ccl_device_inline int bsdf_sample(KernelGlobals *kg,
                                   const ShaderClosure *sc,
                                   float randu,
                                   float randv,
-                                  float3 *eval,
+                                  SpectralColor *eval,
                                   float3 *omega_in,
                                   differential3 *domega_in,
                                   float *pdf)
@@ -463,14 +463,14 @@ ccl_device
 #else
 ccl_device_inline
 #endif
-    RGBColor
+    SpectralColor
     bsdf_eval(KernelGlobals *kg,
               ShaderData *sd,
               const ShaderClosure *sc,
               const float3 omega_in,
               float *pdf)
 {
-  RGBColor eval;
+  SpectralColor eval;
 
   if (dot(sd->Ng, omega_in) >= 0.0f) {
     switch (sc->type) {
@@ -562,7 +562,7 @@ ccl_device_inline
         break;
 #endif
       default:
-        eval = make_float3(0.0f, 0.0f, 0.0f);
+        eval = make_spectral_color(0.0f);
         break;
     }
     if (CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {
@@ -653,7 +653,7 @@ ccl_device_inline
         break;
 #endif
       default:
-        eval = make_float3(0.0f, 0.0f, 0.0f);
+        eval = make_spectral_color(0.0f);
         break;
     }
     if (CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {

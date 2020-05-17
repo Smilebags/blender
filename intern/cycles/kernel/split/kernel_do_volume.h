@@ -53,7 +53,7 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(K
     ccl_global Ray *pray = &kernel_split_state.ray[ray_index];
     *pray = branched_state->ray;
 
-    ccl_global float3 *tp = &kernel_split_state.throughput[ray_index];
+    ccl_global SpectralColor *tp = &kernel_split_state.throughput[ray_index];
     *tp = branched_state->throughput * num_samples_inv;
 
     /* branch RNG state */
@@ -104,7 +104,7 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(K
   kernel_split_branched_path_indirect_loop_end(kg, ray_index);
 
   /* todo: avoid this calculation using decoupled ray marching */
-  float3 throughput = kernel_split_state.throughput[ray_index];
+  SpectralColor throughput = kernel_split_state.throughput[ray_index];
   kernel_volume_shadow(
       kg, emission_sd, &kernel_split_state.path_state[ray_index], &volume_ray, &throughput);
   kernel_split_state.throughput[ray_index] = throughput;
@@ -143,7 +143,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 
   if (IS_STATE(ray_state, ray_index, RAY_ACTIVE) ||
       IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND)) {
-    ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
+    ccl_global SpectralColor *throughput = &kernel_split_state.throughput[ray_index];
     ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
     ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
