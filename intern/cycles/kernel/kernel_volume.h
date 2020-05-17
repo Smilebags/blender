@@ -48,7 +48,7 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
                                                        ShaderData *sd,
                                                        ccl_addr_space PathState *state,
                                                        float3 P,
-                                                       float3 *extinction)
+                                                       SpectralColor *extinction)
 {
   sd->P = P;
   shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW);
@@ -80,12 +80,11 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
   if (!(sd->flag & (SD_EXTINCTION | SD_SCATTER | SD_EMISSION)))
     return false;
 
-  coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+  coeff->sigma_s = make_spectral_color(0.0f);
   coeff->sigma_t = (sd->flag & SD_EXTINCTION) ? sd->closure_transparent_extinction :
-                                                make_float3(0.0f, 0.0f, 0.0f);
+                                                make_spectral_color(0.0f);
   coeff->emission = (sd->flag & SD_EMISSION) ? sd->closure_emission_background :
-                                               make_float3(0.0f, 0.0f, 0.0f);
-
+                                               make_spectral_color(0.0f);
   if (sd->flag & SD_SCATTER) {
     for (int i = 0; i < sd->num_closure; i++) {
       const ShaderClosure *sc = &sd->closure[i];
@@ -107,12 +106,13 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
 
 ccl_device SpectralColor volume_color_transmittance(SpectralColor sigma, float t)
 {
-  return exp3(-sigma * t);
+  return exp_s(-sigma * t);
 }
 
-ccl_device float kernel_volume_channel_get(float3 value, int channel)
+ccl_device float kernel_volume_channel_get(SpectralColor value, int channel)
 {
-  return (channel == 0) ? value.x : ((channel == 1) ? value.y : value.z);
+  return value[channel];
+  //   return (channel == 0) ? value.x : ((channel == 1) ? value.y : value.z);
 }
 
 #ifdef __VOLUME__
@@ -212,9 +212,9 @@ ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg,
                                                  ccl_addr_space PathState *state,
                                                  Ray *ray,
                                                  ShaderData *sd,
-                                                 float3 *throughput)
+                                                 SpectralColor *throughput)
 {
-  float3 sigma_t = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor sigma_t = make_spectral_color(0.0f);
 
   if (volume_shader_extinction_sample(kg, sd, state, ray->P, &sigma_t))
     *throughput *= volume_color_transmittance(sigma_t, ray->t);
@@ -226,10 +226,10 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
                                                    ccl_addr_space PathState *state,
                                                    Ray *ray,
                                                    ShaderData *sd,
-                                                   float3 *throughput,
+                                                   SpectralColor *throughput,
                                                    const float object_step_size)
 {
-  float3 tp = *throughput;
+  SpectralColor tp = *throughput;
   const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
 
   /* prepare for stepping */
@@ -240,7 +240,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
   /* compute extinction at the start */
   float t = 0.0f;
 
-  float3 sum = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor sum = make_spectral_color(0.0f);
 
   for (int i = 0; i < max_steps; i++) {
     /* advance to new position */
@@ -253,7 +253,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
     }
 
     float3 new_P = ray->P + ray->D * (t + step_offset);
-    float3 sigma_t = make_float3(0.0f, 0.0f, 0.0f);
+    SpectralColor sigma_t = make_spectral_color(0.0f);
 
     /* compute attenuation over segment */
     if (volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
@@ -262,7 +262,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
 
       sum += (-sigma_t * (new_t - t));
       if ((i & 0x07) == 0) { /* ToDo: Other interval? */
-        tp = *throughput * exp3(sum);
+        tp = *throughput * exp_s(sum);
 
         /* stop if nearly all light is blocked */
         if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
@@ -274,7 +274,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
     t = new_t;
     if (t == ray->t) {
       /* Update throughput in case we haven't done it above */
-      tp = *throughput * exp3(sum);
+      tp = *throughput * exp_s(sum);
       break;
     }
   }
@@ -288,7 +288,7 @@ ccl_device_noinline void kernel_volume_shadow(KernelGlobals *kg,
                                               ShaderData *shadow_sd,
                                               ccl_addr_space PathState *state,
                                               Ray *ray,
-                                              float3 *throughput)
+                                              SpectralColor *throughput)
 {
   shader_setup_from_volume(kg, shadow_sd, ray);
 
@@ -350,8 +350,12 @@ ccl_device float kernel_volume_equiangular_pdf(Ray *ray, float3 light_P, float s
 
 /* Distance sampling */
 
-ccl_device float kernel_volume_distance_sample(
-    float max_t, float3 sigma_t, int channel, float xi, SpectralColor *transmittance, float3 *pdf)
+ccl_device float kernel_volume_distance_sample(float max_t,
+                                               SpectralColor sigma_t,
+                                               int channel,
+                                               float xi,
+                                               SpectralColor *transmittance,
+                                               SpectralColor *pdf)
 {
   /* xi is [0, 1[ so log(0) should never happen, division by zero is
    * avoided because sample_sigma_t > 0 when SD_SCATTER is set */
@@ -363,7 +367,7 @@ ccl_device float kernel_volume_distance_sample(
 
   *transmittance = volume_color_transmittance(sigma_t, sample_t);
   *pdf = safe_divide_color(sigma_t * *transmittance,
-                           make_float3(1.0f, 1.0f, 1.0f) - full_transmittance);
+                           make_spectral_color(1.0f) - full_transmittance);
 
   /* todo: optimization: when taken together with hit/miss decision,
    * the full_transmittance cancels out drops out and xi does not
@@ -372,13 +376,15 @@ ccl_device float kernel_volume_distance_sample(
   return sample_t;
 }
 
-ccl_device float3 kernel_volume_distance_pdf(float max_t, float3 sigma_t, float sample_t)
+ccl_device SpectralColor kernel_volume_distance_pdf(float max_t,
+                                                    SpectralColor sigma_t,
+                                                    float sample_t)
 {
-  float3 full_transmittance = volume_color_transmittance(sigma_t, max_t);
-  float3 transmittance = volume_color_transmittance(sigma_t, sample_t);
+  SpectralColor full_transmittance = volume_color_transmittance(sigma_t, max_t);
+  SpectralColor transmittance = volume_color_transmittance(sigma_t, sample_t);
 
   return safe_divide_color(sigma_t * transmittance,
-                           make_float3(1.0f, 1.0f, 1.0f) - full_transmittance);
+                           make_spectral_color(1.0f) - full_transmittance);
 }
 
 /* Emission */
@@ -412,22 +418,22 @@ ccl_device SpectralColor kernel_volume_emission_integrate(VolumeShaderCoefficien
 ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
                                             SpectralColor throughput,
                                             float rand,
-                                            float3 *pdf)
+                                            SpectralColor *pdf)
 {
   /* Sample color channel proportional to throughput and single scattering
    * albedo, to significantly reduce noise with many bounce, following:
    *
    * "Practical and Controllable Subsurface Scattering for Production Path
    *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
-  float3 weights = fabs(throughput * albedo);
+  SpectralColor weights = fabs(throughput * albedo);
   float sum_weights = weights.x + weights.y + weights.z;
-  float3 weights_pdf;
+  SpectralColor weights_pdf;
 
   if (sum_weights > 0.0f) {
     weights_pdf = weights / sum_weights;
   }
   else {
-    weights_pdf = make_float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
+    weights_pdf = make_spectral_color(1.0f / WAVELENGTHS_PER_RAY);
   }
 
   *pdf = weights_pdf;
@@ -472,7 +478,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
     /* Sample channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
     SpectralColor albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
-    float3 channel_pdf;
+    SpectralColor channel_pdf;
     int channel = kernel_volume_sample_channel(albedo, *throughput, rphase, &channel_pdf);
 
     /* decide if we will hit or miss */
@@ -495,7 +501,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
 
     if (scatter) {
       /* scattering */
-      float3 pdf;
+      SpectralColor pdf;
       SpectralColor transmittance;
       float sample_t;
 
@@ -505,7 +511,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
 
       /* modify pdf for hit/miss decision */
       if (probalistic_scatter)
-        pdf *= make_float3(1.0f, 1.0f, 1.0f) - volume_color_transmittance(coeff.sigma_t, t);
+        pdf *= make_spectral_color(1.0f) - volume_color_transmittance(coeff.sigma_t, t);
 
       new_tp = *throughput * coeff.sigma_s * transmittance / dot(channel_pdf, pdf);
       t = sample_t;
@@ -534,9 +540,9 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
     SpectralColor emission = kernel_volume_emission_integrate(
         &coeff, closure_flag, transmittance, ray->t);
 
-    RGBColor rgb_emission = wavelength_intensities_to_linear(
-        kg, emission, state->wavelengths * *throughput);
-    path_radiance_accum_emission(kg, L, state, make_float3(1.0f, 1.0f, 1.0f), rgb_emission);
+    // RGBColor rgb_emission = wavelength_intensities_to_linear(
+    //     kg, emission, state->wavelengths * *throughput);
+    path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
   }
 
   /* modify throughput */
@@ -578,7 +584,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
 
   /* compute coefficients at the start */
   float t = 0.0f;
-  SpectralColor accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
+  SpectralColor accum_transmittance = make_spectral_color(1.0f);
 
   /* pick random color channel, we use the Veach one-sample
    * model with balance heuristic for the channels */
@@ -614,7 +620,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
 
         /* Sample channel, use MIS with balance heuristic. */
         SpectralColor albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
-        float3 channel_pdf;
+        SpectralColor channel_pdf;
         int channel = kernel_volume_sample_channel(albedo, tp, rphase, &channel_pdf);
 
         /* compute transmittance over full step */
@@ -631,7 +637,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
 
           /* transmittance and pdf */
           SpectralColor new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
-          float3 pdf = coeff.sigma_t * new_transmittance;
+          SpectralColor pdf = coeff.sigma_t * new_transmittance;
 
           /* throughput */
           new_tp = tp * coeff.sigma_s * new_transmittance / dot(channel_pdf, pdf);
@@ -654,7 +660,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
         new_tp = tp * transmittance;
       }
       else {
-        transmittance = make_float3(0.0f, 0.0f, 0.0f);
+        transmittance = make_spectral_color(0.0f);
         new_tp = tp;
       }
 
@@ -662,9 +668,9 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
       if (L && (closure_flag & SD_EMISSION)) {
         SpectralColor emission = kernel_volume_emission_integrate(
             &coeff, closure_flag, transmittance, dt);
-        RGBColor rgb_emission = wavelength_intensities_to_linear(
-            kg, emission, state->wavelengths * tp);
-        path_radiance_accum_emission(kg, L, state, make_float3(1.0f, 1.0f, 1.0f), rgb_emission);
+        // RGBColor rgb_emission = wavelength_intensities_to_linear(
+        //     kg, emission, state->wavelengths * tp);
+        path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
       }
 
       /* modify throughput */
@@ -673,7 +679,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
 
         /* stop if nearly all light blocked */
         if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
-          tp = make_float3(0.0f, 0.0f, 0.0f);
+          tp = make_spectral_color(0.0f);
           break;
         }
       }
@@ -737,13 +743,13 @@ kernel_volume_integrate(KernelGlobals *kg,
  * no support for malloc/free and too much stack usage with a fix size array. */
 
 typedef struct VolumeStep {
-  float3 sigma_s;             /* scatter coefficient */
-  float3 sigma_t;             /* extinction coefficient */
-  float3 accum_transmittance; /* accumulated transmittance including this step */
-  float3 cdf_distance;        /* cumulative density function for distance sampling */
-  float t;                    /* distance at end of this step */
-  float shade_t;              /* jittered distance where shading was done in step */
-  int closure_flag;           /* shader evaluation closure flags */
+  SpectralColor sigma_s;             /* scatter coefficient */
+  SpectralColor sigma_t;             /* extinction coefficient */
+  SpectralColor accum_transmittance; /* accumulated transmittance including this step */
+  SpectralColor cdf_distance;        /* cumulative density function for distance sampling */
+  float t;                           /* distance at end of this step */
+  float shade_t;                     /* jittered distance where shading was done in step */
+  int closure_flag;                  /* shader evaluation closure flags */
 } VolumeStep;
 
 typedef struct VolumeSegment {
@@ -752,9 +758,9 @@ typedef struct VolumeSegment {
   int numsteps;          /* number of steps */
   int closure_flag;      /* accumulated closure flags from all steps */
 
-  float3 accum_emission;      /* accumulated emission at end of segment */
-  float3 accum_transmittance; /* accumulated transmittance at end of segment */
-  float3 accum_albedo;        /* accumulated average albedo over segment */
+  SpectralColor accum_emission;      /* accumulated emission at end of segment */
+  SpectralColor accum_transmittance; /* accumulated transmittance at end of segment */
+  SpectralColor accum_albedo;        /* accumulated average albedo over segment */
 
   int sampling_method; /* volume sampling method */
 } VolumeSegment;
@@ -813,10 +819,10 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
   }
 
   /* init accumulation variables */
-  float3 accum_emission = make_float3(0.0f, 0.0f, 0.0f);
-  float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
-  float3 accum_albedo = make_float3(0.0f, 0.0f, 0.0f);
-  float3 cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor accum_emission = make_spectral_color(0.0f);
+  SpectralColor accum_transmittance = make_spectral_color(1.0f);
+  SpectralColor accum_albedo = make_spectral_color(0.0f);
+  SpectralColor cdf_distance = make_spectral_color(0.0f);
   float t = 0.0f;
 
   segment->numsteps = 0;
@@ -842,7 +848,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
     /* compute segment */
     if (volume_shader_sample(kg, sd, state, new_P, &coeff)) {
       int closure_flag = sd->flag;
-      float3 sigma_t = coeff.sigma_t;
+      SpectralColor sigma_t = coeff.sigma_t;
 
       /* compute average albedo for channel sampling */
       if (closure_flag & SD_SCATTER) {
@@ -850,11 +856,11 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
       }
 
       /* compute accumulated transmittance */
-      float3 transmittance = volume_color_transmittance(sigma_t, dt);
+      SpectralColor transmittance = volume_color_transmittance(sigma_t, dt);
 
       /* compute emission attenuated by absorption */
       if (closure_flag & SD_EMISSION) {
-        float3 emission = kernel_volume_emission_integrate(
+        SpectralColor emission = kernel_volume_emission_integrate(
             &coeff, closure_flag, transmittance, dt);
         accum_emission += accum_transmittance * emission;
       }
@@ -862,7 +868,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
       accum_transmittance *= transmittance;
 
       /* compute pdf for distance sampling */
-      float3 pdf_distance = dt * accum_transmittance * coeff.sigma_s;
+      SpectralColor pdf_distance = dt * accum_transmittance * coeff.sigma_s;
       cdf_distance = cdf_distance + pdf_distance;
 
       /* write step data */
@@ -882,8 +888,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
       }
       else {
         /* store empty step */
-        step->sigma_t = make_float3(0.0f, 0.0f, 0.0f);
-        step->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+        step->sigma_t = make_spectral_color(0.0f);
+        step->sigma_s = make_spectral_color(0.0f);
         step->closure_flag = 0;
 
         segment->numsteps++;
@@ -918,7 +924,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
   if (!is_zero(last_step->cdf_distance)) {
     VolumeStep *step = &segment->steps[0];
     int numsteps = segment->numsteps;
-    float3 inv_cdf_distance_sum = safe_invert_color(last_step->cdf_distance);
+    SpectralColor inv_cdf_distance_sum = safe_invert_color(last_step->cdf_distance);
 
     for (int i = 0; i < numsteps; i++, step++)
       step->cdf_distance *= inv_cdf_distance_sum;
@@ -950,7 +956,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
                                                                  PathState *state,
                                                                  Ray *ray,
                                                                  ShaderData *sd,
-                                                                 float3 *throughput,
+                                                                 SpectralColor *throughput,
                                                                  float rphase,
                                                                  float rscatter,
                                                                  const VolumeSegment *segment,
@@ -960,7 +966,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
   kernel_assert(segment->closure_flag & SD_SCATTER);
 
   /* Sample color channel, use MIS with balance heuristic. */
-  float3 channel_pdf;
+  SpectralColor channel_pdf;
   int channel = kernel_volume_sample_channel(
       segment->accum_albedo, *throughput, rphase, &channel_pdf);
 
@@ -981,7 +987,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
   }
 
   VolumeStep *step;
-  float3 transmittance;
+  SpectralColor transmittance;
   float pdf, sample_t;
   float mis_weight = 1.0f;
   bool distance_sample = true;
@@ -1013,12 +1019,12 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
     step = segment->steps;
 
     float prev_t = 0.0f;
-    float3 step_pdf_distance = make_float3(1.0f, 1.0f, 1.0f);
+    SpectralColor step_pdf_distance = make_spectral_color(1.0f);
 
     if (segment->numsteps > 1) {
       float prev_cdf = 0.0f;
       float step_cdf = 1.0f;
-      float3 prev_cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
+      SpectralColor prev_cdf_distance = make_spectral_color(0.0f);
 
       for (int i = 0;; i++, step++) {
         /* todo: optimize using binary search */
@@ -1043,13 +1049,13 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
     float step_t = step->t - prev_t;
 
     /* sample distance and compute transmittance */
-    float3 distance_pdf;
+    SpectralColor distance_pdf;
     sample_t = prev_t + kernel_volume_distance_sample(
                             step_t, step->sigma_t, channel, xi, &transmittance, &distance_pdf);
 
     /* modify pdf for hit/miss decision */
     if (probalistic_scatter)
-      distance_pdf *= make_float3(1.0f, 1.0f, 1.0f) - segment->accum_transmittance;
+      distance_pdf *= make_spectral_color(1.0f) - segment->accum_transmittance;
 
     pdf = dot(channel_pdf, distance_pdf * step_pdf_distance);
 
@@ -1068,10 +1074,10 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
     step = segment->steps;
 
     float prev_t = 0.0f;
-    float3 step_pdf_distance = make_float3(1.0f, 1.0f, 1.0f);
+    SpectralColor step_pdf_distance = make_spectral_color(1.0f);
 
     if (segment->numsteps > 1) {
-      float3 prev_cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
+      SpectralColor prev_cdf_distance = make_spectral_color(0.0f);
 
       int numsteps = segment->numsteps;
       int high = numsteps - 1;
@@ -1113,7 +1119,8 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(KernelGlobals *
 
     /* multiple importance sampling */
     if (use_mis) {
-      float3 distance_pdf3 = kernel_volume_distance_pdf(step_t, step->sigma_t, step_sample_t);
+      SpectralColor distance_pdf3 = kernel_volume_distance_pdf(
+          step_t, step->sigma_t, step_sample_t);
       float distance_pdf = dot(channel_pdf, distance_pdf3 * step_pdf_distance);
       mis_weight = 2.0f * power_heuristic(pdf, distance_pdf);
     }

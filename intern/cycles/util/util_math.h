@@ -447,6 +447,8 @@ CCL_NAMESPACE_END
 #include "util/util_math_float3.h"
 #include "util/util_math_float4.h"
 
+#include "util/util_math_spectral_color.h"
+
 #include "util/util_rect.h"
 
 CCL_NAMESPACE_BEGIN
@@ -500,62 +502,60 @@ ccl_device_inline void make_orthonormals(const float3 N, float3 *a, float3 *b)
 
 /* Color division */
 
-ccl_device_inline float3 safe_invert_color(float3 a)
+ccl_device_inline SpectralColor safe_invert_color(SpectralColor a)
 {
-  float x, y, z;
-
-  x = (a.x != 0.0f) ? 1.0f / a.x : 0.0f;
-  y = (a.y != 0.0f) ? 1.0f / a.y : 0.0f;
-  z = (a.z != 0.0f) ? 1.0f / a.z : 0.0f;
-
-  return make_float3(x, y, z);
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    a[i] = (a[i] != 0.0f) ? 1.0f / a[i] : 0.0f;
+  }
+  return a;
 }
 
-ccl_device_inline float3 safe_divide_color(float3 a, float3 b)
+ccl_device_inline SpectralColor safe_divide_color(SpectralColor a, SpectralColor b)
 {
-  float x, y, z;
+  SpectralColor color;
 
-  x = (b.x != 0.0f) ? a.x / b.x : 0.0f;
-  y = (b.y != 0.0f) ? a.y / b.y : 0.0f;
-  z = (b.z != 0.0f) ? a.z / b.z : 0.0f;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    color[i] = (b[i] != 0.0f) ? a[i] / b[i] : 0.0f;
+  }
 
-  return make_float3(x, y, z);
+  return color;
 }
 
-ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
+ccl_device_inline SpectralColor safe_divide_even_color(SpectralColor a, SpectralColor b)
 {
-  float x, y, z;
+  SpectralColor s = safe_divide_color(a, b);
+  float f = reduce_add_spectral(s);
 
-  x = (b.x != 0.0f) ? a.x / b.x : 0.0f;
-  y = (b.y != 0.0f) ? a.y / b.y : 0.0f;
-  z = (b.z != 0.0f) ? a.z / b.z : 0.0f;
+  return make_spectral_color(f / WAVELENGTHS_PER_RAY);
+}
 
-  /* try to get gray even if b is zero */
-  if (b.x == 0.0f) {
-    if (b.y == 0.0f) {
-      x = z;
-      y = z;
-    }
-    else if (b.z == 0.0f) {
-      x = y;
-      z = y;
-    }
-    else
-      x = 0.5f * (y + z);
+ccl_device_inline SpectralColor saturate(SpectralColor a)
+{
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    a[i] = clamp(a[i], 0.0f, 1.0f);
   }
-  else if (b.y == 0.0f) {
-    if (b.z == 0.0f) {
-      y = x;
-      z = x;
+  return a;
+}
+
+ccl_device_inline bool isequal(const SpectralColor a, const SpectralColor b)
+{
+  // #ifdef __KERNEL_OPENCL__
+  //   return all(a == b);
+  // #else
+  //   return a == b;
+  // #endif
+
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    if (a[i] != b[i]) {
+      return false;
     }
-    else
-      y = 0.5f * (x + z);
-  }
-  else if (b.z == 0.0f) {
-    z = 0.5f * (x + y);
   }
 
-  return make_float3(x, y, z);
+  return true;
 }
 
 /* Rotation of point around axis and angle */

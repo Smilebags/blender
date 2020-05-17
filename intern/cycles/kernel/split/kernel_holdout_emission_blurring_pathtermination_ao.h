@@ -91,7 +91,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 #endif
 
     ccl_global PathState *state = 0x0;
-    float3 throughput;
+    SpectralColor throughput;
 
     ccl_global char *ray_state = kernel_split_state.ray_state;
     ShaderData *sd = kernel_split_sd(sd, ray_index);

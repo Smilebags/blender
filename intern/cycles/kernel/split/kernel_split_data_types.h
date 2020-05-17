@@ -49,7 +49,7 @@ typedef struct SplitParams {
 typedef ccl_global struct SplitBranchedState {
   /* various state that must be kept and restored after an indirect loop */
   PathState path_state;
-  float3 throughput;
+  SpectralColor throughput;
   Ray ray;
 
   Intersection isect;
@@ -96,7 +96,7 @@ typedef ccl_global struct SplitBranchedState {
 #endif /* __VOLUME__ */
 
 #define SPLIT_DATA_ENTRIES \
-  SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1) \
+  SPLIT_DATA_ENTRY(ccl_global SpectralColor, throughput, 1) \
   SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1) \
   SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1) \
   SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1) \

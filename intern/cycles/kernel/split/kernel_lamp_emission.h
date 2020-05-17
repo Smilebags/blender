@@ -55,7 +55,7 @@ ccl_device void kernel_lamp_emission(KernelGlobals *kg)
     PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
     ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
 
-    float3 throughput = kernel_split_state.throughput[ray_index];
+    SpectralColor throughput = kernel_split_state.throughput[ray_index];
     Ray ray = kernel_split_state.ray[ray_index];
     ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);

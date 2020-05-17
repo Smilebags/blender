@@ -56,7 +56,7 @@ ccl_device_forceinline bool shadow_handle_transparent_isect(KernelGlobals *kg,
 #endif
                                                             Intersection *isect,
                                                             Ray *ray,
-                                                            float3 *throughput)
+                                                            SpectralColor *throughput)
 {
 #ifdef __VOLUME__
   /* Attenuation between last surface and next surface. */
@@ -93,7 +93,7 @@ ccl_device bool shadow_blocked_opaque(KernelGlobals *kg,
                                       const uint visibility,
                                       Ray *ray,
                                       Intersection *isect,
-                                      float3 *shadow)
+                                      SpectralColor *shadow)
 {
   const bool blocked = scene_intersect(kg, ray, visibility & PATH_RAY_SHADOW_OPAQUE, isect);
 #ifdef __VOLUME__
@@ -147,7 +147,7 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
                                                     Ray *ray,
                                                     Intersection *hits,
                                                     uint max_hits,
-                                                    float3 *shadow)
+                                                    SpectralColor *shadow)
 {
   /* Intersect to find an opaque surface, or record all transparent
    * surface hits.
@@ -165,7 +165,7 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
    * shade them.
    */
   if (!blocked && num_hits > 0) {
-    float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+    SpectralColor throughput = make_spectral_color(1.0f);
     float3 Pend = ray->P + ray->D * ray->t;
     float last_t = 0.0f;
     int bounce = state->transparent_bounce;
@@ -239,7 +239,7 @@ ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
                                                const uint visibility,
                                                Ray *ray,
                                                uint max_hits,
-                                               float3 *shadow)
+                                               SpectralColor *shadow)
 {
 #    ifdef __SPLIT_KERNEL__
   Intersection hits_[SHADOW_STACK_MAX_HITS];
@@ -305,7 +305,7 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 #      endif
 #    endif
   if (blocked && is_transparent_isect) {
-    float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+    SpectralColor throughput = make_spectral_color(1.0f);
     float3 Pend = ray->P + ray->D * ray->t;
     int bounce = state->transparent_bounce;
 #    ifdef __VOLUME__
@@ -388,9 +388,9 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
                                       ShaderData *shadow_sd,
                                       ccl_addr_space PathState *state,
                                       Ray *ray,
-                                      float3 *shadow)
+                                      SpectralColor *shadow)
 {
-  *shadow = make_float3(1.0f, 1.0f, 1.0f);
+  *shadow = make_spectral_color(1.0f);
 #if !defined(__KERNEL_OPTIX__)
   /* Some common early checks.
    * Avoid conditional trace call in OptiX though, since those hurt performance there.

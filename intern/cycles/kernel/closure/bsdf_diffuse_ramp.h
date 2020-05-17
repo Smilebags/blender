@@ -45,18 +45,19 @@ typedef ccl_addr_space struct DiffuseRampBsdf {
 
 static_assert(sizeof(ShaderClosure) >= sizeof(DiffuseRampBsdf), "DiffuseRampBsdf is too large!");
 
-ccl_device float3 bsdf_diffuse_ramp_get_color(const float3 colors[8], float pos)
+ccl_device SpectralColor bsdf_diffuse_ramp_get_color(const float3 colors[8], float pos)
 {
-  int MAXCOLORS = 8;
+  //   int MAXCOLORS = 8;
 
-  float npos = pos * (float)(MAXCOLORS - 1);
-  int ipos = float_to_int(npos);
-  if (ipos < 0)
-    return colors[0];
-  if (ipos >= (MAXCOLORS - 1))
-    return colors[MAXCOLORS - 1];
-  float offset = npos - (float)ipos;
-  return colors[ipos] * (1.0f - offset) + colors[ipos + 1] * offset;
+  //   float npos = pos * (float)(MAXCOLORS - 1);
+  //   int ipos = float_to_int(npos);
+  //   if (ipos < 0)
+  //     return colors[0];
+  //   if (ipos >= (MAXCOLORS - 1))
+  //     return colors[MAXCOLORS - 1];
+  //   float offset = npos - (float)ipos;
+  //   return colors[ipos] * (1.0f - offset) + colors[ipos + 1] * offset;
+  return make_spectral_color(0.0f);
 }
 
 ccl_device int bsdf_diffuse_ramp_setup(DiffuseRampBsdf *bsdf)
@@ -69,10 +70,10 @@ ccl_device void bsdf_diffuse_ramp_blur(ShaderClosure *sc, float roughness)
 {
 }
 
-ccl_device float3 bsdf_diffuse_ramp_eval_reflect(const ShaderClosure *sc,
-                                                 const float3 I,
-                                                 const float3 omega_in,
-                                                 float *pdf)
+ccl_device SpectralColor bsdf_diffuse_ramp_eval_reflect(const ShaderClosure *sc,
+                                                        const float3 I,
+                                                        const float3 omega_in,
+                                                        float *pdf)
 {
   const DiffuseRampBsdf *bsdf = (const DiffuseRampBsdf *)sc;
   float3 N = bsdf->N;
@@ -97,7 +98,7 @@ ccl_device int bsdf_diffuse_ramp_sample(const ShaderClosure *sc,
                                         float3 dIdy,
                                         float randu,
                                         float randv,
-                                        float3 *eval,
+                                        SpectralColor *eval,
                                         float3 *omega_in,
                                         float3 *domega_in_dx,
                                         float3 *domega_in_dy,

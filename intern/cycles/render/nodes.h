@@ -558,8 +558,8 @@ class PrincipledBsdfNode : public BsdfBaseNode {
                ShaderInput *anisotropic_rotation,
                ShaderInput *transmission_roughness);
 
-  float3 base_color;
-  float3 subsurface_color, subsurface_radius;
+  SpectralColor base_color;
+  SpectralColor subsurface_color, subsurface_radius;
   float metallic, subsurface, specular, roughness, specular_tint, anisotropic, sheen, sheen_tint,
       clearcoat, clearcoat_roughness, ior, transmission, anisotropic_rotation,
       transmission_roughness;
@@ -567,7 +567,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   float surface_mix_weight;
   ClosureType distribution, distribution_orig;
   ClosureType subsurface_method;
-  float3 emission;
+  SpectralColor emission;
   float alpha;
 
   bool has_integrator_dependency();

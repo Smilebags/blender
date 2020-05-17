@@ -84,6 +84,7 @@ set(SRC_HEADERS
   util_math_int3.h
   util_math_int4.h
   util_math_matrix.h
+  util_math_spectral_color.h
   util_md5.h
   util_murmurhash.h
   util_opengl.h
@@ -131,6 +132,8 @@ set(SRC_HEADERS
   util_types_int3_impl.h
   util_types_int4.h
   util_types_int4_impl.h
+  util_types_spectral_color.h
+  util_types_spectral_color_impl.h
   util_types_uchar2.h
   util_types_uchar2_impl.h
   util_types_uchar3.h

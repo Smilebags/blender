@@ -27,9 +27,9 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
                                                            float time)
 {
   /* setup shading at emitter */
-  RGBColor eval = make_float3(0.0f, 0.0f, 0.0f);
+  SpectralColor eval = make_spectral_color(0.0f);
 
-  if (shader_constant_emission_eval(kg, ls->shader, &eval)) {
+  if (shader_constant_emission_eval(kg, ls->shader, eval)) {
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, I) < 0.0f) {
       ls->Ng = -ls->Ng;
     }
@@ -130,8 +130,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
 #ifdef __VOLUME__
   if (sd->prim != PRIM_NONE)
-    shader_bsdf_eval(
-        kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
+    shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
   else {
     float bsdf_pdf;
     shader_volume_phase_eval(kg, sd, ls->D, eval, &bsdf_pdf);
@@ -142,7 +141,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
     }
   }
 #else
-  shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS, state->wavelengths);
+  shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
 #endif
 
   bsdf_eval_mul3(eval, light_eval / ls->pdf);
@@ -151,13 +150,13 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
   /* use visibility flag to skip lights */
   if (ls->shader & SHADER_EXCLUDE_ANY) {
     if (ls->shader & SHADER_EXCLUDE_DIFFUSE)
-      eval->diffuse = make_float3(0.0f, 0.0f, 0.0f);
+      eval->diffuse = make_spectral_color(0.0f);
     if (ls->shader & SHADER_EXCLUDE_GLOSSY)
-      eval->glossy = make_float3(0.0f, 0.0f, 0.0f);
+      eval->glossy = make_spectral_color(0.0f);
     if (ls->shader & SHADER_EXCLUDE_TRANSMIT)
-      eval->transmission = make_float3(0.0f, 0.0f, 0.0f);
+      eval->transmission = make_spectral_color(0.0f);
     if (ls->shader & SHADER_EXCLUDE_SCATTER)
-      eval->volume = make_float3(0.0f, 0.0f, 0.0f);
+      eval->volume = make_spectral_color(0.0f);
   }
 #endif
 
@@ -169,7 +168,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
       && (state->flag & PATH_RAY_SHADOW_CATCHER) == 0
 #endif
   ) {
-    float probability = max3(fabs(bsdf_eval_sum(eval))) *
+    float probability = reduce_max_spectral(fabs(bsdf_eval_sum(eval))) *
                         kernel_data.integrator.light_inv_rr_threshold;
     if (probability < 1.0f) {
       if (rand_terminate >= probability) {
@@ -212,10 +211,10 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 /* Indirect Primitive Emission */
 
 ccl_device_noinline_cpu SpectralColor indirect_primitive_emission(
-    KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float3 wavelengths)
+    KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf)
 {
   /* evaluate emissive closure */
-  float3 L = shader_emissive_eval(sd);
+  SpectralColor L = shader_emissive_eval(sd);
 
 #ifdef __HAIR__
   if (!(path_flag & PATH_RAY_MIS_SKIP) && (sd->flag & SD_USE_MIS) &&
@@ -242,7 +241,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
                                                     ccl_addr_space PathState *state,
                                                     PathRadiance *L,
                                                     Ray *ray,
-                                                    float3 throughput)
+                                                    SpectralColor throughput)
 {
   for (int lamp = 0; lamp < kernel_data.integrator.num_all_lights; lamp++) {
     LightSample ls ccl_optional_struct_init;
@@ -263,7 +262,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
     }
 #endif
 
-    RGBColor lamp_L = direct_emissive_eval(
+    SpectralColor lamp_L = direct_emissive_eval(
         kg, emission_sd, &ls, state, -ray->D, ray->dD, ls.t, ray->time);
 
 #ifdef __VOLUME__
@@ -271,7 +270,7 @@ ccl_device_noinline_cpu void indirect_lamp_emission(KernelGlobals *kg,
       /* shadow attenuation */
       Ray volume_ray = *ray;
       volume_ray.t = ls.t;
-      float3 volume_tp = make_float3(1.0f, 1.0f, 1.0f);
+      SpectralColor volume_tp = make_spectral_color(1.0f);
       kernel_volume_shadow(kg, emission_sd, state, &volume_ray, &volume_tp);
       lamp_L *= volume_tp;
     }
@@ -308,12 +307,12 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
         ((shader & SHADER_EXCLUDE_TRANSMIT) && (state->flag & PATH_RAY_TRANSMIT)) ||
         ((shader & SHADER_EXCLUDE_CAMERA) && (state->flag & PATH_RAY_CAMERA)) ||
         ((shader & SHADER_EXCLUDE_SCATTER) && (state->flag & PATH_RAY_VOLUME_SCATTER)))
-      return make_float3(0.0f, 0.0f, 0.0f);
+      return make_spectral_color(0.0f);
   }
 
   /* Evaluate background shader. */
-  float3 L = make_float3(0.0f, 0.0f, 0.0f);
-  if (!shader_constant_emission_eval(kg, shader, &L)) {
+  SpectralColor L = make_spectral_color(0.0f);
+  if (!shader_constant_emission_eval(kg, shader, L)) {
 #  ifdef __SPLIT_KERNEL__
     Ray priv_ray = *ray;
     shader_setup_from_background(kg, emission_sd, &priv_ray);

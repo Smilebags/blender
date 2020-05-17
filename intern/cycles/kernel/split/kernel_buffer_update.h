@@ -80,7 +80,7 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
     ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
     PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
     ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
-    ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
+    ccl_global SpectralColor *throughput = &kernel_split_state.throughput[ray_index];
     bool ray_was_updated = false;
 
     if (IS_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER)) {
@@ -134,7 +134,7 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
           /* Initialize throughput, path radiance, Ray, PathState;
            * These rays proceed with path-iteration.
            */
-          *throughput = make_float3(1.0f, 1.0f, 1.0f);
+          *throughput = make_spectral_color(1.0f);
           path_radiance_init(kg, L);
           path_state_init(kg,
                           AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]),

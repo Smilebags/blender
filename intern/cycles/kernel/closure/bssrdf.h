@@ -22,8 +22,8 @@ CCL_NAMESPACE_BEGIN
 typedef ccl_addr_space struct Bssrdf {
   SHADER_CLOSURE_BASE;
 
-  float3 radius;
-  float3 albedo;
+  SpectralColor radius;
+  SpectralColor albedo;
   float sharpness;
   float texture_blur;
   float roughness;
@@ -202,7 +202,7 @@ ccl_device_inline float bssrdf_burley_fitting(float A)
 /* Scale mean free path length so it gives similar looking result
  * to Cubic and Gaussian models.
  */
-ccl_device_inline float3 bssrdf_burley_compatible_mfp(float3 r)
+ccl_device_inline SpectralColor bssrdf_burley_compatible_mfp(SpectralColor r)
 {
   return 0.25f * M_1_PI_F * r;
 }
@@ -210,11 +210,14 @@ ccl_device_inline float3 bssrdf_burley_compatible_mfp(float3 r)
 ccl_device void bssrdf_burley_setup(Bssrdf *bssrdf)
 {
   /* Mean free path length. */
-  const float3 l = bssrdf_burley_compatible_mfp(bssrdf->radius);
+  const SpectralColor l = bssrdf_burley_compatible_mfp(bssrdf->radius);
   /* Surface albedo. */
-  const float3 A = bssrdf->albedo;
-  const float3 s = make_float3(
-      bssrdf_burley_fitting(A.x), bssrdf_burley_fitting(A.y), bssrdf_burley_fitting(A.z));
+  const SpectralColor A = bssrdf->albedo;
+  SpectralColor s;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    s[i] = bssrdf_burley_fitting(A[i]);
+  }
 
   bssrdf->radius = l / s;
 }
@@ -329,7 +332,7 @@ ccl_device void bssrdf_none_sample(const float radius, float xi, float *r, float
 
 /* Generic */
 
-ccl_device_inline Bssrdf *bssrdf_alloc(ShaderData *sd, float3 weight)
+ccl_device_inline Bssrdf *bssrdf_alloc(ShaderData *sd, SpectralColor weight)
 {
   Bssrdf *bssrdf = (Bssrdf *)closure_alloc(sd, sizeof(Bssrdf), CLOSURE_NONE_ID, weight);
 
@@ -345,30 +348,21 @@ ccl_device_inline Bssrdf *bssrdf_alloc(ShaderData *sd, float3 weight)
 ccl_device int bssrdf_setup(ShaderData *sd, Bssrdf *bssrdf, ClosureType type)
 {
   int flag = 0;
-  int bssrdf_channels = 3;
-  float3 diffuse_weight = make_float3(0.0f, 0.0f, 0.0f);
+  int bssrdf_channels = WAVELENGTHS_PER_RAY;
+  SpectralColor diffuse_weight = make_spectral_color(0.0f);
 
-  /* Verify if the radii are large enough to sample without precision issues. */
-  if (bssrdf->radius.x < BSSRDF_MIN_RADIUS) {
-    diffuse_weight.x = bssrdf->weight.x;
-    bssrdf->weight.x = 0.0f;
-    bssrdf->radius.x = 0.0f;
-    bssrdf_channels--;
-  }
-  if (bssrdf->radius.y < BSSRDF_MIN_RADIUS) {
-    diffuse_weight.y = bssrdf->weight.y;
-    bssrdf->weight.y = 0.0f;
-    bssrdf->radius.y = 0.0f;
-    bssrdf_channels--;
-  }
-  if (bssrdf->radius.z < BSSRDF_MIN_RADIUS) {
-    diffuse_weight.z = bssrdf->weight.z;
-    bssrdf->weight.z = 0.0f;
-    bssrdf->radius.z = 0.0f;
-    bssrdf_channels--;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    /* Verify if the radii are large enough to sample without precision issues. */
+    if (bssrdf->radius[i] < BSSRDF_MIN_RADIUS) {
+      diffuse_weight[i] = bssrdf->weight[i];
+      bssrdf->weight[i] = 0.0f;
+      bssrdf->radius[i] = 0.0f;
+      bssrdf_channels--;
+    }
   }
 
-  if (bssrdf_channels < 3) {
+  if (bssrdf_channels < WAVELENGTHS_PER_RAY) {
     /* Add diffuse BSDF if any radius too small. */
 #ifdef __PRINCIPLED__
     if (type == CLOSURE_BSSRDF_PRINCIPLED_ID || type == CLOSURE_BSSRDF_PRINCIPLED_RANDOM_WALK_ID) {
@@ -475,21 +469,26 @@ ccl_device float bssrdf_channel_pdf(const Bssrdf *bssrdf, float radius, float r)
   }
 }
 
-ccl_device_forceinline float3 bssrdf_eval(const ShaderClosure *sc, float r)
+ccl_device_forceinline SpectralColor bssrdf_eval(const ShaderClosure *sc, float r)
 {
   const Bssrdf *bssrdf = (const Bssrdf *)sc;
 
-  return make_float3(bssrdf_channel_pdf(bssrdf, bssrdf->radius.x, r),
-                     bssrdf_channel_pdf(bssrdf, bssrdf->radius.y, r),
-                     bssrdf_channel_pdf(bssrdf, bssrdf->radius.z, r));
+  SpectralColor spectral;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    spectral[i] = bssrdf_channel_pdf(bssrdf, bssrdf->radius[i], r);
+  }
+  return spectral;
 }
 
 ccl_device_forceinline float bssrdf_pdf(const ShaderClosure *sc, float r)
 {
-  const Bssrdf *bssrdf = (const Bssrdf *)sc;
-  float3 pdf = bssrdf_eval(sc, r);
+  //   const Bssrdf *bssrdf = (const Bssrdf *)sc;
+  SpectralColor pdf = bssrdf_eval(sc, r);
 
-  return (pdf.x + pdf.y + pdf.z) / bssrdf->channels;
+  /* TODO: Fixme! */
+  return reduce_add_spectral(pdf) / WAVELENGTHS_PER_RAY;
+  //   return (pdf.x + pdf.y + pdf.z) / bssrdf->channels;
 }
 
 CCL_NAMESPACE_END

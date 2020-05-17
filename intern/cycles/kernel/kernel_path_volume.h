@@ -131,7 +131,7 @@ ccl_device_noinline_cpu bool kernel_path_volume_bounce(KernelGlobals *kg,
 ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg,
                                                           ShaderData *sd,
                                                           ShaderData *emission_sd,
-                                                          float3 throughput,
+                                                          SpectralColor throughput,
                                                           ccl_addr_space PathState *state,
                                                           PathRadiance *L,
                                                           bool sample_all_lights,
@@ -188,7 +188,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg,
 #      endif
       bool has_emission = false;
 
-      float3 tp = throughput;
+      SpectralColor tp = throughput;
 
       if (kernel_data.integrator.use_direct_light) {
         /* sample random position on random light/triangle */
@@ -240,7 +240,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg,
       }
 
       /* trace shadow ray */
-      float3 shadow;
+      SpectralColor shadow;
 
       const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
 

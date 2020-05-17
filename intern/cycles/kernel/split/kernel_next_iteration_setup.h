@@ -55,7 +55,7 @@ ccl_device_inline void kernel_split_branched_indirect_light_init(KernelGlobals *
 
 ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg, int ray_index)
 {
-  ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
+  ccl_global SpectralColor *throughput = &kernel_split_state.throughput[ray_index];
   ShaderData *sd = kernel_split_sd(sd, ray_index);
   ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
   ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
@@ -141,7 +141,7 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 
   bool active = IS_STATE(ray_state, ray_index, RAY_ACTIVE);
   if (active) {
-    ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
+    ccl_global SpectralColor *throughput = &kernel_split_state.throughput[ray_index];
     ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
     ccl_global PathState *state = &kernel_split_state.path_state[ray_index];

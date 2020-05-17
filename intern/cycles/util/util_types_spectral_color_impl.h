@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,29 @@
  * limitations under the License.
  */
 
+#ifndef __UTIL_TYPES_SPECTRAL_COLOR_IMPL_H__
+#define __UTIL_TYPES_SPECTRAL_COLOR_IMPL_H__
+
+#ifndef __UTIL_TYPES_H__
+#  error "Do not include this file directly, include util_types.h instead."
+#endif
+
+#ifndef __KERNEL_GPU__
+#  include <cstdio>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
-/* RGB to Spectral Node */
-
-ccl_device void svm_node_rgb_to_spectral(
-    KernelGlobals *kg, PathState *state, float *stack, uint color_in, uint spectral_out)
+ccl_device_inline SpectralColor make_spectral_color(float value)
 {
-  /* Input */
-  RGBColor color = stack_load_float3(stack, color_in);
-  SpectralColor spectral = linear_to_wavelength_intensities(color, state->wavelengths);
-
-  stack_store_spectral(stack, spectral_out, spectral);
+  SpectralColor spectral;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    spectral[i] = value;
+  }
+  return spectral;
 }
 
 CCL_NAMESPACE_END
+
+#endif /* __UTIL_TYPES_FLOAT4_IMPL_H__ */

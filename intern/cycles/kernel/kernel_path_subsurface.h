@@ -29,7 +29,7 @@ ccl_device_inline
                                    PathRadiance *L,
                                    ccl_addr_space PathState *state,
                                    ccl_addr_space Ray *ray,
-                                   ccl_addr_space float3 *throughput,
+                                   ccl_addr_space SpectralColor *throughput,
                                    ccl_addr_space SubsurfaceIndirectRays *ss_indirect)
 {
   PROFILING_INIT(kg, PROFILING_SUBSURFACE);
@@ -73,7 +73,7 @@ ccl_device_inline
 
       ccl_addr_space PathState *hit_state = &ss_indirect->state[ss_indirect->num_rays];
       ccl_addr_space Ray *hit_ray = &ss_indirect->rays[ss_indirect->num_rays];
-      ccl_addr_space float3 *hit_tp = &ss_indirect->throughputs[ss_indirect->num_rays];
+      ccl_addr_space SpectralColor *hit_tp = &ss_indirect->throughputs[ss_indirect->num_rays];
       PathRadianceState *hit_L_state = &ss_indirect->L_state[ss_indirect->num_rays];
 
       *hit_state = *state;
@@ -118,7 +118,7 @@ ccl_device void kernel_path_subsurface_setup_indirect(
     ccl_addr_space PathState *state,
     ccl_addr_space Ray *ray,
     PathRadiance *L,
-    ccl_addr_space float3 *throughput)
+    ccl_addr_space SpectralColor *throughput)
 {
   /* Setup state, ray and throughput for indirect SSS rays. */
   ss_indirect->num_rays--;
