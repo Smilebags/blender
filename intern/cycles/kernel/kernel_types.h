@@ -820,7 +820,8 @@ typedef ccl_addr_space struct ccl_align(16) ShaderClosure
   SHADER_CLOSURE_BASE;
 
 #ifdef __KERNEL_CPU__
-  float pad[2];
+  /* TODO: Fixme! */
+  float pad[20];
 #endif
   float data[10];
 }

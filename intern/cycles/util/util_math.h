@@ -446,6 +446,7 @@ CCL_NAMESPACE_END
 #include "util/util_math_float2.h"
 #include "util/util_math_float3.h"
 #include "util/util_math_float4.h"
+#include "util/util_math_float8.h"
 
 #include "util/util_math_spectral_color.h"
 
