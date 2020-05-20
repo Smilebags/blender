@@ -539,7 +539,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
     SpectralColor transmittance = volume_color_transmittance(coeff.sigma_t, ray->t);
     SpectralColor emission = kernel_volume_emission_integrate(
         &coeff, closure_flag, transmittance, ray->t);
-    path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
+    path_radiance_accum_emission(kg, L, state, *throughput, emission);
   }
 
   /* modify throughput */
@@ -665,7 +665,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
       if (L && (closure_flag & SD_EMISSION)) {
         SpectralColor emission = kernel_volume_emission_integrate(
             &coeff, closure_flag, transmittance, dt);
-        path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
+        path_radiance_accum_emission(kg, L, state, tp, emission);
       }
 
       /* modify throughput */
