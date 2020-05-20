@@ -62,10 +62,10 @@ ccl_device_inline void stack_store_float3(float *stack, uint a, float3 f)
 
 ccl_device_inline SpectralColor stack_load_spectral(float *stack, uint a)
 {
-  kernel_assert(a + WAVELENGTHS_PER_RAY - 1 < SVM_STACK_SIZE);
+  kernel_assert(a + CHANNELS_PER_RAY - 1 < SVM_STACK_SIZE);
 
   SpectralColor spectral;
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     spectral[i] = stack[a + i];
   }
@@ -75,9 +75,9 @@ ccl_device_inline SpectralColor stack_load_spectral(float *stack, uint a)
 
 ccl_device_inline void stack_store_spectral(float *stack, uint a, const SpectralColor &spectral)
 {
-  kernel_assert(a + WAVELENGTHS_PER_RAY - 1 < SVM_STACK_SIZE);
+  kernel_assert(a + CHANNELS_PER_RAY - 1 < SVM_STACK_SIZE);
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     stack[a + i] = spectral[i];
   }

@@ -58,9 +58,9 @@ ccl_device void svm_node_blackbody(
   float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
 
   SpectralColor spectral;
-  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(state->wavelengths, i, wavelength)
+  FOR_EACH_CHANNEL(i)
   {
-    spectral[i] = blackbody_intensity(temperature, wavelength * 1e-9f) / peak_intensity;
+    spectral[i] = blackbody_intensity(temperature, state->wavelengths[i] * 1e-9f) / peak_intensity;
   }
 
   stack_store_spectral(stack, col_offset, spectral);

@@ -113,7 +113,7 @@ ccl_device SpectralColor subsurface_color_pow(SpectralColor color, float exponen
 {
   color = max(color, make_spectral_color(0.0f));
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     color[i] = (exponent == 1.0f) ?
                    color[i] :
@@ -340,7 +340,7 @@ ccl_device void subsurface_random_walk_coefficients(const ShaderClosure *sc,
   const SpectralColor A = bssrdf->albedo;
   const SpectralColor d = bssrdf->radius;
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     subsurface_random_walk_remap(A[i], d[i], sigma_t[i], sigma_s[i]);
   }

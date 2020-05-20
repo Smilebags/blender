@@ -433,14 +433,14 @@ ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
     weights_pdf = weights / sum_weights;
   }
   else {
-    weights_pdf = make_spectral_color(1.0f / WAVELENGTHS_PER_RAY);
+    weights_pdf = make_spectral_color(1.0f / CHANNELS_PER_RAY);
   }
 
   *pdf = weights_pdf;
 
   /* OpenCL does not support -> on float3, so don't use pdf->x. */
   float sum = 0.0f;
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     sum += weights_pdf[i];
     if (rand < sum) {
@@ -448,7 +448,7 @@ ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
     }
   }
 
-  return WAVELENGTHS_PER_RAY - 1;
+  return CHANNELS_PER_RAY - 1;
 }
 
 #ifdef __VOLUME__

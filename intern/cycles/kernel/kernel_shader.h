@@ -1018,7 +1018,7 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, Spe
 
   /* TODO: Fixme! */
   if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
-    SPECTRAL_COLOR_FOR_EACH(i)
+    FOR_EACH_CHANNEL(i)
     {
       eval[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
     }

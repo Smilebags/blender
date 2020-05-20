@@ -73,12 +73,12 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
 
   float wavelength_offset = path_state_rng_1D(kg, state, PRNG_WAVELENGTH);
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     state->wavelengths[i] = float_lerp(
         wavelength_low_bound,
         wavelength_high_bound,
-        fmod(wavelength_offset + (1.0f * i / WAVELENGTHS_PER_RAY), 1.0f));
+        fmod(wavelength_offset + (1.0f * i / CHANNELS_PER_RAY), 1.0f));
   }
 }
 

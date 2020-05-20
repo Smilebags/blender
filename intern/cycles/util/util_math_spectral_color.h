@@ -25,7 +25,7 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline SpectralColor ensure_finite(SpectralColor v)
 {
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     v[i] = (isfinite_safe(v[i])) ? v[i] : 0.0f;
   }
@@ -34,7 +34,7 @@ ccl_device_inline SpectralColor ensure_finite(SpectralColor v)
 
 ccl_device_inline SpectralColor exp_s(SpectralColor v)
 {
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     v[i] = expf(v[i]);
   }
@@ -43,7 +43,7 @@ ccl_device_inline SpectralColor exp_s(SpectralColor v)
 
 ccl_device_inline SpectralColor log_s(SpectralColor v)
 {
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     v[i] = logf(v[i]);
   }

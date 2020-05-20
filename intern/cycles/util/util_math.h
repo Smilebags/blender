@@ -504,7 +504,7 @@ ccl_device_inline void make_orthonormals(const float3 N, float3 *a, float3 *b)
 
 ccl_device_inline SpectralColor safe_invert_color(SpectralColor a)
 {
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     a[i] = (a[i] != 0.0f) ? 1.0f / a[i] : 0.0f;
   }
@@ -515,7 +515,7 @@ ccl_device_inline SpectralColor safe_divide_color(SpectralColor a, SpectralColor
 {
   SpectralColor color;
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     color[i] = (b[i] != 0.0f) ? a[i] / b[i] : 0.0f;
   }
@@ -538,7 +538,7 @@ ccl_device_inline SpectralColor safe_divide_even_color(SpectralColor a, Spectral
 {
   SpectralColor s = safe_divide_color(a, b);
 
-  return reduce_add(s) / WAVELENGTHS_PER_RAY;
+  return reduce_add(s) / CHANNELS_PER_RAY;
 }
 
 ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
@@ -562,7 +562,7 @@ ccl_device_inline bool isequal(const SpectralColor a, const SpectralColor b)
   //   return a == b;
   // #endif
 
-  SPECTRAL_COLOR_FOR_EACH(i)
+  FOR_EACH_CHANNEL(i)
   {
     if (a[i] != b[i]) {
       return false;
