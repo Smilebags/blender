@@ -725,36 +725,37 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg,
 ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance *L_sample)
 {
 #ifdef __SPLIT_KERNEL__
-#  define safe_float3_add(f, v) \
+#  define safe_spectral_color_add(f, v) \
     do { \
       ccl_global float *p = (ccl_global float *)(&(f)); \
-      atomic_add_and_fetch_float(p + 0, (v).x); \
-      atomic_add_and_fetch_float(p + 1, (v).y); \
-      atomic_add_and_fetch_float(p + 2, (v).z); \
+      FOR_EACH_CHANNEL(i) \
+      { \
+        atomic_add_and_fetch_float(p + i, (v)[i]); \
+      } \
     } while (0)
 #  define safe_float_add(f, v) atomic_add_and_fetch_float(&(f), (v))
 #else
-#  define safe_float3_add(f, v) (f) += (v)
+#  define safe_spectral_color_add(f, v) (f) += (v)
 #  define safe_float_add(f, v) (f) += (v)
 #endif /* __SPLIT_KERNEL__ */
 
 #ifdef __PASSES__
-  safe_float3_add(L->direct_diffuse, L_sample->direct_diffuse);
-  safe_float3_add(L->direct_glossy, L_sample->direct_glossy);
-  safe_float3_add(L->direct_transmission, L_sample->direct_transmission);
-  safe_float3_add(L->direct_volume, L_sample->direct_volume);
+  safe_spectral_color_add(L->direct_diffuse, L_sample->direct_diffuse);
+  safe_spectral_color_add(L->direct_glossy, L_sample->direct_glossy);
+  safe_spectral_color_add(L->direct_transmission, L_sample->direct_transmission);
+  safe_spectral_color_add(L->direct_volume, L_sample->direct_volume);
 
-  safe_float3_add(L->indirect_diffuse, L_sample->indirect_diffuse);
-  safe_float3_add(L->indirect_glossy, L_sample->indirect_glossy);
-  safe_float3_add(L->indirect_transmission, L_sample->indirect_transmission);
-  safe_float3_add(L->indirect_volume, L_sample->indirect_volume);
+  safe_spectral_color_add(L->indirect_diffuse, L_sample->indirect_diffuse);
+  safe_spectral_color_add(L->indirect_glossy, L_sample->indirect_glossy);
+  safe_spectral_color_add(L->indirect_transmission, L_sample->indirect_transmission);
+  safe_spectral_color_add(L->indirect_volume, L_sample->indirect_volume);
 
-  safe_float3_add(L->background, L_sample->background);
-  safe_float3_add(L->ao, L_sample->ao);
-  safe_float3_add(L->shadow, L_sample->shadow);
+  safe_spectral_color_add(L->background, L_sample->background);
+  safe_spectral_color_add(L->ao, L_sample->ao);
+  safe_spectral_color_add(L->shadow, L_sample->shadow);
   safe_float_add(L->mist, L_sample->mist);
 #endif /* __PASSES__ */
-  safe_float3_add(L->emission, L_sample->emission);
+  safe_spectral_color_add(L->emission, L_sample->emission);
 
 #undef safe_float_add
 #undef safe_float3_add

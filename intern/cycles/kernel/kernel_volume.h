@@ -264,7 +264,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
         tp = *throughput * exp(sum);
 
         /* stop if nearly all light is blocked */
-        if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
+        if (reduce_max_f(tp) < tp_eps)
           break;
       }
     }
@@ -673,7 +673,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
         tp = new_tp;
 
         /* stop if nearly all light blocked */
-        if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
+        if (reduce_max_f(tp) < tp_eps) {
           tp = make_spectral_color(0.0f);
           break;
         }
@@ -903,8 +903,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
       break;
 
     /* stop if nearly all light blocked */
-    if (accum_transmittance.x < tp_eps && accum_transmittance.y < tp_eps &&
-        accum_transmittance.z < tp_eps)
+    if (reduce_max_f(accum_transmittance) < tp_eps)
       break;
   }
 

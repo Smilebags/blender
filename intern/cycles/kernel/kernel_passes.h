@@ -417,8 +417,9 @@ ccl_device_inline void kernel_write_result(
   if (kernel_data.film.pass_adaptive_aux_buffer &&
       kernel_data.integrator.adaptive_threshold > 0.0f) {
     if (sample_is_even(kernel_data.integrator.sampling_pattern, sample)) {
-      kernel_write_pass_float4(buffer + kernel_data.film.pass_adaptive_aux_buffer,
-                               make_float4(L_sum.x * 2.0f, L_sum.y * 2.0f, L_sum.z * 2.0f, 0.0f));
+      kernel_write_pass_float4(
+          buffer + kernel_data.film.pass_adaptive_aux_buffer,
+          make_float4(linear_sum.x * 2.0f, linear_sum.y * 2.0f, linear_sum.z * 2.0f, 0.0f));
     }
 #ifdef __KERNEL_CPU__
     if ((sample > kernel_data.integrator.adaptive_min_samples) &&

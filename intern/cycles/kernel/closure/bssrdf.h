@@ -425,18 +425,20 @@ ccl_device void bssrdf_sample(const ShaderClosure *sc, float xi, float *r, float
    * may be used if their radius was too small to handle as BSSRDF. */
   xi *= bssrdf->channels;
 
-  if (xi < 1.0f) {
-    radius = (bssrdf->radius.x > 0.0f) ?
-                 bssrdf->radius.x :
-                 (bssrdf->radius.y > 0.0f) ? bssrdf->radius.y : bssrdf->radius.z;
-  }
-  else if (xi < 2.0f) {
-    xi -= 1.0f;
-    radius = (bssrdf->radius.x > 0.0f) ? bssrdf->radius.y : bssrdf->radius.z;
-  }
-  else {
-    xi -= 2.0f;
-    radius = bssrdf->radius.z;
+  FOR_EACH_CHANNEL(i)
+  {
+    if (xi <= i + 1.0f) {
+      xi -= i;
+
+      for (i; i < CHANNELS_PER_RAY; i++) {
+        if (bssrdf->radius[i] > 0.0f || i == CHANNELS_PER_RAY - 1) {
+          radius = bssrdf->radius[i];
+          break;
+        }
+      }
+
+      break;
+    }
   }
 
   /* Sample BSSRDF. */

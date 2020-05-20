@@ -447,7 +447,9 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg,
 
   /* write output */
   const float output_fac = 1.0f / num_samples;
-  const float4 scaled_result = make_float4(out.x, out.y, out.z, 1.0f) * output_fac;
+  /* TODO: Fixme! */
+  //   const float4 scaled_result = make_float4(out.x, out.y, out.z, 1.0f) * output_fac;
+  const float4 scaled_result = make_float4(0.0f);
 
   output[i] = (sample == 0) ? scaled_result : output[i] + scaled_result;
 }

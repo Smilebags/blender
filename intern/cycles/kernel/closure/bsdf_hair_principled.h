@@ -185,7 +185,8 @@ ccl_device_inline float4 combine_with_energy(KernelGlobals *kg, SpectralColor c)
 {
   /* TODO: Fixme! */
   //   return make_float4(c.x, c.y, c.z, linear_rgb_to_gray(kg, c));
-  return make_float4(c.x, c.y, c.z, 0.5f);
+  //   return make_float4(c.x, c.y, c.z, 0.5f);
+  return make_float4(0.0f);
 }
 
 #  ifdef __HAIR__
