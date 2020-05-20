@@ -567,19 +567,17 @@ ccl_device float3 find_position_in_lookup_unit_step(
     ccl_constant float lookup[][3], float position_to_find, int start, int end, int step)
 {
   if (UNLIKELY(position_to_find <= start)) {
-    return make_float3(lookup[0][0], lookup[0][1], lookup[0][2]);
+    return load_float3(lookup[0]);
   }
   if (UNLIKELY(position_to_find >= end)) {
     int i = (end - start) / step;
-    return make_float3(lookup[i][0], lookup[i][1], lookup[i][2]);
+    return load_float3(lookup[i]);
   }
 
   int lower_bound = (int(position_to_find) - start) / step;
   int upper_bound = lower_bound + 1;
   float progress = position_to_find - int(position_to_find);
-  return make_float3(float_lerp(lookup[lower_bound][0], lookup[upper_bound][0], progress),
-                     float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress),
-                     float_lerp(lookup[lower_bound][2], lookup[upper_bound][2], progress));
+  return mix(load_float3(lookup[lower_bound]), load_float3(lookup[upper_bound]), progress);
 }
 
 ccl_device float3 wavelength_to_xyz(float wavelength)
@@ -612,7 +610,7 @@ ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float *w
     // multiply the lookups by the RGB factors
     float3 contributions = magnitudes * rgb;
     // add the three components
-    intensities[i] = contributions.x + contributions.y + contributions.z;
+    intensities[i] = reduce_add_f(contributions);
   }
 
   return intensities;
