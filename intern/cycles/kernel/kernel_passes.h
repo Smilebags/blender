@@ -342,9 +342,10 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
         buffer + kernel_data.film.pass_transmission_color,
         wavelength_intensities_to_linear(kg, L->color_transmission, wavelengths));
   if (light_flag & PASSMASK(SHADOW)) {
-    float4 shadow = L->shadow;
-    shadow.w = kernel_data.film.pass_shadow_scale;
-    kernel_write_pass_float4(buffer + kernel_data.film.pass_shadow, shadow);
+    RGBColor shadow = wavelength_intensities_to_linear(kg, L->shadow, wavelengths);
+    kernel_write_pass_float4(
+        buffer + kernel_data.film.pass_shadow,
+        make_float4(shadow.x, shadow.y, shadow.z, kernel_data.film.pass_shadow_scale));
   }
   if (light_flag & PASSMASK(MIST))
     kernel_write_pass_float(buffer + kernel_data.film.pass_mist, 1.0f - L->mist);
