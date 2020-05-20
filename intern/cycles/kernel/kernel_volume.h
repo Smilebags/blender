@@ -426,7 +426,7 @@ ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
    * "Practical and Controllable Subsurface Scattering for Production Path
    *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
   SpectralColor weights = fabs(throughput * albedo);
-  float sum_weights = weights.x + weights.y + weights.z;
+  float sum_weights = reduce_add_f(weights);
   SpectralColor weights_pdf;
 
   if (sum_weights > 0.0f) {
@@ -439,15 +439,16 @@ ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
   *pdf = weights_pdf;
 
   /* OpenCL does not support -> on float3, so don't use pdf->x. */
-  if (rand < weights_pdf.x) {
-    return 0;
+  float sum = 0.0f;
+  SPECTRAL_COLOR_FOR_EACH(i)
+  {
+    sum += weights_pdf[i];
+    if (rand < sum) {
+      return i;
+    }
   }
-  else if (rand < weights_pdf.x + weights_pdf.y) {
-    return 1;
-  }
-  else {
-    return 2;
-  }
+
+  return WAVELENGTHS_PER_RAY - 1;
 }
 
 #ifdef __VOLUME__
