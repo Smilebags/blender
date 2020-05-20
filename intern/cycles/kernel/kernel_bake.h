@@ -217,11 +217,11 @@ ccl_device SpectralColor kernel_bake_evaluate_direct_indirect(KernelGlobals *kg,
   }
 
   if (is_direct) {
-    out += safe_divide_even_color(direct, color);
+    out += safe_divide_even(direct, color);
   }
 
   if (is_indirect) {
-    out += safe_divide_even_color(indirect, color);
+    out += safe_divide_even(indirect, color);
   }
 
   return out;

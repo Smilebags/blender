@@ -45,7 +45,7 @@ ccl_device_inline float blackbody_intensity(float temperature, float wavelength)
   float wavelength_i2 = wavelength_i * wavelength_i;
   float wavelength_i5 = wavelength_i2 * wavelength_i2 * wavelength_i;
 
-  return (2 * h * c * c * wavelength_i5) / (exp(h * c / (kb * wavelength * temperature)) - 1.0f);
+  return (2 * h * c * c * wavelength_i5) / (::exp(h * c / (kb * wavelength * temperature)) - 1.0f);
 }
 
 ccl_device void svm_node_blackbody(

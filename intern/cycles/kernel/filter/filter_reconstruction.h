@@ -114,7 +114,7 @@ ccl_device_inline void kernel_filter_finalize(int x,
   math_trimatrix_vec3_solve(XtWX, XtWY, (*rank) + 1, stride);
 
   float3 final_color = XtWY[0];
-  if (!isfinite3_safe(final_color) ||
+  if (!isfinite_safe(final_color) ||
       (final_color.x < -0.01f || final_color.y < -0.01f || final_color.z < -0.01f)) {
     final_color = mean_color;
   }

@@ -149,7 +149,7 @@ ccl_device void subsurface_color_bump_blur(KernelGlobals *kg,
       out_color = subsurface_color_pow(out_color, texture_blur);
       in_color = subsurface_color_pow(in_color, texture_blur);
 
-      *eval *= safe_divide_color(in_color, out_color);
+      *eval *= safe_divide(in_color, out_color);
     }
   }
 }
@@ -320,21 +320,21 @@ ccl_device_noinline void subsurface_scatter_multi_setup(KernelGlobals *kg,
 
 ccl_device void subsurface_random_walk_remap(const float A,
                                              const float d,
-                                             float &sigma_t,
-                                             float &sigma_s)
+                                             float *sigma_t,
+                                             float *sigma_s)
 {
   /* Compute attenuation and scattering coefficients from albedo. */
   const float a = 1.0f - expf(A * (-5.09406f + A * (2.61188f - A * 4.31805f)));
   const float s = 1.9f - A + 3.5f * sqr(A - 0.8f);
 
-  sigma_t = 1.0f / fmaxf(d * s, 1e-16f);
-  sigma_s = sigma_t * a;
+  *sigma_t = 1.0f / fmaxf(d * s, 1e-16f);
+  *sigma_s = *sigma_t * a;
 }
 
 ccl_device void subsurface_random_walk_coefficients(const ShaderClosure *sc,
-                                                    SpectralColor &sigma_t,
-                                                    SpectralColor &sigma_s,
-                                                    SpectralColor &weight)
+                                                    SpectralColor *sigma_t,
+                                                    SpectralColor *sigma_s,
+                                                    SpectralColor *weight)
 {
   const Bssrdf *bssrdf = (const Bssrdf *)sc;
   const SpectralColor A = bssrdf->albedo;
@@ -342,11 +342,11 @@ ccl_device void subsurface_random_walk_coefficients(const ShaderClosure *sc,
 
   FOR_EACH_CHANNEL(i)
   {
-    subsurface_random_walk_remap(A[i], d[i], sigma_t[i], sigma_s[i]);
+    subsurface_random_walk_remap(A[i], d[i], &((*sigma_t)[i]), &((*sigma_s)[i]));
   }
 
   /* Closure mixing and Fresnel weights separate from albedo. */
-  weight = safe_divide_color(bssrdf->weight, A);
+  *weight = safe_divide(bssrdf->weight, A);
 }
 
 #ifdef __KERNEL_OPTIX__
@@ -374,7 +374,7 @@ ccl_device_noinline
   /* Convert subsurface to volume coefficients. */
   SpectralColor sigma_t, sigma_s;
   SpectralColor throughput = make_spectral_color(1.0f);
-  subsurface_random_walk_coefficients(sc, sigma_t, sigma_s, throughput);
+  subsurface_random_walk_coefficients(sc, &sigma_t, &sigma_s, &throughput);
 
   /* Setup ray. */
 #ifdef __SPLIT_KERNEL__
@@ -410,7 +410,7 @@ ccl_device_noinline
 
     /* Sample color channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
-    SpectralColor albedo = safe_divide_color(sigma_s, sigma_t);
+    SpectralColor albedo = safe_divide(sigma_s, sigma_t);
     SpectralColor channel_pdf;
     int channel = kernel_volume_sample_channel(albedo, throughput, rphase, &channel_pdf);
 

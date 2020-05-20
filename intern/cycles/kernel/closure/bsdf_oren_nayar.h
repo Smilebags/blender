@@ -66,7 +66,7 @@ ccl_device bool bsdf_oren_nayar_merge(const ShaderClosure *a, const ShaderClosur
   const OrenNayarBsdf *bsdf_a = (const OrenNayarBsdf *)a;
   const OrenNayarBsdf *bsdf_b = (const OrenNayarBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N)) && (bsdf_a->roughness == bsdf_b->roughness);
+  return (isequal(bsdf_a->N, bsdf_b->N)) && (bsdf_a->roughness == bsdf_b->roughness);
 }
 
 ccl_device SpectralColor bsdf_oren_nayar_eval_reflect(const ShaderClosure *sc,

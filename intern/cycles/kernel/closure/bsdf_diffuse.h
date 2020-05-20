@@ -54,7 +54,7 @@ ccl_device bool bsdf_diffuse_merge(const ShaderClosure *a, const ShaderClosure *
   const DiffuseBsdf *bsdf_a = (const DiffuseBsdf *)a;
   const DiffuseBsdf *bsdf_b = (const DiffuseBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N));
+  return isequal(bsdf_a->N, bsdf_b->N);
 }
 
 ccl_device SpectralColor bsdf_diffuse_eval_reflect(const ShaderClosure *sc,

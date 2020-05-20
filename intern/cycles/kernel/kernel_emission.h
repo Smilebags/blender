@@ -29,7 +29,7 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
   /* setup shading at emitter */
   SpectralColor eval = make_spectral_color(0.0f);
 
-  if (shader_constant_emission_eval(kg, ls->shader, eval)) {
+  if (shader_constant_emission_eval(kg, ls->shader, &eval)) {
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, I) < 0.0f) {
       ls->Ng = -ls->Ng;
     }
@@ -87,14 +87,14 @@ ccl_device_noinline_cpu SpectralColor direct_emissive_eval(KernelGlobals *kg,
       eval = shader_emissive_eval(emission_sd);
     }
   }
+
   eval *= ls->eval_fac;
 
   if (ls->lamp != LAMP_NONE) {
     const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
 
-    SpectralColor spectral = linear_to_wavelength_intensities(
-        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]),
-        state->wavelengths);
+    SpectralColor spectral = linear_to_wavelength_intensities(load_float3(klight->strength),
+                                                              state->wavelengths);
 
     eval *= spectral;
   }
@@ -144,7 +144,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
   shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
 #endif
 
-  bsdf_eval_mul3(eval, light_eval / ls->pdf);
+  bsdf_eval_mul(eval, light_eval / ls->pdf);
 
 #ifdef __PASSES__
   /* use visibility flag to skip lights */
@@ -228,7 +228,7 @@ ccl_device_noinline_cpu SpectralColor indirect_primitive_emission(
     float pdf = triangle_light_pdf(kg, sd, t);
     float mis_weight = power_heuristic(bsdf_pdf, pdf);
 
-    L *= mis_weight;
+    return L * mis_weight;
   }
 
   return L;
@@ -312,7 +312,7 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
 
   /* Evaluate background shader. */
   SpectralColor L = make_spectral_color(0.0f);
-  if (!shader_constant_emission_eval(kg, shader, L)) {
+  if (!shader_constant_emission_eval(kg, shader, &L)) {
 #  ifdef __SPLIT_KERNEL__
     Ray priv_ray = *ray;
     shader_setup_from_background(kg, emission_sd, &priv_ray);
@@ -338,7 +338,7 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
     float pdf = background_light_pdf(kg, ray->P, ray->D);
     float mis_weight = power_heuristic(state->ray_pdf, pdf);
 
-    L *= mis_weight;
+    return L * mis_weight;
   }
 #  endif
 

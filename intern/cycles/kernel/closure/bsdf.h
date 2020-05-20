@@ -33,7 +33,6 @@
 #include "kernel/closure/bsdf_principled_sheen.h"
 #include "kernel/closure/bssrdf.h"
 #include "kernel/closure/volume.h"
-#include "kernel/kernel_color.h"
 // clang-format on
 
 CCL_NAMESPACE_BEGIN
@@ -450,7 +449,7 @@ ccl_device_inline int bsdf_sample(KernelGlobals *kg,
     }
   }
   else if (label & LABEL_DIFFUSE) {
-    if (!isequal_float3(sc->N, sd->N)) {
+    if (!isequal(sc->N, sd->N)) {
       *eval *= bump_shadowing_term((label & LABEL_TRANSMIT) ? -sd->N : sd->N, sc->N, *omega_in);
     }
   }
@@ -566,7 +565,7 @@ ccl_device_inline
         break;
     }
     if (CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {
-      if (!isequal_float3(sc->N, sd->N)) {
+      if (!isequal(sc->N, sd->N)) {
         eval *= bump_shadowing_term(sd->N, sc->N, omega_in);
       }
     }
@@ -657,7 +656,7 @@ ccl_device_inline
         break;
     }
     if (CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {
-      if (!isequal_float3(sc->N, sd->N)) {
+      if (!isequal(sc->N, sd->N)) {
         eval *= bump_shadowing_term(-sd->N, sc->N, omega_in);
       }
     }

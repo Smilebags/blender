@@ -117,7 +117,7 @@ ccl_device int bsdf_transparent_sample(const ShaderClosure *sc,
   *domega_in_dx = -dIdx;
   *domega_in_dy = -dIdy;
 #endif
-  *pdf = 1;
+  *pdf = 1.0f;
   *eval = make_spectral_color(1.0f);
   return LABEL_TRANSMIT | LABEL_TRANSPARENT;
 }

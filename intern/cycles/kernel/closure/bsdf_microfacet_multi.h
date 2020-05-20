@@ -114,18 +114,21 @@ ccl_device_forceinline SpectralColor mf_eval_phase_glossy(const float3 w,
                                                           const float3 wo,
                                                           const float2 alpha)
 {
-  if (w.z > 0.9999f)
+  if (w.z > 0.9999f) {
     return make_spectral_color(0.0f);
+  }
 
   const float3 wh = normalize(wo - w);
-  if (wh.z < 0.0f)
+  if (wh.z < 0.0f) {
     return make_spectral_color(0.0f);
+  }
 
   float pArea = (w.z < -0.9999f) ? 1.0f : lambda * w.z;
 
   const float dotW_WH = dot(-w, wh);
-  if (dotW_WH < 0.0f)
+  if (dotW_WH < 0.0f) {
     return make_spectral_color(0.0f);
+  }
 
   float phase = max(0.0f, dotW_WH) * 0.25f / max(pArea * dotW_WH, 1e-7f);
   if (alpha.x == alpha.y)

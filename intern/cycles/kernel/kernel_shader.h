@@ -598,9 +598,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
       SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = eval * sc->weight;
-
-        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, 1.0f);
+        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, 1.0f);
         sum_pdf += bsdf_pdf * sc->sample_weight;
       }
 
@@ -625,9 +623,8 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
       float bsdf_pdf = 0.0f;
       SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = eval * sc->weight;
         float mis_weight = use_mis ? power_heuristic(light_pdf, bsdf_pdf) : 1.0f;
-        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, mis_weight);
+        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, mis_weight);
       }
     }
   }
@@ -795,8 +792,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = eval * sc->weight;
-    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
+    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
@@ -826,8 +822,7 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = eval * sc->weight;
-    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
+    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
   }
 
   return label;
@@ -1011,7 +1006,7 @@ ccl_device SpectralColor shader_bssrdf_sum(ShaderData *sd, float3 *N_, float *te
 
 /* Constant emission optimization */
 
-ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, SpectralColor &eval)
+ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, SpectralColor *eval)
 {
   int shader_index = shader & SHADER_MASK;
   int shader_flag = kernel_tex_fetch(__shaders, shader_index).flags;
@@ -1020,7 +1015,7 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, Spe
   if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
     FOR_EACH_CHANNEL(i)
     {
-      eval[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
+      (*eval)[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
     }
     return true;
   }

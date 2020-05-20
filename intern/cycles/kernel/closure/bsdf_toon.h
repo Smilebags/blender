@@ -60,7 +60,7 @@ ccl_device bool bsdf_toon_merge(const ShaderClosure *a, const ShaderClosure *b)
   const ToonBsdf *bsdf_a = (const ToonBsdf *)a;
   const ToonBsdf *bsdf_b = (const ToonBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N)) && (bsdf_a->size == bsdf_b->size) &&
+  return (isequal(bsdf_a->N, bsdf_b->N)) && (bsdf_a->size == bsdf_b->size) &&
          (bsdf_a->smooth == bsdf_b->smooth);
 }
 
