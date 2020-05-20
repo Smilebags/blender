@@ -895,8 +895,7 @@ ccl_device void shader_bsdf_disable_transparency(KernelGlobals *kg, ShaderData *
 ccl_device SpectralColor shader_bsdf_alpha(KernelGlobals *kg, ShaderData *sd)
 {
   SpectralColor alpha = make_spectral_color(1.0f) - shader_bsdf_transparency(kg, sd);
-
-  alpha = clamp(alpha, make_spectral_color(0.0f), make_spectral_color(1.0f));
+  alpha = saturate(alpha);
 
   return alpha;
 }
@@ -1018,13 +1017,13 @@ ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, Spe
   int shader_flag = kernel_tex_fetch(__shaders, shader_index).flags;
 
   /* TODO: Fixme! */
-  //   if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
-  //     SPECTRAL_COLOR_FOR_EACH(i)
-  //     {
-  //       eval[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
-  //     }
-  //     return true;
-  //   }
+  if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
+    SPECTRAL_COLOR_FOR_EACH(i)
+    {
+      eval[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
+    }
+    return true;
+  }
 
   return false;
 }

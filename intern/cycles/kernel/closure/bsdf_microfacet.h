@@ -420,8 +420,9 @@ ccl_device SpectralColor bsdf_microfacet_ggx_eval_reflect(const ShaderClosure *s
   bool m_refractive = bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
   float3 N = bsdf->N;
 
-  if (m_refractive || alpha_x * alpha_y <= 1e-7f)
+  if (m_refractive || alpha_x * alpha_y <= 1e-7f) {
     return make_spectral_color(0.0f);
+  }
 
   float cosNO = dot(N, I);
   float cosNI = dot(N, omega_in);

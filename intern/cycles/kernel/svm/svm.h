@@ -279,7 +279,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         svm_node_closure_background(sd, stack, node);
         break;
       case NODE_CLOSURE_SET_WEIGHT:
-        svm_node_closure_set_weight(sd, stack, node.y);
+        svm_node_closure_set_weight(sd, node.y);
         break;
       case NODE_CLOSURE_WEIGHT:
         svm_node_closure_weight(sd, stack, node.y);

@@ -537,9 +537,8 @@ ccl_device_inline float3 safe_divide_color(float3 a, float3 b)
 ccl_device_inline SpectralColor safe_divide_even_color(SpectralColor a, SpectralColor b)
 {
   SpectralColor s = safe_divide_color(a, b);
-  float f = reduce_add_spectral(s);
 
-  return make_spectral_color(f / WAVELENGTHS_PER_RAY);
+  return reduce_add(s) / WAVELENGTHS_PER_RAY;
 }
 
 ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
@@ -552,11 +551,7 @@ ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
 
 ccl_device_inline SpectralColor saturate(SpectralColor a)
 {
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    a[i] = clamp(a[i], 0.0f, 1.0f);
-  }
-  return a;
+  return clamp(a, make_spectral_color(0.0f), make_spectral_color(1.0f));
 }
 
 ccl_device_inline bool isequal(const SpectralColor a, const SpectralColor b)

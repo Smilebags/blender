@@ -168,7 +168,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
       && (state->flag & PATH_RAY_SHADOW_CATCHER) == 0
 #endif
   ) {
-    float probability = reduce_max_spectral(fabs(bsdf_eval_sum(eval))) *
+    float probability = reduce_max_f(fabs(bsdf_eval_sum(eval))) *
                         kernel_data.integrator.light_inv_rr_threshold;
     if (probability < 1.0f) {
       if (rand_terminate >= probability) {
@@ -344,7 +344,7 @@ ccl_device_noinline_cpu SpectralColor indirect_background(KernelGlobals *kg,
 
   return L;
 #else
-  return make_float3(0.8f, 0.8f, 0.8f);
+  return make_spectral_color(0.8f);
 #endif
 }
 

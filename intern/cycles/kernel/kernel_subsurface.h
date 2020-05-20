@@ -452,7 +452,7 @@ ccl_device_noinline
 
     /* Russian roulette. */
     float terminate = path_state_rng_1D(kg, state, PRNG_TERMINATE);
-    float probability = min(reduce_max_spectral(fabs(throughput)), 1.0f);
+    float probability = min(reduce_max_f(fabs(throughput)), 1.0f);
     if (terminate >= probability) {
       break;
     }

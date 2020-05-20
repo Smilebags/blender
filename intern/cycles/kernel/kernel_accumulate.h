@@ -277,7 +277,7 @@ ccl_device_forceinline void path_radiance_clamp(KernelGlobals *kg, SpectralColor
 {
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
-  float sum = reduce_add_spectral(fabs(L));
+  float sum = reduce_add_f(fabs(L));
   if (sum > limit) {
     L *= limit / sum;
   }
@@ -291,7 +291,7 @@ ccl_device_forceinline void path_radiance_clamp_throughput(KernelGlobals *kg,
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
 
-  float sum = reduce_add_spectral(fabs(L));
+  float sum = reduce_add_f(fabs(L));
   if (sum > limit) {
     float clamp_factor = limit / sum;
     L *= clamp_factor;
@@ -640,11 +640,7 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
 
     L_sum = L_direct + L_indirect;
 
-    float sum = 0;
-    SPECTRAL_COLOR_FOR_EACH(i)
-    {
-      sum += fabsf(L_sum[i]);
-    }
+    float sum = reduce_add_f(fabs(L_sum));
 
     /* Reject invalid value */
     if (!isfinite_safe(sum)) {
@@ -672,11 +668,7 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
     L_sum = L->emission;
 
     /* Reject invalid value */
-    float sum = 0;
-    SPECTRAL_COLOR_FOR_EACH(i)
-    {
-      sum += fabsf(L_sum[i]);
-    }
+    float sum = reduce_add_f(fabs(L_sum));
 
     if (!isfinite_safe(sum)) {
       kernel_assert(!"Non-finite final sum in path_radiance_clamp_and_sum!");

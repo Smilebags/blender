@@ -92,6 +92,10 @@ ccl_device_inline float4 select(const int4 &mask, const float4 &a, const float4 
 ccl_device_inline float4 reduce_min(const float4 &a);
 ccl_device_inline float4 reduce_max(const float4 &a);
 ccl_device_inline float4 reduce_add(const float4 &a);
+
+ccl_device_inline float reduce_min_f(const float4 &a);
+ccl_device_inline float reduce_max_f(const float4 &a);
+ccl_device_inline float reduce_add_f(const float4 &a);
 #endif /* !__KERNEL_GPU__ */
 
 /*******************************************************************************
@@ -297,25 +301,9 @@ ccl_device_inline bool is_zero(const float4 &a)
 #  endif
 }
 
-ccl_device_inline float4 reduce_add(const float4 &a)
-{
-#  ifdef __KERNEL_SSE__
-#    ifdef __KERNEL_SSE3__
-  float4 h(_mm_hadd_ps(a.m128, a.m128));
-  return float4(_mm_hadd_ps(h.m128, h.m128));
-#    else
-  float4 h(shuffle<1, 0, 3, 2>(a) + a);
-  return shuffle<2, 3, 0, 1>(h) + h;
-#    endif
-#  else
-  float sum = (a.x + a.y) + (a.z + a.w);
-  return make_float4(sum, sum, sum, sum);
-#  endif
-}
-
 ccl_device_inline float average(const float4 &a)
 {
-  return reduce_add(a).x * 0.25f;
+  return reduce_add_f(a) / 4.0f;
 }
 
 ccl_device_inline float len(const float4 &a)
@@ -459,6 +447,37 @@ ccl_device_inline float4 reduce_max(const float4 &a)
 #  else
   return make_float4(max(max(a.x, a.y), max(a.z, a.w)));
 #  endif
+}
+
+ccl_device_inline float4 reduce_add(const float4 &a)
+{
+#  ifdef __KERNEL_SSE__
+#    ifdef __KERNEL_SSE3__
+  float4 h(_mm_hadd_ps(a.m128, a.m128));
+  return float4(_mm_hadd_ps(h.m128, h.m128));
+#    else
+  float4 h(shuffle<1, 0, 3, 2>(a) + a);
+  return shuffle<2, 3, 0, 1>(h) + h;
+#    endif
+#  else
+  float sum = (a.x + a.y) + (a.z + a.w);
+  return make_float4(sum, sum, sum, sum);
+#  endif
+}
+
+ccl_device_inline float reduce_min_f(const float4 &a)
+{
+  return reduce_min(a).x;
+}
+
+ccl_device_inline float reduce_max_f(const float4 &a)
+{
+  return reduce_max(a).x;
+}
+
+ccl_device_inline float reduce_add_f(const float4 &a)
+{
+  return reduce_add(a).x;
 }
 
 ccl_device_inline float4 load_float4(const float *v)

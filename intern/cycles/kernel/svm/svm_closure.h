@@ -245,6 +245,8 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
 
       /* sheen */
       if (diffuse_weight > CLOSURE_WEIGHT_CUTOFF && sheen > CLOSURE_WEIGHT_CUTOFF) {
+        /* TODO: Fixme! */
+
         // float m_cdlum = linear_rgb_to_gray(kg, base_color);
         float m_cdlum = 0.5f;
         SpectralColor m_ctint = m_cdlum > 0.0f ? base_color / m_cdlum :
@@ -1174,10 +1176,9 @@ ccl_device_inline void svm_node_closure_store_weight(ShaderData *sd, SpectralCol
   sd->svm_closure_weight = weight;
 }
 
-ccl_device void svm_node_closure_set_weight(ShaderData *sd, float *stack, uint offset)
+ccl_device void svm_node_closure_set_weight(ShaderData *sd, uint f)
 {
-  //   svm_node_closure_store_weight(sd, stack_load_spectral(stack, offset));
-  svm_node_closure_store_weight(sd, make_spectral_color(1.0f));
+  svm_node_closure_store_weight(sd, make_spectral_color(__uint_as_float(f)));
 }
 
 ccl_device void svm_node_closure_weight(ShaderData *sd, float *stack, uint weight_offset)

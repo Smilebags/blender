@@ -483,12 +483,10 @@ ccl_device_forceinline SpectralColor bssrdf_eval(const ShaderClosure *sc, float 
 
 ccl_device_forceinline float bssrdf_pdf(const ShaderClosure *sc, float r)
 {
-  //   const Bssrdf *bssrdf = (const Bssrdf *)sc;
+  const Bssrdf *bssrdf = (const Bssrdf *)sc;
   SpectralColor pdf = bssrdf_eval(sc, r);
 
-  /* TODO: Fixme! */
-  return reduce_add_spectral(pdf) / WAVELENGTHS_PER_RAY;
-  //   return (pdf.x + pdf.y + pdf.z) / bssrdf->channels;
+  return reduce_add_f(pdf) / bssrdf->channels;
 }
 
 CCL_NAMESPACE_END
