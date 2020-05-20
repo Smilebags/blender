@@ -23,8 +23,12 @@
 
 CCL_NAMESPACE_BEGIN
 
+#define SPECTRAL_COLOR_DATA_TYPE float4
 #define WAVELENGTHS_PER_RAY 4
-typedef float4 SpectralColor;
+
+typedef SPECTRAL_COLOR_DATA_TYPE SpectralColor;
+
+#define make_spectral_color(f) CAT(make_, SPECTRAL_COLOR_DATA_TYPE(f))
 
 #define SPECTRAL_COLOR_FOR_EACH(counter) \
   for (int counter = 0; counter < WAVELENGTHS_PER_RAY; counter++)
@@ -33,8 +37,6 @@ typedef float4 SpectralColor;
   float wavelength = wavelengths[0]; \
   for (int counter = 0; counter < WAVELENGTHS_PER_RAY; \
        counter++, wavelength = wavelengths[counter])
-
-ccl_device_inline SpectralColor make_spectral_color(float value);
 
 CCL_NAMESPACE_END
 
