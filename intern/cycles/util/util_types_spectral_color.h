@@ -38,4 +38,4 @@ ccl_device_inline SpectralColor make_spectral_color(float value);
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_TYPES_FLOAT4_H__ */
+#endif /* __UTIL_TYPES_SPECTRAL_COLOR_H__ */
