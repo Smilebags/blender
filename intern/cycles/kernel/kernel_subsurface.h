@@ -459,8 +459,7 @@ ccl_device_noinline
     throughput /= probability;
   }
 
-  kernel_assert(isfinite_safe(throughput.x) && isfinite_safe(throughput.y) &&
-                isfinite_safe(throughput.z));
+  kernel_assert(isfinite_safe(throughput));
 
   state->rng_offset = prev_rng_offset;
   state->rng_hash = prev_rng_hash;

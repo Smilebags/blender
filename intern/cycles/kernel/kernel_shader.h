@@ -1103,12 +1103,12 @@ ccl_device void shader_eval_surface(KernelGlobals *kg,
     svm_eval_nodes(kg, sd, state, buffer, SHADER_TYPE_SURFACE, path_flag);
 #else
     if (sd->object == OBJECT_NONE) {
-      sd->closure_emission_background = make_float3(0.8f, 0.8f, 0.8f);
+      sd->closure_emission_background = make_spectral_color(0.8f);
       sd->flag |= SD_EMISSION;
     }
     else {
       DiffuseBsdf *bsdf = (DiffuseBsdf *)bsdf_alloc(
-          sd, sizeof(DiffuseBsdf), make_float3(0.8f, 0.8f, 0.8f));
+          sd, sizeof(DiffuseBsdf), make_spectral_color(0.8f));
       if (bsdf != NULL) {
         bsdf->N = sd->N;
         sd->flag |= bsdf_diffuse_setup(bsdf);
