@@ -595,6 +595,8 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
     xyz_sum += wavelength_to_xyz(wavelengths[i]) * intensities[i];
   }
 
+  xyz_sum *= 3.0f / CHANNELS_PER_RAY;
+
   return xyz_to_rgb(kg, xyz_sum);
 }
 
