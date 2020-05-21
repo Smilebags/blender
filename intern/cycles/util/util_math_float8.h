@@ -90,7 +90,7 @@ ccl_device_inline float8 operator-(const float8 &a)
 ccl_device_inline float8 operator*(const float8 &a, const float8 &b)
 {
   return make_float8(
-      a.a * b.a, a.b * b.b, a.c * b.c, a.d * b.d, a.e * b.e, a.f * b.f, a.g * a.g, a.h * b.h);
+      a.a * b.a, a.b * b.b, a.c * b.c, a.d * b.d, a.e * b.e, a.f * b.f, a.g * b.g, a.h * b.h);
 }
 
 ccl_device_inline float8 operator*(const float8 &a, float f)
