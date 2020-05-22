@@ -34,7 +34,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-extern "C" {
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -99,7 +98,6 @@ extern "C" {
 
 #include "RNA_access.h"
 #include "RNA_types.h"
-} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -435,7 +433,7 @@ void DepsgraphRelationBuilder::add_particle_forcefield_relations(const Operation
       }
 
       /* Smoke flow relations. */
-      if (relation->pd->forcefield == PFIELD_SMOKEFLOW && relation->pd->f_source) {
+      if (relation->pd->forcefield == PFIELD_FLUIDFLOW && relation->pd->f_source) {
         ComponentKey trf_key(&relation->pd->f_source->id, NodeType::TRANSFORM);
         add_relation(trf_key, key, "Smoke Force Domain");
         ComponentKey eff_key(&relation->pd->f_source->id, NodeType::GEOMETRY);
@@ -2580,6 +2578,11 @@ void DepsgraphRelationBuilder::build_simulation(Simulation *simulation)
   }
   build_animdata(&simulation->id);
   build_parameters(&simulation->id);
+
+  OperationKey simulation_update_key(
+      &simulation->id, NodeType::SIMULATION, OperationCode::SIMULATION_EVAL);
+  TimeSourceKey time_src_key;
+  add_relation(time_src_key, simulation_update_key, "TimeSrc -> Simulation");
 }
 
 void DepsgraphRelationBuilder::build_scene_sequencer(Scene *scene)

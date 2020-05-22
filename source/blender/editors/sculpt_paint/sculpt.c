@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 by Nicholas Bishop
@@ -5300,7 +5300,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
    * vertices and uses regular coords undo. */
-  /* It also assings the paint_face_set here as it needs to be done regardless of the stroke type
+  /* It also assigns the paint_face_set here as it needs to be done regardless of the stroke type
    * and the number of nodes under the brush influence. */
   if (brush->sculpt_tool == SCULPT_TOOL_DRAW_FACE_SETS && ss->cache->first_time &&
       ss->cache->mirror_symmetry_pass == 0 && !ss->cache->alt_smooth) {
@@ -7389,7 +7389,7 @@ static bool sculpt_no_multires_poll(bContext *C)
   return false;
 }
 
-static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_symmetrize_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   const Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -7440,7 +7440,7 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
       MirrorModifierData mmd = {{0}};
       int axis = 0;
       mmd.flag = 0;
-      mmd.tolerance = 0.005f;
+      mmd.tolerance = RNA_float_get(op->ptr, "merge_tolerance");
       switch (sd->symmetrize_direction) {
         case BMO_SYMMETRIZE_NEGATIVE_X:
           axis = 0;
@@ -7497,6 +7497,16 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = sculpt_symmetrize_exec;
   ot->poll = sculpt_no_multires_poll;
+
+  RNA_def_float(ot->srna,
+                "merge_tolerance",
+                0.001f,
+                0.0f,
+                FLT_MAX,
+                "Merge Limit",
+                "Distance within which symmetrical vertices are merged",
+                0.0f,
+                1.0f);
 }
 
 /**** Toggle operator for turning sculpt mode on or off ****/

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation, 2002-2009
@@ -548,8 +548,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     if (do_island_optimization) {
       UvElement *element;
       UvNearestHit hit = UV_NEAREST_HIT_INIT;
-      Image *ima = CTX_data_edit_image(C);
-      uv_find_nearest_vert(scene, ima, obedit, co, 0.0f, &hit);
+      uv_find_nearest_vert(scene, obedit, co, 0.0f, &hit);
 
       element = BM_uv_element_get(data->elementMap, hit.efa, hit.l);
       island_index = element->island;

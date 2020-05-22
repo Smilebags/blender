@@ -23,7 +23,6 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 
-extern "C" {
 #include "BLI_assert.h"
 #include "BLI_math_vector.h"
 
@@ -42,7 +41,6 @@ extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"
-}
 
 namespace USD {
 
@@ -81,7 +79,7 @@ void USDGenericMeshWriter::do_write(HierarchyContext &context)
   bool needsfree = false;
   Mesh *mesh = get_export_mesh(object_eval, needsfree);
 
-  if (mesh == NULL) {
+  if (mesh == nullptr) {
     return;
   }
 
@@ -102,7 +100,7 @@ void USDGenericMeshWriter::do_write(HierarchyContext &context)
 
 void USDGenericMeshWriter::free_export_mesh(Mesh *mesh)
 {
-  BKE_id_free(NULL, mesh);
+  BKE_id_free(nullptr, mesh);
 }
 
 struct USDMeshData {

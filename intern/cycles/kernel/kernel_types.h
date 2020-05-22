@@ -395,6 +395,10 @@ typedef enum PassType {
   PASS_VOLUME_INDIRECT,
   /* No Scatter color since it's tricky to define what it would even mean. */
   PASS_CATEGORY_LIGHT_END = 63,
+
+  PASS_BAKE_PRIMITIVE,
+  PASS_BAKE_DIFFERENTIAL,
+  PASS_CATEGORY_BAKE_END = 95
 } PassType;
 
 #define PASS_ANY (~0)
@@ -1257,6 +1261,10 @@ typedef struct KernelFilm {
   float4 xyz_to_b;
   float4 rgb_to_y;
 
+  int pass_bake_primitive;
+  int pass_bake_differential;
+  int pad;
+
 #ifdef __KERNEL_DEBUG__
   int pass_bvh_traversed_nodes;
   int pass_bvh_traversed_instances;
@@ -1436,6 +1444,14 @@ typedef struct KernelTables {
 } KernelTables;
 static_assert_align(KernelTables, 16);
 
+typedef struct KernelBake {
+  int object_index;
+  int tri_offset;
+  int type;
+  int pass_filter;
+} KernelBake;
+static_assert_align(KernelBake, 16);
+
 typedef struct KernelData {
   KernelCamera cam;
   KernelFilm film;
@@ -1444,6 +1460,7 @@ typedef struct KernelData {
   KernelBVH bvh;
   KernelCurves curve;
   KernelTables tables;
+  KernelBake bake;
 } KernelData;
 static_assert_align(KernelData, 16);
 

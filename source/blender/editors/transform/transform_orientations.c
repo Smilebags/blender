@@ -486,7 +486,6 @@ void initTransformOrientation(bContext *C, TransInfo *t, short orientation)
       else {
         unit_m3(mat);
       }
-      negate_v3(mat[2]);
       copy_m3_m3(t->spacemtx, mat);
       break;
     }
@@ -500,8 +499,9 @@ void initTransformOrientation(bContext *C, TransInfo *t, short orientation)
       copy_m3_m3(t->spacemtx, t->orientation.custom_matrix);
       break;
     case V3D_ORIENT_CUSTOM:
+    default:
+      BLI_assert(orientation >= V3D_ORIENT_CUSTOM);
       BLI_strncpy(t->spacename, t->orientation.custom->name, sizeof(t->spacename));
-
       if (applyTransformOrientation(t->orientation.custom, t->spacemtx, t->spacename)) {
         /* pass */
       }
@@ -510,6 +510,8 @@ void initTransformOrientation(bContext *C, TransInfo *t, short orientation)
       }
       break;
   }
+
+  invert_m3_m3(t->spacemtx_inv, t->spacemtx);
 }
 
 /**

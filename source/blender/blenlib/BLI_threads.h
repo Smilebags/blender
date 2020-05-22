@@ -23,9 +23,6 @@
 /** \file
  * \ingroup bli
  */
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <pthread.h>
 
@@ -33,6 +30,10 @@ extern "C" {
 
 #ifdef __APPLE__
 #  include <libkern/OSAtomic.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* for tables, button in UI, etc */
@@ -56,9 +57,6 @@ void BLI_threadpool_remove_index(struct ListBase *threadbase, int index);
 void BLI_threadpool_clear(struct ListBase *threadbase);
 void BLI_threadpool_end(struct ListBase *threadbase);
 int BLI_thread_is_main(void);
-
-void BLI_threaded_malloc_begin(void);
-void BLI_threaded_malloc_end(void);
 
 /* System Information */
 
