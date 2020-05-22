@@ -295,6 +295,11 @@ ccl_device_inline float mix(float a, float b, float t)
   return a + t * (b - a);
 }
 
+ccl_device_inline float exp(float f)
+{
+  return expf(f);
+}
+
 ccl_device_inline float smoothstep(float edge0, float edge1, float x)
 {
   float result;

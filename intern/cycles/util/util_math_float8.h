@@ -28,19 +28,28 @@ CCL_NAMESPACE_BEGIN
  */
 
 #ifndef __KERNEL_OPENCL__
-ccl_device_inline float8 operator-(const float8 &a);
-ccl_device_inline float8 operator*(const float8 &a, const float8 &b);
-ccl_device_inline float8 operator*(const float8 &a, float f);
-ccl_device_inline float8 operator*(float f, const float8 &a);
-ccl_device_inline float8 operator/(const float8 &a, float f);
-ccl_device_inline float8 operator/(const float8 &a, const float8 &b);
-ccl_device_inline float8 operator+(const float8 &a, const float f);
 ccl_device_inline float8 operator+(const float8 &a, const float8 &b);
-ccl_device_inline float8 operator-(const float8 &a, const float f);
+ccl_device_inline float8 operator+(const float8 &a, const float f);
+ccl_device_inline float8 operator+(const float f, const float8 &a);
+
+ccl_device_inline float8 operator-(const float8 &a);
 ccl_device_inline float8 operator-(const float8 &a, const float8 &b);
+ccl_device_inline float8 operator-(const float8 &a, const float f);
+ccl_device_inline float8 operator-(const float f, const float8 &a);
+
+ccl_device_inline float8 operator*(const float8 &a, const float8 &b);
+ccl_device_inline float8 operator*(const float8 &a, const float f);
+ccl_device_inline float8 operator*(const float f, const float8 &a);
+
+ccl_device_inline float8 operator/(const float8 &a, const float8 &b);
+ccl_device_inline float8 operator/(const float8 &a, float f);
+ccl_device_inline float8 operator/(const float f, const float8 &a);
+
 ccl_device_inline float8 operator+=(float8 &a, const float8 &b);
+
 ccl_device_inline float8 operator*=(float8 &a, const float8 &b);
 ccl_device_inline float8 operator*=(float8 &a, float f);
+
 ccl_device_inline float8 operator/=(float8 &a, float f);
 
 ccl_device_inline bool operator==(const float8 &a, const float8 &b);
@@ -82,9 +91,41 @@ ccl_device_inline bool isequal(const float8 a, const float8 b);
  */
 
 #ifndef __KERNEL_OPENCL__
+ccl_device_inline float8 operator+(const float8 &a, const float8 &b)
+{
+  return make_float8(
+      a.a + b.a, a.b + b.b, a.c + b.c, a.d + b.d, a.e + b.e, a.f + b.f, a.g + b.g, a.h + b.h);
+}
+
+ccl_device_inline float8 operator+(const float8 &a, const float f)
+{
+  return a + make_float8(f);
+}
+
+ccl_device_inline float8 operator+(const float f, const float8 &a)
+{
+  return a + f;
+}
+
 ccl_device_inline float8 operator-(const float8 &a)
 {
-  return a * -1.0f;
+  return make_float8(-a.a, -a.b, -a.c, -a.d, -a.e, -a.f, -a.g, -a.h);
+}
+
+ccl_device_inline float8 operator-(const float8 &a, const float8 &b)
+{
+  return make_float8(
+      a.a - b.a, a.b - b.b, a.c - b.c, a.d - b.d, a.e - b.e, a.f - b.f, a.g - b.g, a.h - b.h);
+}
+
+ccl_device_inline float8 operator-(const float8 &a, const float f)
+{
+  return a - make_float8(f);
+}
+
+ccl_device_inline float8 operator-(const float f, const float8 &a)
+{
+  return a - f;
 }
 
 ccl_device_inline float8 operator*(const float8 &a, const float8 &b)
@@ -93,19 +134,14 @@ ccl_device_inline float8 operator*(const float8 &a, const float8 &b)
       a.a * b.a, a.b * b.b, a.c * b.c, a.d * b.d, a.e * b.e, a.f * b.f, a.g * b.g, a.h * b.h);
 }
 
-ccl_device_inline float8 operator*(const float8 &a, float f)
+ccl_device_inline float8 operator*(const float8 &a, const float f)
 {
-  return make_float8(a.a * f, a.b * f, a.c * f, a.d * f, a.e * f, a.f * f, a.g * f, a.h * f);
+  return a * make_float8(f);
 }
 
-ccl_device_inline float8 operator*(float f, const float8 &a)
+ccl_device_inline float8 operator*(const float f, const float8 &a)
 {
   return a * f;
-}
-
-ccl_device_inline float8 operator/(const float8 &a, float f)
-{
-  return a * (1.0f / f);
 }
 
 ccl_device_inline float8 operator/(const float8 &a, const float8 &b)
@@ -114,26 +150,14 @@ ccl_device_inline float8 operator/(const float8 &a, const float8 &b)
       a.a / b.a, a.b / b.b, a.c / b.c, a.d / b.d, a.e / b.e, a.f / b.f, a.g / b.g, a.h / b.h);
 }
 
-ccl_device_inline float8 operator+(const float8 &a, const float f)
+ccl_device_inline float8 operator/(const float8 &a, const float f)
 {
-  return a + make_float8(f);
+  return a / make_float8(f);
 }
 
-ccl_device_inline float8 operator+(const float8 &a, const float8 &b)
+ccl_device_inline float8 operator/(const float f, const float8 &a)
 {
-  return make_float8(
-      a.a + b.a, a.b + b.b, a.c + b.c, a.d + b.d, a.e + b.e, a.f + b.f, a.g + b.g, a.h + b.h);
-}
-
-ccl_device_inline float8 operator-(const float8 &a, const float f)
-{
-  return a - make_float8(f);
-}
-
-ccl_device_inline float8 operator-(const float8 &a, const float8 &b)
-{
-  return make_float8(
-      a.a - b.a, a.b - b.b, a.c - b.c, a.d - b.d, a.e - b.e, a.f - b.f, a.g - b.g, a.h - b.h);
+  return a / f;
 }
 
 ccl_device_inline float8 operator+=(float8 &a, const float8 &b)

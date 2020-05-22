@@ -480,11 +480,6 @@ ccl_device_inline float average(const float3 a)
   return reduce_add_f(a) / 3.0f;
 }
 
-ccl_device_inline float3 load_float3(const float *v)
-{
-  return make_float3(v[0], v[1], v[2]);
-}
-
 ccl_device_inline bool isequal(const float3 a, const float3 b)
 {
 #ifdef __KERNEL_OPENCL__
