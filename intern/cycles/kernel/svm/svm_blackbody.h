@@ -53,6 +53,7 @@ ccl_device void svm_node_blackbody(
 {
   /* Input */
   float temperature = stack_load_float(stack, temperature_offset);
+  temperature = max(0.0f, temperature);
 
   float peak_wavelength = clamp(b / temperature, 360.0e-9f, 730.0e-9f);
   float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
@@ -61,6 +62,7 @@ ccl_device void svm_node_blackbody(
       blackbody_intensity(temperature, state->wavelengths.x * 1e-9f) / peak_intensity,
       blackbody_intensity(temperature, state->wavelengths.y * 1e-9f) / peak_intensity,
       blackbody_intensity(temperature, state->wavelengths.z * 1e-9f) / peak_intensity);
+  spectral = saturate3(spectral);
 
   stack_store_float3(stack, col_offset, spectral);
 }
