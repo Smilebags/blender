@@ -38,8 +38,10 @@
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_memarena.h"
 #include "BLI_string.h"
+#include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -176,7 +178,19 @@ static bool menu_items_from_ui_create_item_from_button(struct MenuSearch_Data *d
                                                        struct MenuSearch_Context *wm_context)
 {
   struct MenuSearch_Item *item = NULL;
+
+  /* Use override if the name is empty, this can happen with popovers. */
+  const char *drawstr_override = NULL;
+  const char *drawstr_sep = (but->flag & UI_BUT_HAS_SEP_CHAR) ?
+                                strrchr(but->drawstr, UI_SEP_CHAR) :
+                                NULL;
+  const bool drawstr_is_empty = (drawstr_sep == but->drawstr) || (but->drawstr[0] == '\0');
+
   if (but->optype != NULL) {
+    if (drawstr_is_empty) {
+      drawstr_override = WM_operatortype_name(but->optype, but->opptr);
+    }
+
     item = BLI_memarena_calloc(memarena, sizeof(*item));
     item->type = MENU_SEARCH_TYPE_OP;
 
@@ -188,6 +202,25 @@ static bool menu_items_from_ui_create_item_from_button(struct MenuSearch_Data *d
   }
   else if (but->rnaprop != NULL) {
     const int prop_type = RNA_property_type(but->rnaprop);
+
+    if (drawstr_is_empty) {
+      if (prop_type == PROP_ENUM) {
+        const int value_enum = (int)but->hardmax;
+        EnumPropertyItem enum_item;
+        if (RNA_property_enum_item_from_value_gettexted(
+                but->block->evil_C, &but->rnapoin, but->rnaprop, value_enum, &enum_item)) {
+          drawstr_override = enum_item.name;
+        }
+        else {
+          /* Should never happen. */
+          drawstr_override = "Unknown";
+        }
+      }
+      else {
+        drawstr_override = RNA_property_ui_name(but->rnaprop);
+      }
+    }
+
     if (!ELEM(prop_type, PROP_BOOLEAN, PROP_ENUM)) {
       /* Note that these buttons are not prevented,
        * but aren't typically used in menus. */
@@ -212,7 +245,16 @@ static bool menu_items_from_ui_create_item_from_button(struct MenuSearch_Data *d
 
   if (item != NULL) {
     /* Handle shared settings. */
-    item->drawstr = strdup_memarena(memarena, but->drawstr);
+    if (drawstr_override != NULL) {
+      const char *drawstr_suffix = drawstr_sep ? drawstr_sep : "";
+      char *drawstr_alloc = BLI_string_joinN("(", drawstr_override, ")", drawstr_suffix);
+      item->drawstr = strdup_memarena(memarena, drawstr_alloc);
+      MEM_freeN(drawstr_alloc);
+    }
+    else {
+      item->drawstr = strdup_memarena(memarena, but->drawstr);
+    }
+
     item->icon = ui_but_icon(but);
     item->state = (but->flag &
                    (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_BUT_REDALERT | UI_BUT_HAS_SEP_CHAR));
@@ -360,7 +402,7 @@ static void menu_items_from_all_operators(bContext *C, struct MenuSearch_Data *d
       item->type = MENU_SEARCH_TYPE_OP;
 
       item->op.type = ot;
-      item->op.opcontext = WM_OP_EXEC_DEFAULT;
+      item->op.opcontext = WM_OP_INVOKE_DEFAULT;
       item->op.context = NULL;
 
       char idname_as_py[OP_MAX_TYPENAME];
@@ -996,6 +1038,61 @@ static bool ui_search_menu_create_context_menu(struct bContext *C,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Tooltip
+ * \{ */
+
+static struct ARegion *ui_search_menu_create_tooltip(struct bContext *C,
+                                                     struct ARegion *region,
+                                                     void *arg,
+                                                     void *active)
+{
+  struct MenuSearch_Data *data = arg;
+  struct MenuSearch_Item *item = active;
+
+  memset(&data->context_menu_data, 0x0, sizeof(data->context_menu_data));
+  uiBut *but = &data->context_menu_data.but;
+  uiBlock *block = &data->context_menu_data.block;
+  unit_m4(block->winmat);
+  block->aspect = 1;
+
+  but->block = block;
+
+  /* Place the fake button at the cursor so the tool-tip is places properly. */
+  float tip_init[2];
+  const wmEvent *event = CTX_wm_window(C)->eventstate;
+  tip_init[0] = event->x;
+  tip_init[1] = event->y - (UI_UNIT_Y / 2);
+  ui_window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
+
+  but->rect.xmin = tip_init[0];
+  but->rect.xmax = tip_init[0];
+  but->rect.ymin = tip_init[1];
+  but->rect.ymax = tip_init[1];
+
+  if (menu_items_to_ui_button(item, but)) {
+    ScrArea *area_prev = CTX_wm_area(C);
+    ARegion *region_prev = CTX_wm_region(C);
+
+    if (item->wm_context != NULL) {
+      CTX_wm_area_set(C, item->wm_context->area);
+      CTX_wm_region_set(C, item->wm_context->region);
+    }
+
+    ARegion *region_tip = UI_tooltip_create_from_button(C, region, but, false);
+
+    if (item->wm_context != NULL) {
+      CTX_wm_area_set(C, area_prev);
+      CTX_wm_region_set(C, region_prev);
+    }
+    return region_tip;
+  }
+
+  return NULL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Menu Search Template Public API
  * \{ */
 
@@ -1019,6 +1116,7 @@ void UI_but_func_menu_search(uiBut *but)
                          NULL);
 
   UI_but_func_search_set_context_menu(but, ui_search_menu_create_context_menu);
+  UI_but_func_search_set_tooltip(but, ui_search_menu_create_tooltip);
   UI_but_func_search_set_sep_string(but, MENU_SEP);
 }
 

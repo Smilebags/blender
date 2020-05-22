@@ -825,13 +825,9 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, bool is
       }
     }
     else if (!edit_2d) {
-      if (cmode == axis) {
+      if (t->orientation.index == 0 || ELEM(cmode, '\0', axis)) {
         /* Successive presses on existing axis, cycle orientation modes. */
         t->orientation.index = (t->orientation.index + 1) % ARRAY_SIZE(t->orientation.types);
-        initTransformOrientation(t->context, t, t->orientation.types[t->orientation.index]);
-      }
-      else if (t->orientation.index != 1) {
-        t->orientation.index = 1;
         initTransformOrientation(t->context, t, t->orientation.types[t->orientation.index]);
       }
 
@@ -900,12 +896,46 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_TRANSLATE:
         /* only switch when... */
-        if (ELEM(t->mode,
-                 TFM_ROTATION,
-                 TFM_RESIZE,
-                 TFM_TRACKBALL,
-                 TFM_EDGE_SLIDE,
-                 TFM_VERT_SLIDE)) {
+        if (t->mode == TFM_TRANSLATION) {
+          if ((t->obedit_type == OB_MESH) && (t->spacetype == SPACE_VIEW3D)) {
+            restoreTransObjects(t);
+            resetTransModal(t);
+            resetTransRestrictions(t);
+
+            /* first try edge slide */
+            transform_mode_init(t, NULL, TFM_EDGE_SLIDE);
+            /* if that fails, do vertex slide */
+            if (t->state == TRANS_CANCEL) {
+              resetTransModal(t);
+              t->state = TRANS_STARTING;
+              transform_mode_init(t, NULL, TFM_VERT_SLIDE);
+            }
+            /* vert slide can fail on unconnected vertices (rare but possible) */
+            if (t->state == TRANS_CANCEL) {
+              resetTransModal(t);
+              t->state = TRANS_STARTING;
+              restoreTransObjects(t);
+              resetTransRestrictions(t);
+              transform_mode_init(t, NULL, TFM_TRANSLATION);
+            }
+            initSnapping(t, NULL);  // need to reinit after mode change
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+          else if (t->options & (CTX_MOVIECLIP | CTX_MASK)) {
+            restoreTransObjects(t);
+
+            t->flag ^= T_ALT_TRANSFORM;
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+        }
+        else if (t->mode == TFM_SEQ_SLIDE) {
+          t->flag ^= T_ALT_TRANSFORM;
+          t->redraw |= TREDRAW_HARD;
+          handled = true;
+        }
+        else if (transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -914,60 +944,11 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
-        else if (t->mode == TFM_SEQ_SLIDE) {
-          t->flag ^= T_ALT_TRANSFORM;
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        else {
-          if (t->obedit_type == OB_MESH) {
-            if ((t->mode == TFM_TRANSLATION) && (t->spacetype == SPACE_VIEW3D)) {
-              restoreTransObjects(t);
-              resetTransModal(t);
-              resetTransRestrictions(t);
-
-              /* first try edge slide */
-              transform_mode_init(t, NULL, TFM_EDGE_SLIDE);
-              /* if that fails, do vertex slide */
-              if (t->state == TRANS_CANCEL) {
-                resetTransModal(t);
-                t->state = TRANS_STARTING;
-                transform_mode_init(t, NULL, TFM_VERT_SLIDE);
-              }
-              /* vert slide can fail on unconnected vertices (rare but possible) */
-              if (t->state == TRANS_CANCEL) {
-                resetTransModal(t);
-                t->state = TRANS_STARTING;
-                restoreTransObjects(t);
-                resetTransRestrictions(t);
-                transform_mode_init(t, NULL, TFM_TRANSLATION);
-              }
-              initSnapping(t, NULL);  // need to reinit after mode change
-              t->redraw |= TREDRAW_HARD;
-              handled = true;
-            }
-          }
-          else if (t->options & (CTX_MOVIECLIP | CTX_MASK)) {
-            if (t->mode == TFM_TRANSLATION) {
-              restoreTransObjects(t);
-
-              t->flag ^= T_ALT_TRANSFORM;
-              t->redraw |= TREDRAW_HARD;
-              handled = true;
-            }
-          }
-        }
         break;
       case TFM_MODAL_ROTATE:
         /* only switch when... */
         if (!(t->options & CTX_TEXTURE) && !(t->options & (CTX_MOVIECLIP | CTX_MASK))) {
-          if (ELEM(t->mode,
-                   TFM_ROTATION,
-                   TFM_RESIZE,
-                   TFM_TRACKBALL,
-                   TFM_TRANSLATION,
-                   TFM_EDGE_SLIDE,
-                   TFM_VERT_SLIDE)) {
+          if (transform_mode_is_changeable(t->mode)) {
             restoreTransObjects(t);
             resetTransModal(t);
             resetTransRestrictions(t);
@@ -986,13 +967,21 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_RESIZE:
         /* only switch when... */
-        if (ELEM(t->mode,
-                 TFM_ROTATION,
-                 TFM_TRANSLATION,
-                 TFM_TRACKBALL,
-                 TFM_EDGE_SLIDE,
-                 TFM_VERT_SLIDE)) {
+        if (t->mode == TFM_RESIZE) {
+          if (t->options & CTX_MOVIECLIP) {
+            restoreTransObjects(t);
 
+            t->flag ^= T_ALT_TRANSFORM;
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+        }
+        else if (t->mode == TFM_SHRINKFATTEN) {
+          t->flag ^= T_ALT_TRANSFORM;
+          t->redraw |= TREDRAW_HARD;
+          handled = true;
+        }
+        else if (transform_mode_is_changeable(t->mode)) {
           /* Scale isn't normally very useful after extrude along normals, see T39756 */
           if ((t->con.mode & CON_APPLY) && (t->con.orientation == V3D_ORIENT_NORMAL)) {
             stopConstraint(t);
@@ -1005,20 +994,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
-        }
-        else if (t->mode == TFM_SHRINKFATTEN) {
-          t->flag ^= T_ALT_TRANSFORM;
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        else if (t->mode == TFM_RESIZE) {
-          if (t->options & CTX_MOVIECLIP) {
-            restoreTransObjects(t);
-
-            t->flag ^= T_ALT_TRANSFORM;
-            t->redraw |= TREDRAW_HARD;
-            handled = true;
-          }
         }
         break;
 
@@ -1233,7 +1208,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           break;
         }
         /* only switch when... */
-        if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
+        if (t->mode != TFM_TRANSLATION && transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -1248,7 +1223,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           break;
         }
         /* only switch when... */
-        if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL)) {
+        if (t->mode != TFM_RESIZE && transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -1264,7 +1239,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         /* only switch when... */
         if (!(t->options & CTX_TEXTURE)) {
-          if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION)) {
+          if (transform_mode_is_changeable(t->mode)) {
             restoreTransObjects(t);
             resetTransModal(t);
             resetTransRestrictions(t);
@@ -1618,6 +1593,17 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
   ToolSettings *ts = CTX_data_tool_settings(C);
   int proportional = 0;
   PropertyRNA *prop;
+
+  if (!(t->con.mode & CON_APPLY) && (t->flag & T_MODAL) &&
+      ELEM(t->mode, TFM_TRANSLATION, TFM_RESIZE)) {
+    /* When redoing these modes the first time, it's more convenient to save
+     * the Global orientation. */
+    mul_m3_v3(t->spacemtx, t->values_final);
+    unit_m3(t->spacemtx);
+
+    BLI_assert(t->orientation.index == 0);
+    t->orientation.types[0] = V3D_ORIENT_GLOBAL;
+  }
 
   // Save back mode in case we're in the generic operator
   if ((prop = RNA_struct_find_property(op->ptr, "mode"))) {

@@ -16,6 +16,13 @@ roles:
   texture_paint: sRGB Colourspace
   xyz: Linear XYZ IE
 
+  # Specifed by OCIO, not used in Blender
+  color_timing: Filmic Log
+  compositing_log: Filmic Log
+  default: Linear
+  matte_paint: Linear
+  texture_paint: Linear
+
 displays:
   sRGB-Like Commodity Display:
     - !<View> {name: Display Native, colorspace: BT.709 2.2 CCTF Colourspace}

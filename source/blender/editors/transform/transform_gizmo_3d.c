@@ -347,7 +347,7 @@ static void gizmo_get_axis_color(const int axis_idx,
   if (axis_idx >= MAN_AXIS_RANGE_ROT_START && axis_idx < MAN_AXIS_RANGE_ROT_END) {
     /* Never fade rotation rings. */
     /* trackball rotation axis is a special case, we only draw a slight overlay */
-    alpha_fac = (axis_idx == MAN_AXIS_ROT_T) ? 0.1f : 1.0f;
+    alpha_fac = (axis_idx == MAN_AXIS_ROT_T) ? 0.05f : 1.0f;
   }
   else {
     bool is_plane = false;
@@ -713,7 +713,9 @@ void ED_transform_calc_orientation_from_type_ex(const bContext *C,
       ok = true;
       break;
     }
-    case V3D_ORIENT_CUSTOM: {
+    case V3D_ORIENT_CUSTOM:
+    default: {
+      BLI_assert(orientation_type >= V3D_ORIENT_CUSTOM);
       TransformOrientation *custom_orientation = BKE_scene_transform_orientation_find(
           scene, orientation_index_custom);
       if (applyTransformOrientation(custom_orientation, r_mat, NULL)) {
@@ -1402,7 +1404,7 @@ void drawDial3d(const TransInfo *t)
     }
     else {
       axis_idx = MAN_AXIS_ROT_C;
-      negate_v3_v3(mat_basis[2], t->spacemtx[t->orient_axis]);
+      copy_v3_v3(mat_basis[2], t->spacemtx[t->orient_axis]);
       scale *= 1.2f;
       line_with -= 1.0f;
     }
@@ -2199,6 +2201,15 @@ static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmGizmoGroup *gzgr
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
   }
   else {
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Object *ob = OBACT(view_layer);
+    if (ob && ob->mode & OB_MODE_EDIT) {
+      copy_m4_m4(gz->matrix_space, ob->obmat);
+    }
+    else {
+      unit_m4(gz->matrix_space);
+    }
+
     gizmo_prepare_mat(C, rv3d, &tbounds);
 
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
@@ -2256,15 +2267,6 @@ static void WIDGETGROUP_xform_cage_message_subscribe(const bContext *C,
 static void WIDGETGROUP_xform_cage_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct XFormCageWidgetGroup *xgzgroup = gzgroup->customdata;
-  wmGizmo *gz = xgzgroup->gizmo;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob = OBACT(view_layer);
-  if (ob && ob->mode & OB_MODE_EDIT) {
-    copy_m4_m4(gz->matrix_space, ob->obmat);
-  }
-  else {
-    unit_m4(gz->matrix_space);
-  }
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   {
