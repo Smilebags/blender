@@ -285,7 +285,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg,
 ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
                                                  ccl_global float *buffer,
                                                  PathRadiance *L,
-                                                 float *wavelengths)
+                                                 SpectralColor wavelengths)
 {
 #ifdef __PASSES__
   int light_flag = kernel_data.film.light_pass_flag;
@@ -352,8 +352,11 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
 #endif
 }
 
-ccl_device_inline void kernel_write_result(
-    KernelGlobals *kg, ccl_global float *buffer, int sample, PathRadiance *L, float *wavelengths)
+ccl_device_inline void kernel_write_result(KernelGlobals *kg,
+                                           ccl_global float *buffer,
+                                           int sample,
+                                           PathRadiance *L,
+                                           SpectralColor wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_WRITE_RESULT);
   PROFILING_OBJECT(PRIM_NONE);

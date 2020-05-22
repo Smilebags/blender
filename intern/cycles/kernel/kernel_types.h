@@ -1067,7 +1067,7 @@ typedef struct PathState {
 #endif
 
   /* spectral rendering */
-  float wavelengths[CHANNELS_PER_RAY];
+  SpectralColor wavelengths;
 } PathState;
 
 #ifdef __VOLUME__

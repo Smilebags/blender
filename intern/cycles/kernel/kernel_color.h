@@ -587,7 +587,7 @@ ccl_device float3 wavelength_to_xyz(float wavelength)
 
 ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
                                                      SpectralColor intensities,
-                                                     float *wavelengths)
+                                                     SpectralColor wavelengths)
 {
   float3 xyz_sum = make_float3(0.0f);
   FOR_EACH_CHANNEL(i)
@@ -600,7 +600,7 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
   return xyz_to_rgb(kg, xyz_sum);
 }
 
-ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float *wavelengths)
+ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, SpectralColor wavelengths)
 {
 
   SpectralColor intensities;
