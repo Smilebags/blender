@@ -46,7 +46,7 @@ ccl_device_inline float blackbody_intensity(float temperature, float wavelength)
   float wavelength_i5 = wavelength_i2 * wavelength_i2 * wavelength_i;
 
   float intensity = (2 * h * c * c * wavelength_i5) /
-                    (exp(h * c / (kb * wavelength * temperature)) - 1.0f);
+                    expm1f(h * c / (kb * wavelength * temperature));
 
   return intensity;
 }
@@ -58,7 +58,7 @@ ccl_device_inline SpectralColor blackbody_intensity(float temperature, SpectralC
   SpectralColor wavelengths_i5 = wavelengths_i2 * wavelengths_i2 * wavelengths_i;
 
   SpectralColor intensity = (2 * h * c * c * wavelengths_i5) /
-                            (exp(h * c / (kb * wavelengths * temperature)) - 1.0f);
+                            expm1(h * c / (kb * wavelengths * temperature));
 
   return intensity;
 }
