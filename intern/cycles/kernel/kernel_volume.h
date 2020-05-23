@@ -106,13 +106,12 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
 
 ccl_device SpectralColor volume_color_transmittance(SpectralColor sigma, float t)
 {
-  return exp_s(-sigma * t);
+  return exp(-sigma * t);
 }
 
 ccl_device float kernel_volume_channel_get(SpectralColor value, int channel)
 {
   return value[channel];
-  //   return (channel == 0) ? value.x : ((channel == 1) ? value.y : value.z);
 }
 
 #ifdef __VOLUME__
@@ -262,10 +261,10 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
 
       sum += (-sigma_t * (new_t - t));
       if ((i & 0x07) == 0) { /* ToDo: Other interval? */
-        tp = *throughput * exp_s(sum);
+        tp = *throughput * exp(sum);
 
         /* stop if nearly all light is blocked */
-        if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
+        if (reduce_max_f(tp) < tp_eps)
           break;
       }
     }
@@ -274,7 +273,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
     t = new_t;
     if (t == ray->t) {
       /* Update throughput in case we haven't done it above */
-      tp = *throughput * exp_s(sum);
+      tp = *throughput * exp(sum);
       break;
     }
   }
@@ -366,8 +365,7 @@ ccl_device float kernel_volume_distance_sample(float max_t,
   float sample_t = min(max_t, -logf(1.0f - xi * (1.0f - sample_transmittance)) / sample_sigma_t);
 
   *transmittance = volume_color_transmittance(sigma_t, sample_t);
-  *pdf = safe_divide_color(sigma_t * *transmittance,
-                           make_spectral_color(1.0f) - full_transmittance);
+  *pdf = safe_divide(sigma_t * *transmittance, make_spectral_color(1.0f) - full_transmittance);
 
   /* todo: optimization: when taken together with hit/miss decision,
    * the full_transmittance cancels out drops out and xi does not
@@ -383,8 +381,7 @@ ccl_device SpectralColor kernel_volume_distance_pdf(float max_t,
   SpectralColor full_transmittance = volume_color_transmittance(sigma_t, max_t);
   SpectralColor transmittance = volume_color_transmittance(sigma_t, sample_t);
 
-  return safe_divide_color(sigma_t * transmittance,
-                           make_spectral_color(1.0f) - full_transmittance);
+  return safe_divide(sigma_t * transmittance, make_spectral_color(1.0f) - full_transmittance);
 }
 
 /* Emission */
@@ -403,12 +400,14 @@ ccl_device SpectralColor kernel_volume_emission_integrate(VolumeShaderCoefficien
   if (closure_flag & SD_EXTINCTION) {
     SpectralColor sigma_t = coeff->sigma_t;
 
-    emission.x *= (sigma_t.x > 0.0f) ? (1.0f - transmittance.x) / sigma_t.x : distance;
-    emission.y *= (sigma_t.y > 0.0f) ? (1.0f - transmittance.y) / sigma_t.y : distance;
-    emission.z *= (sigma_t.z > 0.0f) ? (1.0f - transmittance.z) / sigma_t.z : distance;
+    FOR_EACH_CHANNEL(i)
+    {
+      emission[i] *= (sigma_t[i] > 0.0f) ? (1.0f - transmittance[i]) / sigma_t[i] : distance;
+    }
   }
-  else
+  else {
     emission *= distance;
+  }
 
   return emission;
 }
@@ -426,28 +425,29 @@ ccl_device int kernel_volume_sample_channel(SpectralColor albedo,
    * "Practical and Controllable Subsurface Scattering for Production Path
    *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
   SpectralColor weights = fabs(throughput * albedo);
-  float sum_weights = weights.x + weights.y + weights.z;
+  float sum_weights = reduce_add_f(weights);
   SpectralColor weights_pdf;
 
   if (sum_weights > 0.0f) {
     weights_pdf = weights / sum_weights;
   }
   else {
-    weights_pdf = make_spectral_color(1.0f / WAVELENGTHS_PER_RAY);
+    weights_pdf = make_spectral_color(1.0f / CHANNELS_PER_RAY);
   }
 
   *pdf = weights_pdf;
 
   /* OpenCL does not support -> on float3, so don't use pdf->x. */
-  if (rand < weights_pdf.x) {
-    return 0;
+  float sum = 0.0f;
+  FOR_EACH_CHANNEL(i)
+  {
+    sum += weights_pdf[i];
+    if (rand < sum) {
+      return i;
+    }
   }
-  else if (rand < weights_pdf.x + weights_pdf.y) {
-    return 1;
-  }
-  else {
-    return 2;
-  }
+
+  return CHANNELS_PER_RAY - 1;
 }
 
 #ifdef __VOLUME__
@@ -477,7 +477,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
   if (closure_flag & SD_SCATTER) {
     /* Sample channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
-    SpectralColor albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+    SpectralColor albedo = safe_divide(coeff.sigma_s, coeff.sigma_t);
     SpectralColor channel_pdf;
     int channel = kernel_volume_sample_channel(albedo, *throughput, rphase, &channel_pdf);
 
@@ -539,10 +539,7 @@ kernel_volume_integrate_homogeneous(KernelGlobals *kg,
     SpectralColor transmittance = volume_color_transmittance(coeff.sigma_t, ray->t);
     SpectralColor emission = kernel_volume_emission_integrate(
         &coeff, closure_flag, transmittance, ray->t);
-
-    // RGBColor rgb_emission = wavelength_intensities_to_linear(
-    //     kg, emission, state->wavelengths * *throughput);
-    path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
+    path_radiance_accum_emission(kg, L, state, *throughput, emission);
   }
 
   /* modify throughput */
@@ -619,7 +616,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
         has_scatter = true;
 
         /* Sample channel, use MIS with balance heuristic. */
-        SpectralColor albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+        SpectralColor albedo = safe_divide(coeff.sigma_s, coeff.sigma_t);
         SpectralColor channel_pdf;
         int channel = kernel_volume_sample_channel(albedo, tp, rphase, &channel_pdf);
 
@@ -668,9 +665,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
       if (L && (closure_flag & SD_EMISSION)) {
         SpectralColor emission = kernel_volume_emission_integrate(
             &coeff, closure_flag, transmittance, dt);
-        // RGBColor rgb_emission = wavelength_intensities_to_linear(
-        //     kg, emission, state->wavelengths * tp);
-        path_radiance_accum_emission(kg, L, state, make_spectral_color(1.0f), emission);
+        path_radiance_accum_emission(kg, L, state, tp, emission);
       }
 
       /* modify throughput */
@@ -678,7 +673,7 @@ kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
         tp = new_tp;
 
         /* stop if nearly all light blocked */
-        if (tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
+        if (reduce_max_f(tp) < tp_eps) {
           tp = make_spectral_color(0.0f);
           break;
         }
@@ -852,7 +847,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
 
       /* compute average albedo for channel sampling */
       if (closure_flag & SD_SCATTER) {
-        accum_albedo += dt * safe_divide_color(coeff.sigma_s, sigma_t);
+        accum_albedo += dt * safe_divide(coeff.sigma_s, sigma_t);
       }
 
       /* compute accumulated transmittance */
@@ -908,8 +903,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
       break;
 
     /* stop if nearly all light blocked */
-    if (accum_transmittance.x < tp_eps && accum_transmittance.y < tp_eps &&
-        accum_transmittance.z < tp_eps)
+    if (reduce_max_f(accum_transmittance) < tp_eps)
       break;
   }
 
@@ -924,7 +918,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg,
   if (!is_zero(last_step->cdf_distance)) {
     VolumeStep *step = &segment->steps[0];
     int numsteps = segment->numsteps;
-    SpectralColor inv_cdf_distance_sum = safe_invert_color(last_step->cdf_distance);
+    SpectralColor inv_cdf_distance_sum = safe_rcp(last_step->cdf_distance);
 
     for (int i = 0; i < numsteps; i++, step++)
       step->cdf_distance *= inv_cdf_distance_sum;

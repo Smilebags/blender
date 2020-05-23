@@ -367,7 +367,7 @@ bool RenderBuffers::get_pass_rect(
           float3 f = make_float3(in[0], in[1], in[2]);
           float3 f_divide = make_float3(in_divide[0], in_divide[1], in_divide[2]);
 
-          f = safe_divide_even_color(f * exposure, f_divide);
+          f = safe_divide_even(f * exposure, f_divide);
 
           pixels[0] = f.x;
           pixels[1] = f.y;
@@ -450,6 +450,40 @@ bool RenderBuffers::get_pass_rect(
           /* clamp since alpha might be > 1.0 due to russian roulette */
           pixels[3] = saturate(f.w * scale);
         }
+      }
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+bool RenderBuffers::set_pass_rect(PassType type, int components, float *pixels)
+{
+  if (buffer.data() == NULL) {
+    return false;
+  }
+
+  int pass_offset = 0;
+
+  for (size_t j = 0; j < params.passes.size(); j++) {
+    Pass &pass = params.passes[j];
+
+    if (pass.type != type) {
+      pass_offset += pass.components;
+      continue;
+    }
+
+    float *out = buffer.data() + pass_offset;
+    int pass_stride = params.get_passes_size();
+    int size = params.width * params.height;
+
+    assert(pass.components == components);
+
+    for (int i = 0; i < size; i++, out += pass_stride, pixels += components) {
+      for (int j = 0; j < components; j++) {
+        out[j] = pixels[j];
       }
     }
 

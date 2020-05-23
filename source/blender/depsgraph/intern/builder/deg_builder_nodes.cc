@@ -34,7 +34,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-extern "C" {
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -98,6 +97,7 @@ extern "C" {
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
+#include "BKE_simulation.h"
 #include "BKE_sound.h"
 #include "BKE_tracking.h"
 #include "BKE_volume.h"
@@ -105,7 +105,6 @@ extern "C" {
 
 #include "RNA_access.h"
 #include "RNA_types.h"
-} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -1151,8 +1150,8 @@ void DepsgraphNodeBuilder::build_particle_systems(Object *object, bool is_object
    *     evaluation context for an object. It acts as the container
    *     for all the nodes associated with a particular set of particle
    *     systems.
-   *  2) Particle System Eval Operation - This operation node acts as a
-   *     blackbox evaluation step for one particle system referenced by
+   *  2) Particle System Evaluation Operation - This operation node acts as a
+   *     black-box evaluation step for one particle system referenced by
    *     the particle systems stack. All dependencies link to this operation. */
   /* Component for all particle systems. */
   ComponentNode *psys_comp = add_component_node(&object->id, NodeType::PARTICLE_SYSTEM);
@@ -1403,7 +1402,11 @@ void DepsgraphNodeBuilder::build_armature(bArmature *armature)
   build_animdata(&armature->id);
   build_parameters(&armature->id);
   /* Make sure pose is up-to-date with armature updates. */
-  add_operation_node(&armature->id, NodeType::ARMATURE, OperationCode::ARMATURE_EVAL);
+  bArmature *armature_cow = (bArmature *)get_cow_id(&armature->id);
+  add_operation_node(&armature->id,
+                     NodeType::ARMATURE,
+                     OperationCode::ARMATURE_EVAL,
+                     function_bind(BKE_armature_refresh_layer_used, _1, armature_cow));
   build_armature_bones(&armature->bonebase);
 }
 
@@ -1755,6 +1758,11 @@ void DepsgraphNodeBuilder::build_simulation(Simulation *simulation)
   add_id_node(&simulation->id);
   build_animdata(&simulation->id);
   build_parameters(&simulation->id);
+
+  add_operation_node(&simulation->id,
+                     NodeType::SIMULATION,
+                     OperationCode::SIMULATION_EVAL,
+                     function_bind(BKE_simulation_data_update, _1, get_cow_datablock(scene_)));
 }
 
 void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)

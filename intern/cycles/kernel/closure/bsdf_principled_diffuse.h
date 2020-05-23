@@ -66,7 +66,7 @@ ccl_device bool bsdf_principled_diffuse_merge(const ShaderClosure *a, const Shad
   const PrincipledDiffuseBsdf *bsdf_a = (const PrincipledDiffuseBsdf *)a;
   const PrincipledDiffuseBsdf *bsdf_b = (const PrincipledDiffuseBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N) && bsdf_a->roughness == bsdf_b->roughness);
+  return (isequal(bsdf_a->N, bsdf_b->N) && bsdf_a->roughness == bsdf_b->roughness);
 }
 
 ccl_device SpectralColor bsdf_principled_diffuse_eval_reflect(const ShaderClosure *sc,

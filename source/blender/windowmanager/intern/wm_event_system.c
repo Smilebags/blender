@@ -524,8 +524,7 @@ void wm_event_do_notifiers(bContext *C)
           ED_region_do_listen(win, NULL, region, note, scene);
         }
 
-        ED_screen_areas_iter(win, screen, area)
-        {
+        ED_screen_areas_iter (win, screen, area) {
           ED_area_do_listen(win, area, note, scene);
           for (region = area->regionbase.first; region; region = region->next) {
             ED_region_do_listen(win, area, region, note, scene);
@@ -564,7 +563,7 @@ void wm_event_do_notifiers(bContext *C)
 static int wm_event_always_pass(const wmEvent *event)
 {
   /* some events we always pass on, to ensure proper communication */
-  return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
+  return ISTIMER(event->type) || (event->type == WINDEACTIVATE) || (event->type == EVT_FILESELECT);
 }
 
 /** \} */
@@ -641,11 +640,11 @@ static int wm_handler_ui_call(bContext *C,
   return WM_HANDLER_CONTINUE;
 }
 
-static void wm_handler_ui_cancel(bContext *C)
+void wm_event_handler_ui_cancel_ex(bContext *C,
+                                   wmWindow *win,
+                                   ARegion *region,
+                                   bool reactivate_button)
 {
-  wmWindow *win = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
-
   if (!region) {
     return;
   }
@@ -657,9 +656,17 @@ static void wm_handler_ui_cancel(bContext *C)
       wmEvent event;
       wm_event_init_from_window(win, &event);
       event.type = EVT_BUT_CANCEL;
+      event.val = reactivate_button ? 0 : 1;
       handler->handle_fn(C, &event, handler->user_data);
     }
   }
+}
+
+static void wm_event_handler_ui_cancel(bContext *C)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
+  wm_event_handler_ui_cancel_ex(C, win, region, true);
 }
 
 /** \} */
@@ -1366,7 +1373,7 @@ static int wm_operator_invoke(bContext *C,
        * while dragging the view or worse, that stay there permanently
        * after the modal operator has swallowed all events and passed
        * none to the UI handler */
-      wm_handler_ui_cancel(C);
+      wm_event_handler_ui_cancel(C);
     }
     else {
       WM_operator_free(op);
@@ -1655,8 +1662,7 @@ static void wm_handler_op_context(bContext *C, wmEventHandler_Op *handler, const
     else {
       ScrArea *area = NULL;
 
-      ED_screen_areas_iter(win, screen, area_iter)
-      {
+      ED_screen_areas_iter (win, screen, area_iter) {
         if (area_iter == handler->context.area) {
           area = area_iter;
           break;
@@ -2663,6 +2669,12 @@ static int wm_handlers_do_gizmo_handler(bContext *C,
   return action;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Handle Single Event (All Handler Types)
+ * \{ */
+
 static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers)
 {
   const bool do_debug_handler =
@@ -2954,7 +2966,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
     else {
       wmWindow *win = CTX_wm_window(C);
       if (win) {
-        if (ISKEYMODIFIER(win->eventstate->prevtype)) {
+        if (ISKEYMODIFIER(win->eventstate->type)) {
           win->eventstate->check_click = 0;
         }
       }
@@ -2963,6 +2975,14 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 
   return action;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Event Queue Utilities
+ *
+ * Utilities used by #wm_event_do_handlers.
+ * \{ */
 
 static bool wm_event_inside_rect(const wmEvent *event, const rcti *rect)
 {
@@ -2989,8 +3009,7 @@ static ScrArea *area_event_inside(bContext *C, const int xy[2])
   bScreen *screen = CTX_wm_screen(C);
 
   if (screen) {
-    ED_screen_areas_iter(win, screen, area)
-    {
+    ED_screen_areas_iter (win, screen, area) {
       if (BLI_rcti_isect_pt_v(&area->totrct, xy)) {
         return area;
       }
@@ -3128,6 +3147,14 @@ static void wm_event_free_and_remove_from_queue_if_valid(wmEvent *event)
     }
   }
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Main Event Queue (Every Window)
+ *
+ * Handle events for all windows, run from the #WM_main event loop.
+ * \{ */
 
 /* called in main loop */
 /* goes over entire hierarchy:  events -> window -> screen -> area -> region */
@@ -3287,8 +3314,7 @@ void wm_event_do_handlers(bContext *C)
         }
 #endif
 
-        ED_screen_areas_iter(win, screen, area)
-        {
+        ED_screen_areas_iter (win, screen, area) {
           /* after restoring a screen from SCREENMAXIMIZED we have to wait
            * with the screen handling till the region coordinates are updated */
           if (screen->skip_handling == true) {
@@ -3438,19 +3464,13 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   const bool is_temp_screen = WM_window_is_temp_screen(win);
-  const bool opens_window = (U.filebrowser_display_type == USER_TEMP_SPACE_DISPLAY_WINDOW);
-  /* Don't add the file handler to the temporary window if one is opened, or else it owns the
-   * handlers for itself, causing dangling pointers once it's destructed through a handler. It has
-   * a parent which should hold the handlers itself. */
-  ListBase *modalhandlers = (is_temp_screen && opens_window) ? &win->parent->modalhandlers :
-                                                               &win->modalhandlers;
 
   /* Close any popups, like when opening a file browser from the splash. */
-  UI_popup_handlers_remove_all(C, modalhandlers);
+  UI_popup_handlers_remove_all(C, &win->modalhandlers);
 
   if (!is_temp_screen) {
     /* only allow 1 file selector open per window */
-    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, modalhandlers) {
+    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, &win->modalhandlers) {
       if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->is_fileselect == false) {
@@ -3460,8 +3480,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
         bool cancel_handler = true;
 
         /* find the area with the file selector for this handler */
-        ED_screen_areas_iter(win, screen, area)
-        {
+        ED_screen_areas_iter (win, screen, area) {
           if (area->spacetype == SPACE_FILE) {
             SpaceFile *sfile = area->spacedata.first;
 
@@ -3492,7 +3511,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   handler->context.area = CTX_wm_area(C);
   handler->context.region = CTX_wm_region(C);
 
-  BLI_addhead(modalhandlers, handler);
+  BLI_addhead(&win->modalhandlers, handler);
 
   /* check props once before invoking if check is available
    * ensures initial properties are valid */
@@ -4167,6 +4186,19 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
   }
 }
 
+static const wmTabletData wm_event_tablet_data_default = {
+    .active = EVT_TABLET_NONE,
+    .pressure = 1.0f,
+    .x_tilt = 0.0f,
+    .y_tilt = 0.0f,
+    .is_motion_absolute = false,
+};
+
+void WM_event_tablet_data_default_set(wmTabletData *tablet_data)
+{
+  *tablet_data = wm_event_tablet_data_default;
+}
+
 void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData *wmtab)
 {
   if ((tablet_data != NULL) && tablet_data->Active != GHOST_kTabletModeNone) {
@@ -4179,11 +4211,7 @@ void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData
     // printf("%s: using tablet %.5f\n", __func__, wmtab->pressure);
   }
   else {
-    wmtab->active = EVT_TABLET_NONE;
-    wmtab->pressure = 1.0f;
-    wmtab->x_tilt = 0.0f;
-    wmtab->y_tilt = 0.0f;
-    wmtab->is_motion_absolute = false;
+    *wmtab = wm_event_tablet_data_default;
     // printf("%s: not using tablet\n", __func__);
   }
 }
@@ -4954,8 +4982,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
   }
 
   ScrArea *area = NULL;
-  ED_screen_areas_iter(win, screen, area_iter)
-  {
+  ED_screen_areas_iter (win, screen, area_iter) {
     if (BLI_findindex(&area_iter->regionbase, region) != -1) {
       area = area_iter;
       break;

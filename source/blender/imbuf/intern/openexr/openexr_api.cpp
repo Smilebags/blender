@@ -75,7 +75,7 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 {
 }
 #endif
-
+}
 #include "BLI_blenlib.h"
 #include "BLI_math_color.h"
 #include "BLI_threads.h"
@@ -84,17 +84,13 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 #include "BKE_image.h"
 
 #include "IMB_allocimbuf.h"
+#include "IMB_colormanagement.h"
+#include "IMB_colormanagement_intern.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_metadata.h"
 
 #include "openexr_multi.h"
-}
-
-extern "C" {
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
-}
 
 using namespace Imf;
 using namespace Imath;
@@ -1602,8 +1598,8 @@ static ExrHandle *imb_exr_begin_read_mem(IStream &file_stream,
   for (lay = (ExrLayer *)data->layers.first; lay; lay = lay->next) {
     for (pass = (ExrPass *)lay->passes.first; pass; pass = pass->next) {
       if (pass->totchan) {
-        pass->rect = (float *)MEM_mapallocN(width * height * pass->totchan * sizeof(float),
-                                            "pass rect");
+        pass->rect = (float *)MEM_callocN(width * height * pass->totchan * sizeof(float),
+                                          "pass rect");
         if (pass->totchan == 1) {
           echan = pass->chan[0];
           echan->rect = pass->rect;

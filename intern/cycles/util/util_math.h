@@ -295,6 +295,11 @@ ccl_device_inline float mix(float a, float b, float t)
   return a + t * (b - a);
 }
 
+ccl_device_inline float exp(float f)
+{
+  return expf(f);
+}
+
 ccl_device_inline float smoothstep(float edge0, float edge1, float x)
 {
   float result;
@@ -446,6 +451,7 @@ CCL_NAMESPACE_END
 #include "util/util_math_float2.h"
 #include "util/util_math_float3.h"
 #include "util/util_math_float4.h"
+#include "util/util_math_float8.h"
 
 #include "util/util_math_spectral_color.h"
 
@@ -498,83 +504,6 @@ ccl_device_inline void make_orthonormals(const float3 N, float3 *a, float3 *b)
 
   *a = normalize(*a);
   *b = cross(N, *a);
-}
-
-/* Color division */
-
-ccl_device_inline SpectralColor safe_invert_color(SpectralColor a)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    a[i] = (a[i] != 0.0f) ? 1.0f / a[i] : 0.0f;
-  }
-  return a;
-}
-
-ccl_device_inline SpectralColor safe_divide_color(SpectralColor a, SpectralColor b)
-{
-  SpectralColor color;
-
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    color[i] = (b[i] != 0.0f) ? a[i] / b[i] : 0.0f;
-  }
-
-  return color;
-}
-
-ccl_device_inline float3 safe_divide_color(float3 a, float3 b)
-{
-  float3 color;
-
-  color[0] = (b[0] != 0.0f) ? a[0] / b[0] : 0.0f;
-  color[1] = (b[1] != 0.0f) ? a[1] / b[1] : 0.0f;
-  color[2] = (b[2] != 0.0f) ? a[2] / b[2] : 0.0f;
-
-  return color;
-}
-
-ccl_device_inline SpectralColor safe_divide_even_color(SpectralColor a, SpectralColor b)
-{
-  SpectralColor s = safe_divide_color(a, b);
-  float f = reduce_add_spectral(s);
-
-  return make_spectral_color(f / WAVELENGTHS_PER_RAY);
-}
-
-ccl_device_inline float3 safe_divide_even_color(float3 a, float3 b)
-{
-  float3 s = safe_divide_color(a, b);
-  float f = s[0] + s[1] + s[2];
-
-  return make_float3(f / 3);
-}
-
-ccl_device_inline SpectralColor saturate(SpectralColor a)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    a[i] = clamp(a[i], 0.0f, 1.0f);
-  }
-  return a;
-}
-
-ccl_device_inline bool isequal(const SpectralColor a, const SpectralColor b)
-{
-  // #ifdef __KERNEL_OPENCL__
-  //   return all(a == b);
-  // #else
-  //   return a == b;
-  // #endif
-
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    if (a[i] != b[i]) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 /* Rotation of point around axis and angle */

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
@@ -366,6 +366,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   copy_masked_polys_to_new_mesh(
       *mesh, *result, vertex_map, edge_map, masked_poly_indices, new_loop_starts);
 
+  BKE_mesh_calc_edges_loose(result);
   /* Tag to recalculate normals later. */
   result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
 

@@ -27,16 +27,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline SpectralColor make_spectral_color(float value)
-{
-  SpectralColor spectral;
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    spectral[i] = value;
-  }
-  return spectral;
-}
-
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_TYPES_FLOAT4_IMPL_H__ */
+#endif /* __UTIL_TYPES_SPECTRAL_COLOR_IMPL_H__ */

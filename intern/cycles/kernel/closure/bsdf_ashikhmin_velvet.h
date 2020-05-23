@@ -59,7 +59,7 @@ ccl_device bool bsdf_ashikhmin_velvet_merge(const ShaderClosure *a, const Shader
   const VelvetBsdf *bsdf_a = (const VelvetBsdf *)a;
   const VelvetBsdf *bsdf_b = (const VelvetBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N)) && (bsdf_a->sigma == bsdf_b->sigma);
+  return (isequal(bsdf_a->N, bsdf_b->N)) && (bsdf_a->sigma == bsdf_b->sigma);
 }
 
 ccl_device SpectralColor bsdf_ashikhmin_velvet_eval_reflect(const ShaderClosure *sc,

@@ -145,4 +145,6 @@ template<typename T> static inline T decltype_helper(T x)
 #  define util_assert(statement)
 #endif
 
+#define CAT(a, ...) a##__VA_ARGS__
+
 #endif /* __UTIL_DEFINES_H__ */

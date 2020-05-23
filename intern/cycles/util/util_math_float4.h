@@ -52,6 +52,7 @@ ccl_device_inline float distance(const float4 &a, const float4 &b);
 ccl_device_inline float dot(const float4 &a, const float4 &b);
 ccl_device_inline float len_squared(const float4 &a);
 ccl_device_inline float4 rcp(const float4 &a);
+ccl_device_inline float4 safe_rcp(const float4 &a);
 ccl_device_inline float4 sqrt(const float4 &a);
 ccl_device_inline float4 sqr(const float4 &a);
 ccl_device_inline float4 cross(const float4 &a, const float4 &b);
@@ -68,7 +69,9 @@ ccl_device_inline float4 floor(const float4 &a);
 ccl_device_inline float4 mix(const float4 &a, const float4 &b, float t);
 #endif /* !__KERNEL_OPENCL__*/
 
-ccl_device_inline float4 safe_divide_float4_float(const float4 a, const float b);
+ccl_device_inline float4 safe_divide(const float4 a, const float b);
+ccl_device_inline float4 safe_divide(const float4 a, const float4 b);
+ccl_device_inline float4 safe_divide_even(const float4 a, const float4 b);
 
 #ifdef __KERNEL_SSE__
 template<size_t index_0, size_t index_1, size_t index_2, size_t index_3>
@@ -92,6 +95,13 @@ ccl_device_inline float4 select(const int4 &mask, const float4 &a, const float4 
 ccl_device_inline float4 reduce_min(const float4 &a);
 ccl_device_inline float4 reduce_max(const float4 &a);
 ccl_device_inline float4 reduce_add(const float4 &a);
+
+ccl_device_inline float reduce_min_f(const float4 &a);
+ccl_device_inline float reduce_max_f(const float4 &a);
+ccl_device_inline float reduce_add_f(const float4 &a);
+
+ccl_device_inline float4 saturate(const float4 &a);
+ccl_device_inline bool isequal(const float4 a, const float4 b);
 #endif /* !__KERNEL_GPU__ */
 
 /*******************************************************************************
@@ -264,6 +274,14 @@ ccl_device_inline float4 rcp(const float4 &a)
 #  endif
 }
 
+ccl_device_inline float4 safe_rcp(const float4 &a)
+{
+  return make_float4(a.x == 0.0f ? 0.0f : 1.0f / a.x,
+                     a.y == 0.0f ? 0.0f : 1.0f / a.y,
+                     a.z == 0.0f ? 0.0f : 1.0f / a.z,
+                     a.w == 0.0f ? 0.0f : 1.0f / a.w);
+}
+
 ccl_device_inline float4 sqrt(const float4 &a)
 {
 #  ifdef __KERNEL_SSE__
@@ -297,25 +315,9 @@ ccl_device_inline bool is_zero(const float4 &a)
 #  endif
 }
 
-ccl_device_inline float4 reduce_add(const float4 &a)
-{
-#  ifdef __KERNEL_SSE__
-#    ifdef __KERNEL_SSE3__
-  float4 h(_mm_hadd_ps(a.m128, a.m128));
-  return float4(_mm_hadd_ps(h.m128, h.m128));
-#    else
-  float4 h(shuffle<1, 0, 3, 2>(a) + a);
-  return shuffle<2, 3, 0, 1>(h) + h;
-#    endif
-#  else
-  float sum = (a.x + a.y) + (a.z + a.w);
-  return make_float4(sum, sum, sum, sum);
-#  endif
-}
-
 ccl_device_inline float average(const float4 &a)
 {
-  return reduce_add(a).x * 0.25f;
+  return reduce_add_f(a) / 4.0f;
 }
 
 ccl_device_inline float len(const float4 &a)
@@ -461,6 +463,50 @@ ccl_device_inline float4 reduce_max(const float4 &a)
 #  endif
 }
 
+ccl_device_inline float4 reduce_add(const float4 &a)
+{
+#  ifdef __KERNEL_SSE__
+#    ifdef __KERNEL_SSE3__
+  float4 h(_mm_hadd_ps(a.m128, a.m128));
+  return float4(_mm_hadd_ps(h.m128, h.m128));
+#    else
+  float4 h(shuffle<1, 0, 3, 2>(a) + a);
+  return shuffle<2, 3, 0, 1>(h) + h;
+#    endif
+#  else
+  return make_float4(a.x + a.y + a.z + a.w);
+#  endif
+}
+
+ccl_device_inline float reduce_min_f(const float4 &a)
+{
+  return reduce_min(a).x;
+}
+
+ccl_device_inline float reduce_max_f(const float4 &a)
+{
+  return reduce_max(a).x;
+}
+
+ccl_device_inline float reduce_add_f(const float4 &a)
+{
+  return reduce_add(a).x;
+}
+
+ccl_device_inline float4 saturate(const float4 &a)
+{
+  return clamp(a, make_float4(0.0f), make_float4(1.0f));
+}
+
+ccl_device_inline bool isequal(const float4 a, const float4 b)
+{
+#  ifdef __KERNEL_OPENCL__
+  return all(a == b);
+#  else
+  return a == b;
+#  endif
+}
+
 ccl_device_inline float4 load_float4(const float *v)
 {
 #  ifdef __KERNEL_SSE__
@@ -472,9 +518,40 @@ ccl_device_inline float4 load_float4(const float *v)
 
 #endif /* !__KERNEL_GPU__ */
 
-ccl_device_inline float4 safe_divide_float4_float(const float4 a, const float b)
+ccl_device_inline float4 safe_divide(const float4 a, const float b)
 {
   return (b != 0.0f) ? a / b : make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+ccl_device_inline float4 safe_divide(const float4 a, const float4 b)
+{
+  return make_float4((b.x != 0.0f) ? a.x / b.x : 0.0f,
+                     (b.y != 0.0f) ? a.y / b.y : 0.0f,
+                     (b.z != 0.0f) ? a.z / b.z : 0.0f,
+                     (b.w != 0.0f) ? a.w / b.w : 0.0f);
+}
+
+ccl_device_inline float4 safe_divide_even(const float4 a, const float4 b)
+{
+  return reduce_add(safe_divide(a, b)) / 4.0f;
+}
+
+ccl_device_inline float4 ensure_finite(float4 v)
+{
+  if (!isfinite_safe(v.x))
+    v.x = 0.0f;
+  if (!isfinite_safe(v.y))
+    v.y = 0.0f;
+  if (!isfinite_safe(v.z))
+    v.z = 0.0f;
+  if (!isfinite_safe(v.w))
+    v.w = 0.0f;
+  return v;
+}
+
+ccl_device_inline bool isfinite_safe(float4 v)
+{
+  return isfinite_safe(v.x) && isfinite_safe(v.y) && isfinite_safe(v.z) && isfinite_safe(v.w);
 }
 
 CCL_NAMESPACE_END

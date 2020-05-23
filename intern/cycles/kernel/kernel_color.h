@@ -567,19 +567,17 @@ ccl_device float3 find_position_in_lookup_unit_step(
     ccl_constant float lookup[][3], float position_to_find, int start, int end, int step)
 {
   if (UNLIKELY(position_to_find <= start)) {
-    return make_float3(lookup[0][0], lookup[0][1], lookup[0][2]);
+    return load_float3(lookup[0]);
   }
   if (UNLIKELY(position_to_find >= end)) {
     int i = (end - start) / step;
-    return make_float3(lookup[i][0], lookup[i][1], lookup[i][2]);
+    return load_float3(lookup[i]);
   }
 
   int lower_bound = (int(position_to_find) - start) / step;
   int upper_bound = lower_bound + 1;
   float progress = position_to_find - int(position_to_find);
-  return make_float3(float_lerp(lookup[lower_bound][0], lookup[upper_bound][0], progress),
-                     float_lerp(lookup[lower_bound][1], lookup[upper_bound][1], progress),
-                     float_lerp(lookup[lower_bound][2], lookup[upper_bound][2], progress));
+  return mix(load_float3(lookup[lower_bound]), load_float3(lookup[upper_bound]), progress);
 }
 
 ccl_device float3 wavelength_to_xyz(float wavelength)
@@ -589,30 +587,32 @@ ccl_device float3 wavelength_to_xyz(float wavelength)
 
 ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
                                                      SpectralColor intensities,
-                                                     float *wavelengths)
+                                                     SpectralColor wavelengths)
 {
   float3 xyz_sum = make_float3(0.0f);
-  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(wavelengths, i, wavelength)
+  FOR_EACH_CHANNEL(i)
   {
-    xyz_sum += wavelength_to_xyz(wavelength) * intensities[i];
+    xyz_sum += wavelength_to_xyz(wavelengths[i]) * intensities[i];
   }
+
+  xyz_sum *= 3.0f / CHANNELS_PER_RAY;
 
   return xyz_to_rgb(kg, xyz_sum);
 }
 
-ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, float *wavelengths)
+ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, SpectralColor wavelengths)
 {
 
   SpectralColor intensities;
-  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(wavelengths, i, wavelength)
+  FOR_EACH_CHANNEL(i)
   {
     // find position in lookup of wavelength
     float3 magnitudes = find_position_in_lookup_unit_step(
-        rec709_wavelength_lookup, wavelength, 360, 830, 5);
+        rec709_wavelength_lookup, wavelengths[i], 360, 830, 5);
     // multiply the lookups by the RGB factors
     float3 contributions = magnitudes * rgb;
     // add the three components
-    intensities[i] = contributions.x + contributions.y + contributions.z;
+    intensities[i] = reduce_add_f(contributions);
   }
 
   return intensities;

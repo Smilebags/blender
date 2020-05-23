@@ -60,7 +60,7 @@ ccl_device bool bsdf_toon_merge(const ShaderClosure *a, const ShaderClosure *b)
   const ToonBsdf *bsdf_a = (const ToonBsdf *)a;
   const ToonBsdf *bsdf_b = (const ToonBsdf *)b;
 
-  return (isequal_float3(bsdf_a->N, bsdf_b->N)) && (bsdf_a->size == bsdf_b->size) &&
+  return (isequal(bsdf_a->N, bsdf_b->N)) && (bsdf_a->size == bsdf_b->size) &&
          (bsdf_a->smooth == bsdf_b->smooth);
 }
 
@@ -95,7 +95,9 @@ ccl_device SpectralColor bsdf_diffuse_toon_eval_reflect(const ShaderClosure *sc,
 
   SpectralColor eval = bsdf_toon_get_intensity(max_angle, smooth, angle);
 
-  if (eval.x > 0.0f) {
+  /* TODO: Fixme! */
+  //   if (eval.x > 0.0f) {
+  if (true) {
     float sample_angle = bsdf_toon_get_sample_angle(max_angle, smooth);
 
     *pdf = 0.5f * M_1_PI_F / (1.0f - cosf(sample_angle));

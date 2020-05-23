@@ -23,62 +23,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline SpectralColor ensure_finite(SpectralColor v)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    v[i] = (isfinite_safe(v[i])) ? v[i] : 0.0f;
-  }
-  return v;
-}
-
-ccl_device_inline float reduce_add_spectral(const SpectralColor &a)
-{
-  float f = 0.0f;
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    f += a[i];
-  }
-  return f;
-}
-
-ccl_device_inline float reduce_max_spectral(const SpectralColor &a)
-{
-  float f = -INFINITY;
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    f = max(f, a[i]);
-  }
-  return f;
-}
-
-ccl_device_inline SpectralColor fabs(SpectralColor &a)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    a[i] += fabsf(a[i]);
-  }
-  return a;
-}
-
-ccl_device_inline SpectralColor exp_s(SpectralColor v)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    v[i] = expf(v[i]);
-  }
-  return v;
-}
-
-ccl_device_inline SpectralColor log_s(SpectralColor v)
-{
-  SPECTRAL_COLOR_FOR_EACH(i)
-  {
-    v[i] = logf(v[i]);
-  }
-  return v;
-}
-
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_MATH_SPECTRAL_COLOR_H__ */

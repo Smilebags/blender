@@ -98,6 +98,18 @@ ccl_device_inline void print_float3(const char *label, const float3 &a)
 }
 #endif /* __KERNEL_GPU__ */
 
+ccl_device_inline float3 load_float3(const float *v)
+{
+  return make_float3(v[0], v[1], v[2]);
+}
+
+ccl_device_inline void store_float3(const float3 &a, float *v)
+{
+  v[0] = a.x;
+  v[1] = a.y;
+  v[2] = a.z;
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_TYPES_FLOAT3_IMPL_H__ */

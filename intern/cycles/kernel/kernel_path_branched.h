@@ -544,12 +544,7 @@ ccl_device void kernel_branched_path_trace(
     kernel_branched_path_integrate(kg, rng_hash, sample, ray, buffer, &L);
 
     /* TODO: Fixme! */
-    float t[WAVELENGTHS_PER_RAY];
-    SPECTRAL_COLOR_FOR_EACH(i)
-    {
-      t[i] = 0.0f;
-    }
-
+    SpectralColor t = make_spectral_color(0);
     kernel_write_result(kg, buffer, sample, &L, t);
   }
 }

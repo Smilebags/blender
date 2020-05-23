@@ -98,11 +98,28 @@ ccl_device_inline float8
 make_float8(float a, float b, float c, float d, float e, float f, float g, float h)
 {
 #  ifdef __KERNEL_AVX2__
-  float8 r(_mm256_set_ps(a, b, c, d, e, f, g, h));
+  float8 r(_mm256_set_ps(h, g, f, e, d, c, b, a));
 #  else
   float8 r = {a, b, c, d, e, f, g, h};
 #  endif
   return r;
+}
+
+ccl_device_inline float8 load_float8(const float *v)
+{
+  return make_float8(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+}
+
+ccl_device_inline void store_float8(const float8 &a, float *v)
+{
+  v[0] = a.a;
+  v[1] = a.b;
+  v[2] = a.c;
+  v[3] = a.d;
+  v[4] = a.e;
+  v[5] = a.f;
+  v[6] = a.g;
+  v[7] = a.h;
 }
 
 #endif /* __KERNEL_GPU__ */

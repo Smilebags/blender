@@ -128,7 +128,7 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float value)
   bsdf_eval_mis(eval, value);
 }
 
-ccl_device_inline void bsdf_eval_mul3(BsdfEval *eval, SpectralColor value)
+ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, SpectralColor value)
 {
 #ifdef __SHADOW_TRICKS__
   eval->sum_no_mis *= value;
@@ -195,7 +195,7 @@ ccl_device_inline void path_radiance_init(KernelGlobals *kg, PathRadiance *L)
     L->emission = make_spectral_color(0.0f);
     L->background = make_spectral_color(0.0f);
     L->ao = make_spectral_color(0.0f);
-    L->shadow = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    L->shadow = make_spectral_color(0.0f);
     L->mist = 0.0f;
 
     L->state.diffuse = make_spectral_color(0.0f);
@@ -273,29 +273,29 @@ ccl_device_inline void path_radiance_bsdf_bounce(KernelGlobals *kg,
 }
 
 #ifdef __CLAMP_SAMPLE__
-ccl_device_forceinline void path_radiance_clamp(KernelGlobals *kg, SpectralColor &L, int bounce)
+ccl_device_forceinline void path_radiance_clamp(KernelGlobals *kg, SpectralColor *L, int bounce)
 {
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
-  float sum = reduce_add_spectral(fabs(L));
+  float sum = reduce_add_f(fabs(*L));
   if (sum > limit) {
-    L *= limit / sum;
+    *L *= limit / sum;
   }
 }
 
 ccl_device_forceinline void path_radiance_clamp_throughput(KernelGlobals *kg,
-                                                           SpectralColor &L,
-                                                           SpectralColor &throughput,
+                                                           SpectralColor *L,
+                                                           SpectralColor *throughput,
                                                            int bounce)
 {
   float limit = (bounce > 0) ? kernel_data.integrator.sample_clamp_indirect :
                                kernel_data.integrator.sample_clamp_direct;
 
-  float sum = reduce_add_spectral(fabs(L));
+  float sum = reduce_add_f(fabs(*L));
   if (sum > limit) {
     float clamp_factor = limit / sum;
-    L *= clamp_factor;
-    throughput *= clamp_factor;
+    *L *= clamp_factor;
+    *throughput *= clamp_factor;
   }
 }
 
@@ -315,7 +315,7 @@ ccl_device_inline void path_radiance_accum_emission(KernelGlobals *kg,
 
   SpectralColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
-  path_radiance_clamp(kg, contribution, state->bounce - 1);
+  path_radiance_clamp(kg, &contribution, state->bounce - 1);
 #endif
 
 #ifdef __PASSES__
@@ -428,7 +428,7 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
      * The resulting scale is then be applied to all individual components. */
     SpectralColor full_contribution = shaded_throughput * bsdf_eval_sum(bsdf_eval);
 #  ifdef __CLAMP_SAMPLE__
-    path_radiance_clamp_throughput(kg, full_contribution, shaded_throughput, state->bounce);
+    path_radiance_clamp_throughput(kg, &full_contribution, &shaded_throughput, state->bounce);
 #  endif
 
     if (state->bounce == 0) {
@@ -439,9 +439,7 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
       L->direct_volume += shaded_throughput * bsdf_eval->volume;
 
       if (is_lamp) {
-        L->shadow.x += shadow.x * shadow_fac;
-        L->shadow.y += shadow.y * shadow_fac;
-        L->shadow.z += shadow.z * shadow_fac;
+        L->shadow += shadow * shadow_fac;
       }
     }
     else {
@@ -453,7 +451,7 @@ ccl_device_inline void path_radiance_accum_light(KernelGlobals *kg,
 #endif
   {
     SpectralColor contribution = shaded_throughput * bsdf_eval->diffuse;
-    path_radiance_clamp(kg, contribution, state->bounce);
+    path_radiance_clamp(kg, &contribution, state->bounce);
     L->emission += contribution;
   }
 }
@@ -495,7 +493,7 @@ ccl_device_inline void path_radiance_accum_background(KernelGlobals *kg,
 
   SpectralColor contribution = throughput * value;
 #ifdef __CLAMP_SAMPLE__
-  path_radiance_clamp(kg, contribution, state->bounce - 1);
+  path_radiance_clamp(kg, &contribution, state->bounce - 1);
 #endif
 
 #ifdef __PASSES__
@@ -544,13 +542,13 @@ ccl_device_inline void path_radiance_sum_indirect(PathRadiance *L)
    * only a single throughput further along the path, here we recover just
    * the indirect path that is not influenced by any particular BSDF type */
   if (L->use_light_pass) {
-    L->direct_emission = safe_divide_color(L->direct_emission, L->state.direct);
+    L->direct_emission = safe_divide(L->direct_emission, L->state.direct);
     L->direct_diffuse += L->state.diffuse * L->direct_emission;
     L->direct_glossy += L->state.glossy * L->direct_emission;
     L->direct_transmission += L->state.transmission * L->direct_emission;
     L->direct_volume += L->state.volume * L->direct_emission;
 
-    L->indirect = safe_divide_color(L->indirect, L->state.direct);
+    L->indirect = safe_divide(L->indirect, L->state.direct);
     L->indirect_diffuse += L->state.diffuse * L->indirect;
     L->indirect_glossy += L->state.glossy * L->indirect;
     L->indirect_transmission += L->state.transmission * L->indirect;
@@ -640,14 +638,8 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
 
     L_sum = L_direct + L_indirect;
 
-    float sum = 0;
-    SPECTRAL_COLOR_FOR_EACH(i)
-    {
-      sum += fabsf(L_sum[i]);
-    }
-
     /* Reject invalid value */
-    if (!isfinite_safe(sum)) {
+    if (!isfinite_safe(L_sum)) {
       kernel_assert(!"Non-finite sum in path_radiance_clamp_and_sum!");
       L_sum = make_spectral_color(0.0f);
 
@@ -672,13 +664,7 @@ ccl_device_inline SpectralColor path_radiance_clamp_and_sum(KernelGlobals *kg,
     L_sum = L->emission;
 
     /* Reject invalid value */
-    float sum = 0;
-    SPECTRAL_COLOR_FOR_EACH(i)
-    {
-      sum += fabsf(L_sum[i]);
-    }
-
-    if (!isfinite_safe(sum)) {
+    if (!isfinite_safe(L_sum)) {
       kernel_assert(!"Non-finite final sum in path_radiance_clamp_and_sum!");
       L_sum = make_spectral_color(0.0f);
     }
@@ -739,36 +725,37 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg,
 ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance *L_sample)
 {
 #ifdef __SPLIT_KERNEL__
-#  define safe_float3_add(f, v) \
+#  define safe_spectral_color_add(f, v) \
     do { \
       ccl_global float *p = (ccl_global float *)(&(f)); \
-      atomic_add_and_fetch_float(p + 0, (v).x); \
-      atomic_add_and_fetch_float(p + 1, (v).y); \
-      atomic_add_and_fetch_float(p + 2, (v).z); \
+      FOR_EACH_CHANNEL(i) \
+      { \
+        atomic_add_and_fetch_float(p + i, (v)[i]); \
+      } \
     } while (0)
 #  define safe_float_add(f, v) atomic_add_and_fetch_float(&(f), (v))
 #else
-#  define safe_float3_add(f, v) (f) += (v)
+#  define safe_spectral_color_add(f, v) (f) += (v)
 #  define safe_float_add(f, v) (f) += (v)
 #endif /* __SPLIT_KERNEL__ */
 
 #ifdef __PASSES__
-  safe_float3_add(L->direct_diffuse, L_sample->direct_diffuse);
-  safe_float3_add(L->direct_glossy, L_sample->direct_glossy);
-  safe_float3_add(L->direct_transmission, L_sample->direct_transmission);
-  safe_float3_add(L->direct_volume, L_sample->direct_volume);
+  safe_spectral_color_add(L->direct_diffuse, L_sample->direct_diffuse);
+  safe_spectral_color_add(L->direct_glossy, L_sample->direct_glossy);
+  safe_spectral_color_add(L->direct_transmission, L_sample->direct_transmission);
+  safe_spectral_color_add(L->direct_volume, L_sample->direct_volume);
 
-  safe_float3_add(L->indirect_diffuse, L_sample->indirect_diffuse);
-  safe_float3_add(L->indirect_glossy, L_sample->indirect_glossy);
-  safe_float3_add(L->indirect_transmission, L_sample->indirect_transmission);
-  safe_float3_add(L->indirect_volume, L_sample->indirect_volume);
+  safe_spectral_color_add(L->indirect_diffuse, L_sample->indirect_diffuse);
+  safe_spectral_color_add(L->indirect_glossy, L_sample->indirect_glossy);
+  safe_spectral_color_add(L->indirect_transmission, L_sample->indirect_transmission);
+  safe_spectral_color_add(L->indirect_volume, L_sample->indirect_volume);
 
-  safe_float3_add(L->background, L_sample->background);
-  safe_float3_add(L->ao, L_sample->ao);
-  safe_float3_add(L->shadow, L_sample->shadow);
+  safe_spectral_color_add(L->background, L_sample->background);
+  safe_spectral_color_add(L->ao, L_sample->ao);
+  safe_spectral_color_add(L->shadow, L_sample->shadow);
   safe_float_add(L->mist, L_sample->mist);
 #endif /* __PASSES__ */
-  safe_float3_add(L->emission, L_sample->emission);
+  safe_spectral_color_add(L->emission, L_sample->emission);
 
 #undef safe_float_add
 #undef safe_float3_add

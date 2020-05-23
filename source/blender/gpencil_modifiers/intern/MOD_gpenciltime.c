@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2018, Blender Foundation
@@ -45,7 +45,6 @@
 static void initData(GpencilModifierData *md)
 {
   TimeGpencilModifierData *gpmd = (TimeGpencilModifierData *)md;
-  gpmd->layername[0] = '\0';
   gpmd->offset = 1;
   gpmd->frame_scale = 1.0f;
   gpmd->flag |= GP_TIME_KEEP_LOOP;

@@ -146,7 +146,7 @@ interpolate_fresnel_color(float3 L, float3 H, float ior, float F0, SpectralColor
   float FH = (fresnel_dielectric_cos(dot(L, H), ior) - F0) * F0_norm;
 
   /* Blend between white and a specular color with respect to the fresnel */
-  return cspec0 * (1.0f - FH) + make_spectral_color(0.0f) * FH;
+  return cspec0 * (1.0f - FH) + make_spectral_color(FH);
 }
 
 CCL_NAMESPACE_END

@@ -58,8 +58,9 @@ ccl_device_forceinline SpectralColor MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
     wi = tmp;
   }
 
-  if (wi.z < 1e-5f || (wo.z < 1e-5f && wo_outside) || (wo.z > -1e-5f && !wo_outside))
+  if (wi.z < 1e-5f || (wo.z < 1e-5f && wo_outside) || (wo.z > -1e-5f && !wo_outside)) {
     return make_spectral_color(0.0f);
+  }
 
   const float2 alpha = make_float2(alpha_x, alpha_y);
 

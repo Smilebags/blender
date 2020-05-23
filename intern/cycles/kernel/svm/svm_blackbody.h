@@ -45,7 +45,37 @@ ccl_device_inline float blackbody_intensity(float temperature, float wavelength)
   float wavelength_i2 = wavelength_i * wavelength_i;
   float wavelength_i5 = wavelength_i2 * wavelength_i2 * wavelength_i;
 
-  return (2 * h * c * c * wavelength_i5) / (exp(h * c / (kb * wavelength * temperature)) - 1.0f);
+  float intensity = (2 * h * c * c * wavelength_i5) /
+                    expm1f(h * c / (kb * wavelength * temperature));
+
+  return intensity;
+}
+
+ccl_device_inline SpectralColor blackbody_intensity(float temperature, SpectralColor wavelengths)
+{
+  SpectralColor wavelengths_i = 1.0f / wavelengths;
+  SpectralColor wavelengths_i2 = wavelengths_i * wavelengths_i;
+  SpectralColor wavelengths_i5 = wavelengths_i2 * wavelengths_i2 * wavelengths_i;
+
+  SpectralColor intensity = (2 * h * c * c * wavelengths_i5) /
+                            expm1(h * c / (kb * wavelengths * temperature));
+
+  return intensity;
+}
+
+ccl_device_inline float blackbody_intensity_peak(float temperature)
+{
+  float peak_wavelength = clamp(b / temperature, 360.0e-9f, 730.0e-9f);
+  float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
+
+  return peak_intensity;
+}
+
+ccl_device_inline SpectralColor blackbody_intensity_normalized(float temperature,
+                                                               SpectralColor wavelengths)
+{
+  return safe_divide(blackbody_intensity(temperature, wavelengths),
+                     blackbody_intensity_peak(temperature));
 }
 
 ccl_device void svm_node_blackbody(
@@ -53,15 +83,9 @@ ccl_device void svm_node_blackbody(
 {
   /* Input */
   float temperature = stack_load_float(stack, temperature_offset);
+  temperature = max(temperature, 0.0f);
 
-  float peak_wavelength = clamp(b / temperature, 360.0e-9f, 730.0e-9f);
-  float peak_intensity = blackbody_intensity(temperature, peak_wavelength);
-
-  SpectralColor spectral;
-  SPECTRAL_COLOR_FOR_EACH_WAVELENGTH(state->wavelengths, i, wavelength)
-  {
-    spectral[i] = blackbody_intensity(temperature, wavelength * 1e-9f) / peak_intensity;
-  }
+  SpectralColor spectral = blackbody_intensity_normalized(temperature, state->wavelengths * 1e-9f);
 
   stack_store_spectral(stack, col_offset, spectral);
 }

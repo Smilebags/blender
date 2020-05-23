@@ -114,18 +114,21 @@ ccl_device_forceinline SpectralColor mf_eval_phase_glossy(const float3 w,
                                                           const float3 wo,
                                                           const float2 alpha)
 {
-  if (w.z > 0.9999f)
+  if (w.z > 0.9999f) {
     return make_spectral_color(0.0f);
+  }
 
   const float3 wh = normalize(wo - w);
-  if (wh.z < 0.0f)
+  if (wh.z < 0.0f) {
     return make_spectral_color(0.0f);
+  }
 
   float pArea = (w.z < -0.9999f) ? 1.0f : lambda * w.z;
 
   const float dotW_WH = dot(-w, wh);
-  if (dotW_WH < 0.0f)
+  if (dotW_WH < 0.0f) {
     return make_spectral_color(0.0f);
+  }
 
   float phase = max(0.0f, dotW_WH) * 0.25f / max(pArea * dotW_WH, 1e-7f);
   if (alpha.x == alpha.y)
@@ -387,32 +390,10 @@ ccl_device int bsdf_microfacet_multi_ggx_common_setup(MicrofacetBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL | SD_BSDF_NEEDS_LCG;
 }
 
-ccl_device int bsdf_microfacet_multi_ggx_aniso_setup(MicrofacetBsdf *bsdf)
-{
-  if (is_zero(bsdf->T))
-    bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
-
-  bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID;
-
-  return bsdf_microfacet_multi_ggx_common_setup(bsdf);
-}
-
-ccl_device int bsdf_microfacet_multi_ggx_aniso_fresnel_setup(MicrofacetBsdf *bsdf,
-                                                             const ShaderData *sd)
-{
-  if (is_zero(bsdf->T))
-    bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
-
-  bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_FRESNEL_ID;
-
-  bsdf_microfacet_fresnel_color(sd, bsdf);
-
-  return bsdf_microfacet_multi_ggx_common_setup(bsdf);
-}
-
 ccl_device int bsdf_microfacet_multi_ggx_setup(MicrofacetBsdf *bsdf)
 {
-  bsdf->alpha_y = bsdf->alpha_x;
+  if (is_zero(bsdf->T))
+    bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
 
   bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID;
 
@@ -421,7 +402,8 @@ ccl_device int bsdf_microfacet_multi_ggx_setup(MicrofacetBsdf *bsdf)
 
 ccl_device int bsdf_microfacet_multi_ggx_fresnel_setup(MicrofacetBsdf *bsdf, const ShaderData *sd)
 {
-  bsdf->alpha_y = bsdf->alpha_x;
+  if (is_zero(bsdf->T))
+    bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
 
   bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_FRESNEL_ID;
 

@@ -26,7 +26,6 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
@@ -44,7 +43,6 @@ extern "C" {
 
 #include "WM_api.h"
 #include "WM_types.h"
-}
 
 namespace USD {
 
@@ -187,7 +185,7 @@ bool USD_export(bContext *C,
     /* setup job */
     WM_jobs_customdata_set(wm_job, job, MEM_freeN);
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
-    WM_jobs_callbacks(wm_job, USD::export_startjob, NULL, NULL, USD::export_endjob);
+    WM_jobs_callbacks(wm_job, USD::export_startjob, nullptr, nullptr, USD::export_endjob);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }

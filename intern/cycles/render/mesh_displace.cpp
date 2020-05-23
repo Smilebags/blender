@@ -172,7 +172,7 @@ bool GeometryManager::displace(
         done[t.v[j]] = true;
         float3 off = float4_to_float3(offset[k++]);
         /* Avoid illegal vertex coordinates. */
-        off = ensure_finite3(off);
+        off = ensure_finite(off);
         mesh->verts[t.v[j]] += off;
         if (attr_mP != NULL) {
           for (int step = 0; step < mesh->motion_steps - 1; step++) {

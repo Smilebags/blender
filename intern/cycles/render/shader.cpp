@@ -206,7 +206,6 @@ Shader::Shader() : Node(node_type)
   has_surface_spatial_varying = false;
   has_volume_spatial_varying = false;
   has_volume_attribute_dependency = false;
-  has_object_dependency = false;
   has_integrator_dependency = false;
   has_volume_connected = false;
   prev_volume_step_rate = 0.0f;
@@ -218,7 +217,6 @@ Shader::Shader() : Node(node_type)
 
   need_update = true;
   need_update_geometry = true;
-  need_sync_object = false;
 }
 
 Shader::~Shader()
@@ -228,10 +226,17 @@ Shader::~Shader()
 
 bool Shader::is_constant_emission(float3 *emission)
 {
-  /* If the shader has AOVs, they need to be evaluated, so we can't skip the shader. */
+  /* If the shader has AOVs or spectral inputs, they need to be evaluated, so we can't skip the
+   * shader. */
   foreach (ShaderNode *node, graph->nodes) {
     if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
       return false;
+    }
+
+    foreach (ShaderInput *input, node->inputs) {
+      if (input->type() == SocketType::SPECTRAL) {
+        return false;
+      }
     }
   }
 
@@ -320,9 +325,11 @@ void Shader::tag_update(Scene *scene)
    * has use_mis set to false. We are quite close to release now, so
    * better to be safe.
    */
-  if (this == scene->background->get_shader(scene) &&
-      scene->light_manager->has_background_light(scene)) {
-    scene->light_manager->need_update = true;
+  if (this == scene->background->get_shader(scene)) {
+    scene->light_manager->need_update_background = true;
+    if (scene->light_manager->has_background_light(scene)) {
+      scene->light_manager->need_update = true;
+    }
   }
 
   /* quick detection of which kind of shaders we have to avoid loading

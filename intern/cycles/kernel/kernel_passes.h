@@ -110,7 +110,7 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
     const Transform worldtocamera = kernel_data.cam.worldtocamera;
     normal = transform_direction(&worldtocamera, normal);
 
-    L->denoising_normal += ensure_finite3(state->denoising_feature_weight * normal);
+    L->denoising_normal += ensure_finite(state->denoising_feature_weight * normal);
     L->denoising_albedo += ensure_finite(state->denoising_feature_weight *
                                          state->denoising_feature_throughput * diffuse_albedo);
 
@@ -285,7 +285,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg,
 ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
                                                  ccl_global float *buffer,
                                                  PathRadiance *L,
-                                                 float *wavelengths)
+                                                 SpectralColor wavelengths)
 {
 #ifdef __PASSES__
   int light_flag = kernel_data.film.light_pass_flag;
@@ -342,17 +342,21 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg,
         buffer + kernel_data.film.pass_transmission_color,
         wavelength_intensities_to_linear(kg, L->color_transmission, wavelengths));
   if (light_flag & PASSMASK(SHADOW)) {
-    float4 shadow = L->shadow;
-    shadow.w = kernel_data.film.pass_shadow_scale;
-    kernel_write_pass_float4(buffer + kernel_data.film.pass_shadow, shadow);
+    RGBColor shadow = wavelength_intensities_to_linear(kg, L->shadow, wavelengths);
+    kernel_write_pass_float4(
+        buffer + kernel_data.film.pass_shadow,
+        make_float4(shadow.x, shadow.y, shadow.z, kernel_data.film.pass_shadow_scale));
   }
   if (light_flag & PASSMASK(MIST))
     kernel_write_pass_float(buffer + kernel_data.film.pass_mist, 1.0f - L->mist);
 #endif
 }
 
-ccl_device_inline void kernel_write_result(
-    KernelGlobals *kg, ccl_global float *buffer, int sample, PathRadiance *L, float *wavelengths)
+ccl_device_inline void kernel_write_result(KernelGlobals *kg,
+                                           ccl_global float *buffer,
+                                           int sample,
+                                           PathRadiance *L,
+                                           SpectralColor wavelengths)
 {
   PROFILING_INIT(kg, PROFILING_WRITE_RESULT);
   PROFILING_OBJECT(PRIM_NONE);
@@ -416,8 +420,9 @@ ccl_device_inline void kernel_write_result(
   if (kernel_data.film.pass_adaptive_aux_buffer &&
       kernel_data.integrator.adaptive_threshold > 0.0f) {
     if (sample_is_even(kernel_data.integrator.sampling_pattern, sample)) {
-      kernel_write_pass_float4(buffer + kernel_data.film.pass_adaptive_aux_buffer,
-                               make_float4(L_sum.x * 2.0f, L_sum.y * 2.0f, L_sum.z * 2.0f, 0.0f));
+      kernel_write_pass_float4(
+          buffer + kernel_data.film.pass_adaptive_aux_buffer,
+          make_float4(linear_sum.x * 2.0f, linear_sum.y * 2.0f, linear_sum.z * 2.0f, 0.0f));
     }
 #ifdef __KERNEL_CPU__
     if ((sample > kernel_data.integrator.adaptive_min_samples) &&

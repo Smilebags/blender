@@ -598,9 +598,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
       SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = eval * sc->weight;
-
-        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, 1.0f);
+        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, 1.0f);
         sum_pdf += bsdf_pdf * sc->sample_weight;
       }
 
@@ -625,9 +623,8 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
       float bsdf_pdf = 0.0f;
       SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
-        SpectralColor wavelength_intensities = eval * sc->weight;
         float mis_weight = use_mis ? power_heuristic(light_pdf, bsdf_pdf) : 1.0f;
-        bsdf_eval_accum(result_eval, sc->type, wavelength_intensities, mis_weight);
+        bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, mis_weight);
       }
     }
   }
@@ -795,8 +792,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = eval * sc->weight;
-    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
+    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
@@ -826,8 +822,7 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
-    SpectralColor wavelength_intensities = eval * sc->weight;
-    bsdf_eval_init(bsdf_eval, sc->type, wavelength_intensities, kernel_data.film.use_light_pass);
+    bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
   }
 
   return label;
@@ -895,8 +890,7 @@ ccl_device void shader_bsdf_disable_transparency(KernelGlobals *kg, ShaderData *
 ccl_device SpectralColor shader_bsdf_alpha(KernelGlobals *kg, ShaderData *sd)
 {
   SpectralColor alpha = make_spectral_color(1.0f) - shader_bsdf_transparency(kg, sd);
-
-  alpha = clamp(alpha, make_spectral_color(0.0f), make_spectral_color(1.0f));
+  alpha = saturate(alpha);
 
   return alpha;
 }
@@ -1012,19 +1006,19 @@ ccl_device SpectralColor shader_bssrdf_sum(ShaderData *sd, float3 *N_, float *te
 
 /* Constant emission optimization */
 
-ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, SpectralColor &eval)
+ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, SpectralColor *eval)
 {
   int shader_index = shader & SHADER_MASK;
   int shader_flag = kernel_tex_fetch(__shaders, shader_index).flags;
 
   /* TODO: Fixme! */
-  //   if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
-  //     SPECTRAL_COLOR_FOR_EACH(i)
-  //     {
-  //       eval[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
-  //     }
-  //     return true;
-  //   }
+  if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
+    FOR_EACH_CHANNEL(i)
+    {
+      (*eval)[i] = kernel_tex_fetch(__shaders, shader_index).constant_emission[i];
+    }
+    return true;
+  }
 
   return false;
 }
@@ -1109,12 +1103,12 @@ ccl_device void shader_eval_surface(KernelGlobals *kg,
     svm_eval_nodes(kg, sd, state, buffer, SHADER_TYPE_SURFACE, path_flag);
 #else
     if (sd->object == OBJECT_NONE) {
-      sd->closure_emission_background = make_float3(0.8f, 0.8f, 0.8f);
+      sd->closure_emission_background = make_spectral_color(0.8f);
       sd->flag |= SD_EMISSION;
     }
     else {
       DiffuseBsdf *bsdf = (DiffuseBsdf *)bsdf_alloc(
-          sd, sizeof(DiffuseBsdf), make_float3(0.8f, 0.8f, 0.8f));
+          sd, sizeof(DiffuseBsdf), make_spectral_color(0.8f));
       if (bsdf != NULL) {
         bsdf->N = sd->N;
         sd->flag |= bsdf_diffuse_setup(bsdf);
