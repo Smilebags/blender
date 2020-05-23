@@ -104,7 +104,7 @@ ccl_device_inline float8 operator+(const float8 &a, const float f)
 
 ccl_device_inline float8 operator+(const float f, const float8 &a)
 {
-  return a + f;
+  return make_float8(f) + a;
 }
 
 ccl_device_inline float8 operator-(const float8 &a)
@@ -125,7 +125,7 @@ ccl_device_inline float8 operator-(const float8 &a, const float f)
 
 ccl_device_inline float8 operator-(const float f, const float8 &a)
 {
-  return a - f;
+  return make_float8(f) - a;
 }
 
 ccl_device_inline float8 operator*(const float8 &a, const float8 &b)
@@ -141,7 +141,7 @@ ccl_device_inline float8 operator*(const float8 &a, const float f)
 
 ccl_device_inline float8 operator*(const float f, const float8 &a)
 {
-  return a * f;
+  return make_float8(f) * a;
 }
 
 ccl_device_inline float8 operator/(const float8 &a, const float8 &b)
@@ -157,7 +157,7 @@ ccl_device_inline float8 operator/(const float8 &a, const float f)
 
 ccl_device_inline float8 operator/(const float f, const float8 &a)
 {
-  return a / f;
+  return make_float8(f) / a;
 }
 
 ccl_device_inline float8 operator+=(float8 &a, const float8 &b)
@@ -338,6 +338,11 @@ ccl_device_inline bool isequal(const float8 a, const float8 b)
 ccl_device_inline float8 safe_divide(const float8 a, const float b)
 {
   return (b != 0.0f) ? a / b : make_float8(0.0f);
+}
+
+ccl_device_inline float8 safe_divide(const float a, const float8 b)
+{
+  return safe_divide(make_float8(a), b);
 }
 
 ccl_device_inline float8 safe_divide(const float8 a, const float8 b)
