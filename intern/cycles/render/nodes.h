@@ -1456,6 +1456,12 @@ class RGBCurvesNode : public CurvesNode {
   void constant_fold(const ConstantFolder &folder);
 };
 
+class SpectrumCurvesNode : public CurvesNode {
+ public:
+  SHADER_NODE_CLASS(SpectrumCurvesNode)
+  void constant_fold(const ConstantFolder &folder);
+};
+
 class VectorCurvesNode : public CurvesNode {
  public:
   SHADER_NODE_CLASS(VectorCurvesNode)
