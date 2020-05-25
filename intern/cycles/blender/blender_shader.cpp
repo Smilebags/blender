@@ -249,8 +249,18 @@ static ShaderNode *add_node(Scene *scene,
     BL::ShaderNodeSpectrumCurve b_curve_node(b_node);
     BL::CurveMapping mapping(b_curve_node.mapping());
     SpectrumCurvesNode *curves = new SpectrumCurvesNode();
-    curvemapping_color_to_array(mapping, curves->curves, RAMP_TABLE_SIZE, true);
-    curvemapping_minmax(mapping, true, &curves->min_x, &curves->max_x);
+
+    mapping.update();
+
+    BL::CurveMap map_spectrum = mapping.curves[0];
+
+    curves->curve.resize(RAMP_TABLE_SIZE);
+
+    for (int i = 0; i < RAMP_TABLE_SIZE; i++) {
+      curves->curve[i] = mapping.evaluate(map_spectrum,
+                                          mix(-1.0f, 1.0f, (float)i / (RAMP_TABLE_SIZE - 1)));
+    }
+
     node = curves;
   }
   if (b_node.is_a(&RNA_ShaderNodeVectorCurve)) {
