@@ -258,6 +258,7 @@ shader_node_categories = [
     ShaderNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),
         NodeItem("ShaderNodeRGBCurve"),
+        NodeItem("ShaderNodeSpectrumCurve"),
         NodeItem("ShaderNodeInvert"),
         NodeItem("ShaderNodeLightFalloff"),
         NodeItem("ShaderNodeHueSaturation"),

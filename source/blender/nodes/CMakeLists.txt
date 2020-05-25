@@ -160,6 +160,7 @@ set(SRC
   shader/nodes/node_shader_clamp.c
   shader/nodes/node_shader_common.c
   shader/nodes/node_shader_curves.c
+  shader/nodes/node_shader_curves_spectrum.c
   shader/nodes/node_shader_displacement.c
   shader/nodes/node_shader_eevee_specular.c
   shader/nodes/node_shader_emission.c

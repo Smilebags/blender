@@ -6317,7 +6317,7 @@ void CurvesNode::compile(OSLCompiler & /*compiler*/)
   assert(0);
 }
 
-/* RGBCurvesNode */
+/* RGBCurvesNode */ 
 
 NODE_DEFINE(RGBCurvesNode)
 {
@@ -6352,6 +6352,43 @@ void RGBCurvesNode::compile(SVMCompiler &compiler)
 void RGBCurvesNode::compile(OSLCompiler &compiler)
 {
   CurvesNode::compile(compiler, "node_rgb_curves");
+}
+
+/* SpectrumCurvesNode */ 
+
+NODE_DEFINE(SpectrumCurvesNode)
+{
+  NodeType *type = NodeType::add("spectrum_curves", create, NodeType::SHADER);
+
+  SOCKET_COLOR_ARRAY(curves, "Curves", array<float3>());
+  SOCKET_FLOAT(min_x, "Min X", 0.0f);
+  SOCKET_FLOAT(max_x, "Max X", 1.0f);
+
+  SOCKET_IN_FLOAT(fac, "Fac", 0.0f);
+  SOCKET_IN_COLOR(value, "Color", make_float3(0.0f, 0.0f, 0.0f));
+
+  SOCKET_OUT_COLOR(value, "Color");
+
+  return type;
+}
+
+SpectrumCurvesNode::SpectrumCurvesNode() : CurvesNode(node_type)
+{
+}
+
+void SpectrumCurvesNode::constant_fold(const ConstantFolder &folder)
+{
+  CurvesNode::constant_fold(folder, input("Color"));
+}
+
+void SpectrumCurvesNode::compile(SVMCompiler &compiler)
+{
+  CurvesNode::compile(compiler, NODE_SPECTRUM_CURVES, input("Color"), output("Color"));
+}
+
+void SpectrumCurvesNode::compile(OSLCompiler &compiler)
+{
+  CurvesNode::compile(compiler, "node_spectrum_curves");
 }
 
 /* VectorCurvesNode */

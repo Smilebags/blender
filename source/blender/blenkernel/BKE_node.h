@@ -909,6 +909,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_MAPPING 109
 #define SH_NODE_CURVE_VEC 110
 #define SH_NODE_CURVE_RGB 111
+#define SH_NODE_CURVE_SPECTRUM 112
 #define SH_NODE_CAMERA 114
 #define SH_NODE_MATH 115
 #define SH_NODE_VECTOR_MATH 116

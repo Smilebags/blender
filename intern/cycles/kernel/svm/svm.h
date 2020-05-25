@@ -206,6 +206,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_noisetex.h"
 #include "kernel/svm/svm_normal.h"
 #include "kernel/svm/svm_ramp.h"
+#include "kernel/svm/svm_spectrum_curve.h"
 #include "kernel/svm/svm_rgb_to_spectral.h"
 #include "kernel/svm/svm_sepcomb_hsv.h"
 #include "kernel/svm/svm_sepcomb_vector.h"
@@ -483,6 +484,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
       case NODE_RGB_CURVES:
       case NODE_VECTOR_CURVES:
         svm_node_curves(kg, sd, stack, node, &offset);
+        break;
+      case NODE_SPECTRUM_CURVES:
+        svm_node_spectrum_curves(kg, sd, stack, node, &offset);
         break;
       case NODE_TANGENT:
         svm_node_tangent(kg, sd, stack, node);
