@@ -1456,10 +1456,17 @@ class RGBCurvesNode : public CurvesNode {
   void constant_fold(const ConstantFolder &folder);
 };
 
-class SpectrumCurvesNode : public CurvesNode {
+class SpectrumCurvesNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(SpectrumCurvesNode)
   void constant_fold(const ConstantFolder &folder);
+
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+
+  array<float> curve;
 };
 
 class VectorCurvesNode : public CurvesNode {

@@ -24,18 +24,16 @@
 #include "node_shader_util.h"
 
 /* **************** CURVE VEC  ******************** */
-static bNodeSocketTemplate sh_node_curve_vec_in[] = {
-    {SOCK_FLOAT, N_("Fac"), 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
-    {SOCK_VECTOR, N_("Vector"), 0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE},
+static bNodeSocketTemplate sh_node_curve_spectrum_in[] = {
     {-1, ""},
 };
 
-static bNodeSocketTemplate sh_node_curve_vec_out[] = {
-    {SOCK_VECTOR, N_("Vector")},
+static bNodeSocketTemplate sh_node_curve_spectrum_out[] = {
+    {SOCK_RGBA, N_("Spectrum")},
     {-1, ""},
 };
 
-static void node_shader_init_curve_vec(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_init_curve_spectrum(bNodeTree *UNUSED(ntree), bNode *node)
 {
   node->storage = BKE_curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
 }
@@ -44,9 +42,9 @@ void register_node_type_sh_curve_spectrum(void)
 {
   static bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR, 0);
-  node_type_socket_templates(&ntype, sh_node_curve_vec_in, sh_node_curve_vec_out);
-  node_type_init(&ntype, node_shader_init_curve_vec);
+  sh_node_type_base(&ntype, SH_NODE_CURVE_SPECTRUM, "Spectrum Curves", NODE_CLASS_OP_COLOR, 0);
+  node_type_socket_templates(&ntype, sh_node_curve_spectrum_in, sh_node_curve_spectrum_out);
+  node_type_init(&ntype, node_shader_init_curve_spectrum);
   node_type_size_preset(&ntype, NODE_SIZE_LARGE);
   node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
 
