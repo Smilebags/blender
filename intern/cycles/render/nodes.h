@@ -498,7 +498,7 @@ class BsdfNode : public BsdfBaseNode {
                ShaderInput *param3 = NULL,
                ShaderInput *param4 = NULL);
 
-  float3 color;
+  RGBColor color;
   float3 normal;
   float surface_mix_weight;
 };
@@ -554,8 +554,8 @@ class PrincipledBsdfNode : public BsdfBaseNode {
                ShaderInput *anisotropic_rotation,
                ShaderInput *transmission_roughness);
 
-  SpectralColor base_color;
-  SpectralColor subsurface_color, subsurface_radius;
+  RGBColor base_color;
+  RGBColor subsurface_color, subsurface_radius;
   float metallic, subsurface, specular, roughness, specular_tint, anisotropic, sheen, sheen_tint,
       clearcoat, clearcoat_roughness, ior, transmission, anisotropic_rotation,
       transmission_roughness;
@@ -563,7 +563,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   float surface_mix_weight;
   ClosureType distribution, distribution_orig;
   ClosureType subsurface_method;
-  SpectralColor emission;
+  RGBColor emission;
   float alpha;
 
   bool has_integrator_dependency();
@@ -683,7 +683,7 @@ class EmissionNode : public ShaderNode {
     return true;
   }
 
-  float3 color;
+  RGBColor color;
   float strength;
   float surface_mix_weight;
 };
@@ -693,7 +693,7 @@ class BackgroundNode : public ShaderNode {
   SHADER_NODE_CLASS(BackgroundNode)
   void constant_fold(const ConstantFolder &folder);
 
-  float3 color;
+  RGBColor color;
   float strength;
   float surface_mix_weight;
 };
@@ -763,7 +763,7 @@ class VolumeNode : public ShaderNode {
     return true;
   }
 
-  float3 color;
+  RGBColor color;
   float density;
   float volume_mix_weight;
   ClosureType closure;
@@ -801,11 +801,11 @@ class PrincipledVolumeNode : public VolumeNode {
   ustring temperature_attribute;
 
   float anisotropy;
-  float3 absorption_color;
+  RGBColor absorption_color;
   float emission_strength;
-  float3 emission_color;
+  RGBColor emission_color;
   float blackbody_intensity;
-  float3 blackbody_tint;
+  RGBColor blackbody_tint;
   float temperature;
 };
 
@@ -828,13 +828,13 @@ class PrincipledHairBsdfNode : public BsdfBaseNode {
   /* Cuticle tilt angle. */
   float offset;
   /* Direct coloring's color. */
-  float3 color;
+  RGBColor color;
   /* Melanin concentration. */
   float melanin;
   /* Melanin redness ratio. */
   float melanin_redness;
   /* Dye color. */
-  float3 tint;
+  RGBColor tint;
   /* Randomization factor for melanin quantities. */
   float random_color;
   /* Absorption coefficient (unfiltered). */
@@ -1641,7 +1641,7 @@ class RGBToSpectralNode : public ShaderNode {
     return NODE_GROUP_LEVEL_0;
   }
 
-  float3 color;
+  RGBColor color;
 };
 
 CCL_NAMESPACE_END

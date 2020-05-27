@@ -179,19 +179,7 @@ static void set_default_value(ShaderInput *input,
       break;
     }
     case SocketType::SPECTRAL: {
-      if (b_sock.is_linked()) {
-        break;
-      }
-
-      /* Connect RGB node to unconnected spectral socket to force color to spectral conversion. */
-      RGBColor color = float4_to_float3(get_float4(b_sock.ptr, "default_value"));
-
-      RGBToSpectralNode *node = new RGBToSpectralNode();
-      node->set(node->input("Color")->socket_type, color);
-
-      graph->add(node);
-      graph->connect(node->output("Spectral"), input);
-      break;
+      node->set(socket, float4_to_float3(get_float4(b_sock.ptr, "default_value")));
     }
     case SocketType::NORMAL:
     case SocketType::POINT:

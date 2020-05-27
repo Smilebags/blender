@@ -833,6 +833,21 @@ void ShaderGraph::expand()
   foreach (ShaderNode *node, nodes) {
     node->expand(this);
   }
+
+  /* Connect RGB node to unconnected spectral sockets to force color to spectral conversion. */
+  foreach (ShaderNode *node, nodes) {
+    foreach (ShaderInput *input, node->inputs) {
+      if (input->type() == SocketType::SPECTRAL && !input->link) {
+        RGBColor color = input->parent->get_float3(input->socket_type);
+
+        RGBToSpectralNode *node = new RGBToSpectralNode();
+        node->color = color;
+
+        add(node);
+        connect(node->output("Spectral"), input);
+      }
+    }
+  }
 }
 
 void ShaderGraph::default_inputs(bool do_osl)

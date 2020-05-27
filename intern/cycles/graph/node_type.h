@@ -311,7 +311,7 @@ struct NodeType {
   SOCKET_DEFINE(name, \
                 ui_name, \
                 default_value, \
-                SpectralColor, \
+                RGBColor, \
                 SocketType::SPECTRAL, \
                 SocketType::LINKABLE, \
                 ##__VA_ARGS__)
