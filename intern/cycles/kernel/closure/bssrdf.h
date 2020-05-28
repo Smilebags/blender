@@ -430,7 +430,7 @@ ccl_device void bssrdf_sample(const ShaderClosure *sc, float xi, float *r, float
     if (xi <= i + 1.0f) {
       xi -= i;
 
-      for (i; i < CHANNELS_PER_RAY; i++) {
+      for (; i < CHANNELS_PER_RAY; i++) {
         if (bssrdf->radius[i] > 0.0f || i == CHANNELS_PER_RAY - 1) {
           radius = bssrdf->radius[i];
           break;
