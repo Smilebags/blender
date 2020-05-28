@@ -68,17 +68,13 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  ccl_static_constant float wavelength_low_bound = 380.0f;
-  ccl_static_constant float wavelength_high_bound = 730.0f;
-
   float wavelength_offset = fmod(path_state_rng_1D(kg, state, PRNG_WAVELENGTH),
                                  1.0f / CHANNELS_PER_RAY);
 
   FOR_EACH_CHANNEL(i)
   {
-    state->wavelengths[i] = float_lerp(wavelength_low_bound,
-                                       wavelength_high_bound,
-                                       wavelength_offset + (1.0f * i / CHANNELS_PER_RAY));
+    state->wavelengths[i] = float_lerp(
+        MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength_offset + (1.0f * i / CHANNELS_PER_RAY));
   }
 }
 

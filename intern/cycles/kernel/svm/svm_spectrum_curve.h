@@ -22,9 +22,6 @@ CCL_NAMESPACE_BEGIN
 ccl_device void svm_node_spectrum_curves(
     KernelGlobals *kg, PathState *state, float *stack, uint4 node, int *offset)
 {
-  ccl_static_constant float wavelength_low_bound = 380.0f;
-  ccl_static_constant float wavelength_high_bound = 730.0f;
-
   uint out_offset = node.y;
   uint table_size = node.z;
   int table_offset = *offset;
@@ -34,7 +31,7 @@ ccl_device void svm_node_spectrum_curves(
   FOR_EACH_CHANNEL(i)
   {
     float wavelength = state->wavelengths[i];
-    float t = (wavelength - wavelength_low_bound) / (wavelength_high_bound - wavelength_low_bound);
+    float t = (wavelength - MIN_WAVELENGTH) / (MAX_WAVELENGTH - MIN_WAVELENGTH);
 
     int position = int(t * (table_size - 1));
     float progress = (t * (table_size - 1)) - position;

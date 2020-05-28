@@ -34,6 +34,9 @@ typedef SPECTRAL_COLOR_DATA_TYPE SpectralColor;
 
 #define FOR_EACH_CHANNEL(counter) for (int counter = 0; counter < CHANNELS_PER_RAY; counter++)
 
+#define MIN_WAVELENGTH 380.0f
+#define MAX_WAVELENGTH 730.0f
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_TYPES_SPECTRAL_COLOR_H__ */
