@@ -819,15 +819,11 @@ typedef struct AttributeDescriptor {
   float sample_weight; \
   float3 N
 
-typedef ccl_addr_space struct ccl_align(16) ShaderClosure
+typedef ccl_addr_space struct ccl_align(32) ShaderClosure
 {
   SHADER_CLOSURE_BASE;
 
-#ifdef __KERNEL_CPU__
-  /* TODO: Fixme! */
-  float pad[20];
-#endif
-  float data[10];
+  float data[20];
 }
 ShaderClosure;
 
@@ -926,7 +922,7 @@ enum ShaderDataObjectFlag {
                      SD_OBJECT_HAS_VOLUME_ATTRIBUTES)
 };
 
-typedef ccl_addr_space struct ccl_align(16) ShaderData
+typedef ccl_addr_space struct ccl_align(32) ShaderData
 {
   /* position */
   float3 P;
