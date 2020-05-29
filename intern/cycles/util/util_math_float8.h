@@ -90,7 +90,7 @@ ccl_device_inline bool isequal(const float8 a, const float8 b);
 #ifndef __KERNEL_OPENCL__
 ccl_device_inline float8 operator+(const float8 &a, const float8 &b)
 {
-#  ifdef __KERNEL_AVX2__
+#  if defined(__KERNEL_AVX2__) && defined(MSVC)
   return float8(_mm256_add_ps(a.m256, b.m256));
 #  else
   return make_float8(
@@ -346,7 +346,7 @@ ccl_device_inline float8 reduce_max(const float8 &a)
 
 ccl_device_inline float8 reduce_add(const float8 &a)
 {
-#ifdef __KERNEL_AVX2__
+#  ifdef __KERNEL_AVX2__
   float8 b(_mm256_hadd_ps(a.m256, a.m256));
   float8 h(_mm256_hadd_ps(b.m256, b.m256));
   return make_float8(h[0] + h[4]);
@@ -429,7 +429,7 @@ ccl_device_inline bool isfinite_safe(float8 v)
 
 ccl_device_inline float8 pow(float8 v, float e)
 {
-#ifdef __KERNEL_AVX2__
+#  if defined(__KERNEL_AVX2__) && defined(MSVC)
   return float8(_mm256_pow_ps(v.m256, _mm256_set1_ps(e)));
 #else
   return make_float8(powf(v.a, e),
@@ -445,7 +445,7 @@ ccl_device_inline float8 pow(float8 v, float e)
 
 ccl_device_inline float8 exp(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#  if defined(__KERNEL_AVX2__) && defined(MSVC)
   return float8(_mm256_exp_ps(v.m256));
 #else
   return make_float8(
@@ -455,7 +455,7 @@ ccl_device_inline float8 exp(float8 v)
 
 ccl_device_inline float8 expm1(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#  if defined(__KERNEL_AVX2__) && defined(MSVC)
   return float8(_mm256_expm1_ps(v.m256));
 #else
   return make_float8(expm1f(v.a),
@@ -471,7 +471,7 @@ ccl_device_inline float8 expm1(float8 v)
 
 ccl_device_inline float8 log(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#  if defined(__KERNEL_AVX2__) && defined(MSVC)
   return float8(_mm256_log_ps(v.m256));
 #else
   return make_float8(
@@ -481,7 +481,7 @@ ccl_device_inline float8 log(float8 v)
 
 ccl_device_inline float dot(const float8 &a, const float8 &b)
 {
-#ifdef __KERNEL_AVX2__
+#  ifdef __KERNEL_AVX2__
   float8 t(_mm256_dp_ps(a.m256, b.m256, 0xFF));
   return t[0] + t[4];
 #else
