@@ -226,6 +226,7 @@ void xml_read_node(XMLReader &reader, Node *node, xml_node xml_node)
       }
       case SocketType::CLOSURE:
       case SocketType::UNDEFINED:
+      case SocketType::SPECTRAL:
         break;
     }
   }
