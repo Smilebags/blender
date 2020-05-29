@@ -54,7 +54,8 @@ template<typename T> static T &get_socket_value(const Node *node, const SocketTy
 static bool is_socket_float3(const SocketType &socket)
 {
   return socket.type == SocketType::COLOR || socket.type == SocketType::POINT ||
-         socket.type == SocketType::VECTOR || socket.type == SocketType::NORMAL;
+         socket.type == SocketType::VECTOR || socket.type == SocketType::NORMAL ||
+         socket.type == SocketType::SPECTRAL;
 }
 
 static bool is_socket_array_float3(const SocketType &socket)
