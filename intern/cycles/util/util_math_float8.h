@@ -72,8 +72,6 @@ ccl_device_inline float8 safe_divide(const float8 a, const float b);
 ccl_device_inline float8 safe_divide(const float8 a, const float8 b);
 ccl_device_inline float8 safe_divide_even(const float8 a, const float8 b);
 
-#ifndef __KERNEL_GPU__
-ccl_device_inline float8 select(const int4 &mask, const float8 &a, const float8 &b);
 ccl_device_inline float8 reduce_min(const float8 &a);
 ccl_device_inline float8 reduce_max(const float8 &a);
 ccl_device_inline float8 reduce_add(const float8 &a);
@@ -84,7 +82,6 @@ ccl_device_inline float reduce_add_f(const float8 &a);
 
 ccl_device_inline float8 saturate(const float8 &a);
 ccl_device_inline bool isequal(const float8 a, const float8 b);
-#endif /* !__KERNEL_GPU__ */
 
 /*******************************************************************************
  * Definition.
@@ -337,8 +334,6 @@ ccl_device_inline float8 mix(const float8 &a, const float8 &b, float t)
 
 #endif /* !__KERNEL_OPENCL__*/
 
-#ifndef __KERNEL_GPU__
-
 ccl_device_inline float8 reduce_min(const float8 &a)
 {
   return make_float8(min(min(min(a.a, a.b), min(a.c, a.d)), min(min(a.e, a.f), min(a.g, a.h))));
@@ -351,13 +346,13 @@ ccl_device_inline float8 reduce_max(const float8 &a)
 
 ccl_device_inline float8 reduce_add(const float8 &a)
 {
-#  ifdef __KERNEL_AVX2__
+#ifdef __KERNEL_AVX2__
   float8 b(_mm256_hadd_ps(a.m256, a.m256));
   float8 h(_mm256_hadd_ps(b.m256, b.m256));
   return make_float8(h[0] + h[4]);
-#  else
+#else
   return make_float8(a.a + a.b + a.c + a.d + a.e + a.f + a.g + a.h);
-#  endif
+#endif
 }
 
 ccl_device_inline float reduce_min_f(const float8 &a)
@@ -384,8 +379,6 @@ ccl_device_inline bool isequal(const float8 a, const float8 b)
 {
   return a == b;
 }
-
-#endif /* !__KERNEL_GPU__ */
 
 ccl_device_inline float8 safe_divide(const float8 a, const float b)
 {

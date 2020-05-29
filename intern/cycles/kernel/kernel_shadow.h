@@ -295,7 +295,7 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
                                                         Intersection *isect,
                                                         const bool blocked,
                                                         const bool is_transparent_isect,
-                                                        float3 *shadow)
+                                                        SpectralColor *shadow)
 {
 #    ifdef __VOLUME__
 #      ifdef __KERNEL_OPTIX__
@@ -372,7 +372,7 @@ ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
                                                    const uint visibility,
                                                    Ray *ray,
                                                    Intersection *isect,
-                                                   float3 *shadow)
+                                                   SpectralColor *shadow)
 {
   bool blocked = scene_intersect(kg, ray, visibility & PATH_RAY_SHADOW_OPAQUE, isect);
   bool is_transparent_isect = blocked ? shader_transparent_shadow(kg, isect) : false;

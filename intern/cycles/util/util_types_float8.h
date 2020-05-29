@@ -35,11 +35,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-#ifndef __KERNEL_GPU__
-
-struct ccl_try_align(32) float8
+struct /* ccl_try_align(32) */ ccl_align(32) float8
 {
-#  ifdef __KERNEL_AVX2__
+#ifdef __KERNEL_AVX2__
   union {
     __m256 m256;
     struct {
@@ -56,18 +54,31 @@ struct ccl_try_align(32) float8
 
   __forceinline float8 &operator=(const float8 &a);
 
-#  else  /* __KERNEL_AVX2__ */
+#else  /* __KERNEL_AVX2__ */
   float a, b, c, d, e, f, g, h;
-#  endif /* __KERNEL_AVX2__ */
+#endif /* __KERNEL_AVX2__ */
 
-  __forceinline float operator[](int i) const;
-  __forceinline float &operator[](int i);
+/* TODO: Cleanup. */
+#ifdef __KERNEL_GPU__
+  ccl_device_forceinline
+#else
+  __forceinline
+#endif
+      float
+      operator[](int i) const;
+
+#ifdef __KERNEL_GPU__
+  ccl_device_forceinline
+#else
+  __forceinline
+#endif
+      float &
+      operator[](int i);
 };
 
 ccl_device_inline float8 make_float8(float f);
 ccl_device_inline float8
 make_float8(float a, float b, float c, float d, float e, float f, float g, float h);
-#endif /* __KERNEL_GPU__ */
 
 CCL_NAMESPACE_END
 
