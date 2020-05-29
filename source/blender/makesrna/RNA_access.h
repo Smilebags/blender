@@ -527,6 +527,7 @@ extern StructRNA RNA_ShaderNodeHueSaturation;
 extern StructRNA RNA_ShaderNodeInvert;
 extern StructRNA RNA_ShaderNodeMapping;
 extern StructRNA RNA_ShaderNodeMath;
+extern StructRNA RNA_ShaderNodeSpectrumMath;
 extern StructRNA RNA_ShaderNodeMixRGB;
 extern StructRNA RNA_ShaderNodeNormal;
 extern StructRNA RNA_ShaderNodeOutput;

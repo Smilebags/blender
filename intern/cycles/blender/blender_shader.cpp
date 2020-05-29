@@ -341,6 +341,13 @@ static ShaderNode *add_node(Scene *scene,
     math_node->use_clamp = b_math_node.use_clamp();
     node = math_node;
   }
+  else if (b_node.is_a(&RNA_ShaderNodeSpectrumMath)) {
+    BL::ShaderNodeSpectrumMath b_spectrum_math_node(b_node);
+    SpectrumMathNode *math_node = new SpectrumMathNode();
+    math_node->type = (NodeSpectrumMathType)b_spectrum_math_node.operation();
+    math_node->use_clamp = b_spectrum_math_node.use_clamp();
+    node = math_node;
+  }
   else if (b_node.is_a(&RNA_ShaderNodeVectorMath)) {
     BL::ShaderNodeVectorMath b_vector_math_node(b_node);
     VectorMathNode *vector_math_node = new VectorMathNode();

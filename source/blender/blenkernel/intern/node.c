@@ -4169,6 +4169,7 @@ static void registerShaderNodes(void)
   register_node_type_sh_map_range();
   register_node_type_sh_clamp();
   register_node_type_sh_math();
+  register_node_type_sh_spectrum_math();
   register_node_type_sh_vect_math();
   register_node_type_sh_vector_rotate();
   register_node_type_sh_vect_transform();

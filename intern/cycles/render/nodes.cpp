@@ -5947,6 +5947,54 @@ void MathNode::compile(OSLCompiler &compiler)
   compiler.parameter(this, "type");
   compiler.add(this, "node_math");
 }
+/* Spectrum Math */
+
+NODE_DEFINE(SpectrumMathNode)
+{
+  NodeType *type = NodeType::add("spectrum_math", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("add", NODE_SPECTRUM_MATH_ADD);
+  type_enum.insert("subtract", NODE_SPECTRUM_MATH_SUBTRACT);
+  type_enum.insert("multiply", NODE_SPECTRUM_MATH_MULTIPLY);
+  type_enum.insert("divide", NODE_SPECTRUM_MATH_DIVIDE);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_SPECTRUM_MATH_ADD);
+
+  SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);
+
+  SOCKET_IN_SPECTRAL(value1, "Value1", make_float3(0.5f));
+  SOCKET_IN_SPECTRAL(value2, "Value2", make_float3(0.5f));
+
+  SOCKET_OUT_SPECTRAL(value, "Value");
+
+  return type;
+}
+
+SpectrumMathNode::SpectrumMathNode() : ShaderNode(node_type)
+{
+}
+
+void SpectrumMathNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *value1_in = input("Value1");
+  ShaderInput *value2_in = input("Value2");
+  ShaderOutput *value_out = output("Value");
+
+  int value1_stack_offset = compiler.stack_assign(value1_in);
+  int value2_stack_offset = compiler.stack_assign(value2_in);
+  int value_stack_offset = compiler.stack_assign(value_out);
+
+  compiler.add_node(NODE_SPECTRUM_MATH,
+                    type,
+                    compiler.encode_uchar4(value1_stack_offset, value2_stack_offset, use_clamp),
+                    value_stack_offset);
+}
+
+void SpectrumMathNode::compile(OSLCompiler &compiler)
+{
+  //   compiler.parameter(this, "type");
+  //   compiler.add(this, "node_math");
+}
 
 /* VectorMath */
 

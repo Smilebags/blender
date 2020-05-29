@@ -202,6 +202,16 @@ void node_math_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int max
   BLI_strncpy(label, IFACE_(name), maxlen);
 }
 
+void node_spectrum_math_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
+{
+  const char *name;
+  bool enum_label = RNA_enum_name(rna_enum_node_spectrum_math_items, node->custom1, &name);
+  if (!enum_label) {
+    name = "Unknown";
+  }
+  BLI_strncpy(label, IFACE_(name), maxlen);
+}
+
 void node_vector_math_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
 {
   const char *name;

@@ -178,6 +178,7 @@ set(SRC
   shader/nodes/node_shader_map_range.c
   shader/nodes/node_shader_mapping.c
   shader/nodes/node_shader_math.c
+  shader/nodes/node_shader_spectrum_math.c
   shader/nodes/node_shader_mixRgb.c
   shader/nodes/node_shader_mix_shader.c
   shader/nodes/node_shader_normal.c

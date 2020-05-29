@@ -280,6 +280,12 @@ static void node_buts_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *pt
   uiItemR(layout, ptr, "use_clamp", DEFAULT_FLAGS, NULL, ICON_NONE);
 }
 
+static void node_shader_buts_spectrum_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "use_clamp", DEFAULT_FLAGS, NULL, ICON_NONE);
+}
+
 static int node_resize_area_default(bNode *node, int x, int y)
 {
   if (node->flag & NODE_HIDDEN) {
@@ -1221,6 +1227,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_MATH:
       ntype->draw_buttons = node_buts_math;
+      break;
+    case SH_NODE_SPECTRUM_MATH:
+      ntype->draw_buttons = node_shader_buts_spectrum_math;
       break;
     case SH_NODE_VECTOR_MATH:
       ntype->draw_buttons = node_shader_buts_vect_math;

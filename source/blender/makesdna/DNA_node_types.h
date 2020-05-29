@@ -1308,6 +1308,14 @@ enum {
   NODE_VECTOR_MATH_TANGENT = 23,
 };
 
+/* Spectrum Math node operations. */
+enum {
+  NODE_SPECTRUM_MATH_ADD = 0,
+  NODE_SPECTRUM_MATH_SUBTRACT = 1,
+  NODE_SPECTRUM_MATH_MULTIPLY = 2,
+  NODE_SPECTRUM_MATH_DIVIDE = 3,
+};
+
 /* Boolean math node operations. */
 enum {
   NODE_BOOLEAN_MATH_AND = 0,

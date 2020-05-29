@@ -35,6 +35,43 @@ ccl_device void svm_node_math(KernelGlobals *kg,
   stack_store_float(stack, result_stack_offset, result);
 }
 
+ccl_device void svm_node_spectrum_math(KernelGlobals *kg,
+                                       ShaderData *sd,
+                                       float *stack,
+                                       uint type,
+                                       uint inputs_stack_offsets,
+                                       uint result_stack_offset,
+                                       int *offset)
+{
+  uint a_stack_offset, b_stack_offset, use_clamp;
+  svm_unpack_node_uchar3(inputs_stack_offsets, &a_stack_offset, &b_stack_offset, &use_clamp);
+
+  SpectralColor a = stack_load_spectral(stack, a_stack_offset);
+  SpectralColor b = stack_load_spectral(stack, b_stack_offset);
+
+  SpectralColor result;
+  switch (type) {
+    case NODE_SPECTRUM_MATH_ADD:
+      result = a + b;
+      break;
+    case NODE_SPECTRUM_MATH_SUBTRACT:
+      result = a - b;
+      break;
+    case NODE_SPECTRUM_MATH_MULTIPLY:
+      result = a * b;
+      break;
+    case NODE_SPECTRUM_MATH_DIVIDE:
+      result = safe_divide(a, b);
+      break;
+  }
+
+  if (use_clamp) {
+    result = saturate(result);
+  }
+
+  stack_store_spectral(stack, result_stack_offset, result);
+}
+
 ccl_device void svm_node_vector_math(KernelGlobals *kg,
                                      ShaderData *sd,
                                      float *stack,

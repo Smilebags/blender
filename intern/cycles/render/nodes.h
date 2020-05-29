@@ -1345,6 +1345,20 @@ class MathNode : public ShaderNode {
   bool use_clamp;
 };
 
+class SpectrumMathNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(SpectrumMathNode)
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_1;
+  }
+
+  RGBColor value1;
+  RGBColor value2;
+  NodeSpectrumMathType type;
+  bool use_clamp;
+};
+
 class NormalNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(NormalNode)

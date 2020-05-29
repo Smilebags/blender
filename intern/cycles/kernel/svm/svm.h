@@ -223,7 +223,6 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_white_noise.h"
 #include "kernel/svm/svm_wireframe.h"
 
-
 #ifdef __SHADER_RAYTRACE__
 #  include "kernel/svm/svm_ao.h"
 #  include "kernel/svm/svm_bevel.h"
@@ -398,6 +397,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
 #  endif /* NODES_FEATURE(NODE_FEATURE_VOLUME) */
       case NODE_MATH:
         svm_node_math(kg, sd, stack, node.y, node.z, node.w, &offset);
+        break;
+      case NODE_SPECTRUM_MATH:
+        svm_node_spectrum_math(kg, sd, stack, node.y, node.z, node.w, &offset);
         break;
       case NODE_VECTOR_MATH:
         svm_node_vector_math(kg, sd, stack, node.y, node.z, node.w, &offset);

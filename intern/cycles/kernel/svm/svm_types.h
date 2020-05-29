@@ -106,6 +106,7 @@ typedef enum ShaderNodeType {
   NODE_CLOSURE_VOLUME,
   NODE_PRINCIPLED_VOLUME,
   NODE_MATH,
+  NODE_SPECTRUM_MATH,
   NODE_VECTOR_MATH,
   NODE_RGB_RAMP,
   NODE_GAMMA,
@@ -305,6 +306,13 @@ typedef enum NodeMathType {
   NODE_MATH_SMOOTH_MIN,
   NODE_MATH_SMOOTH_MAX,
 } NodeMathType;
+
+typedef enum NodeSpectrumMathType {
+  NODE_SPECTRUM_MATH_ADD,
+  NODE_SPECTRUM_MATH_SUBTRACT,
+  NODE_SPECTRUM_MATH_MULTIPLY,
+  NODE_SPECTRUM_MATH_DIVIDE,
+} NodeSpectrumMathType;
 
 typedef enum NodeVectorMathType {
   NODE_VECTOR_MATH_ADD,
