@@ -435,11 +435,8 @@ static void *seq_prefetch_frames(void *job)
 
     seq_prefetch_update_depsgraph(pfjob);
     AnimData *adt = BKE_animdata_from_id(&pfjob->context_cpy.scene->id);
-    BKE_animsys_evaluate_animdata(&pfjob->context_cpy.scene->id,
-                                  adt,
-                                  seq_prefetch_cfra(pfjob),
-                                  ADT_RECALC_ALL,
-                                  false);
+    BKE_animsys_evaluate_animdata(
+        &pfjob->context_cpy.scene->id, adt, seq_prefetch_cfra(pfjob), ADT_RECALC_ALL, false);
 
     /* This is quite hacky solution:
      * We need cross-reference original scene with copy for cache.
@@ -535,11 +532,11 @@ void BKE_sequencer_prefetch_start(const SeqRenderData *context, float cfra, floa
     /* conditions to start:
      * prefetch enabled, prefetch not running, not scrubbing,
      * not playing and rendering-expensive footage, cache storage enabled, has strips to render,
-     * not rendering.
+     * not rendering, not doing modal transform - important, see D7820.
      */
     if ((ed->cache_flag & SEQ_CACHE_PREFETCH_ENABLE) && !running && !scrubbing &&
         !(playing && cost > 0.9) && ed->cache_flag & SEQ_CACHE_ALL_TYPES && has_strips &&
-        !G.is_rendering) {
+        !G.is_rendering && !G.moving) {
 
       seq_prefetch_start(context, cfra);
     }
