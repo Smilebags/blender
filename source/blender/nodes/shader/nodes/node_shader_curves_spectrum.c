@@ -35,7 +35,7 @@ static bNodeSocketTemplate sh_node_curve_spectrum_out[] = {
 
 static void node_shader_init_curve_spectrum(bNodeTree *UNUSED(ntree), bNode *node)
 {
-  node->storage = BKE_curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
+  node->storage = BKE_curvemapping_add(1, 380.0f, 0.0f, 730.0f, 1.0f);
 }
 
 void register_node_type_sh_curve_spectrum(void)
