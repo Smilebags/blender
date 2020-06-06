@@ -33,9 +33,9 @@ void wm_history_file_read(void);
 void wm_homefile_read(struct bContext *C,
                       struct ReportList *reports,
                       bool use_factory_settings,
-                      const bool use_empty_data,
-                      const bool use_data,
-                      const bool use_userdef,
+                      bool use_empty_data,
+                      bool use_data,
+                      bool use_userdef,
                       const char *filepath_startup_override,
                       const char *app_template_override,
                       bool *r_is_factory_startup);
@@ -45,8 +45,6 @@ void wm_close_file_dialog(bContext *C, struct wmGenericCallback *post_action);
 bool wm_file_or_image_is_modified(const Main *bmain, const wmWindowManager *wm);
 
 void WM_OT_save_homefile(struct wmOperatorType *ot);
-void WM_OT_userpref_autoexec_path_add(struct wmOperatorType *ot);
-void WM_OT_userpref_autoexec_path_remove(struct wmOperatorType *ot);
 void WM_OT_save_userpref(struct wmOperatorType *ot);
 void WM_OT_read_userpref(struct wmOperatorType *ot);
 void WM_OT_read_factory_userpref(struct wmOperatorType *ot);

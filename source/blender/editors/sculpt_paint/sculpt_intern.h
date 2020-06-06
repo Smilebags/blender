@@ -592,6 +592,9 @@ typedef struct SculptThreadedTaskData {
   float transform_mats[8][4][4];
 
   float cloth_time_step;
+  SculptClothSimulation *cloth_sim;
+  float *cloth_sim_initial_location;
+  float cloth_sim_radius;
 
   float dirty_mask_min;
   float dirty_mask_max;
@@ -831,11 +834,14 @@ typedef struct FilterCache {
   /* Sharpen mesh filter. */
   float sharpen_smooth_ratio;
   float *sharpen_factor;
-  float (*accum_disp)[3];
 
   /* unmasked nodes */
   PBVHNode **nodes;
   int totnode;
+
+  /* Cloth filter. */
+  SculptClothSimulation *cloth_sim;
+  float cloth_sim_pinch_point[3];
 
   /* mask expand iteration caches */
   int mask_update_current_it;
@@ -890,6 +896,9 @@ void SCULPT_OT_set_pivot_position(struct wmOperatorType *ot);
 
 /* Mesh Filter. */
 void SCULPT_OT_mesh_filter(struct wmOperatorType *ot);
+
+/* Cloth Filter. */
+void SCULPT_OT_cloth_filter(struct wmOperatorType *ot);
 
 /* Mask filter and Dirty Mask. */
 void SCULPT_OT_mask_filter(struct wmOperatorType *ot);
