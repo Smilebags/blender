@@ -79,15 +79,15 @@ ccl_device_inline SpectralColor blackbody_intensity_normalized(float temperature
 }
 
 ccl_device void svm_node_blackbody_spectral(
-    KernelGlobals *kg, PathState *state, float *stack, uint temperature_offset, uint col_offset)
+    KernelGlobals *kg, PathState *state, float *stack, uint temperature_in, uint spectrum_out)
 {
   /* Input */
-  float temperature = stack_load_float(stack, temperature_offset);
+  float temperature = stack_load_float(stack, temperature_in);
   temperature = max(temperature, 0.0f);
 
-  SpectralColor spectral = blackbody_intensity_normalized(temperature, state->wavelengths * 1e-9f);
+  SpectralColor spectrum = blackbody_intensity_normalized(temperature, state->wavelengths * 1e-9f);
 
-  stack_store_spectral(stack, col_offset, spectral);
+  stack_store_spectral(stack, spectrum_out, spectrum);
 }
 
 CCL_NAMESPACE_END

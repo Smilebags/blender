@@ -16,16 +16,16 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* RGB to Spectral Node */
+/* RGB to Spectrum Node */
 
 ccl_device void svm_node_rgb_to_spectrum(
-    KernelGlobals *kg, PathState *state, float *stack, uint color_in, uint spectral_out)
+    KernelGlobals *kg, PathState *state, float *stack, uint color_in, uint spectrum_out)
 {
   /* Input */
   RGBColor color = stack_load_float3(stack, color_in);
-  SpectralColor spectral = linear_to_wavelength_intensities(color, state->wavelengths);
+  SpectralColor spectrum = linear_to_wavelength_intensities(color, state->wavelengths);
 
-  stack_store_spectral(stack, spectral_out, spectral);
+  stack_store_spectral(stack, spectrum_out, spectrum);
 }
 
 CCL_NAMESPACE_END
