@@ -173,6 +173,35 @@ void node_math_update(bNodeTree *UNUSED(ntree), bNode *node)
   }
 }
 
+void node_spectrum_math_update(bNodeTree *UNUSED(ntree), bNode *node)
+{
+  bNodeSocket *sock1 = BLI_findlink(&node->inputs, 0);
+  bNodeSocket *sock2 = BLI_findlink(&node->inputs, 1);
+  nodeSetSocketAvailability(sock2,
+                            !ELEM(node->custom1,
+                                  NODE_SPECTRUM_MATH_SQRT,
+                                  NODE_SPECTRUM_MATH_ABSOLUTE,
+                                  NODE_SPECTRUM_MATH_INV_SQRT,
+                                  NODE_SPECTRUM_MATH_EXPONENT));
+
+  if (sock1->label[0] != '\0') {
+    sock1->label[0] = '\0';
+  }
+  if (sock2->label[0] != '\0') {
+    sock2->label[0] = '\0';
+  }
+
+  switch (node->custom1) {
+    case NODE_SPECTRUM_MATH_POWER:
+      node_sock_label(sock1, "Base");
+      node_sock_label(sock2, "Exponent");
+      break;
+    case NODE_SPECTRUM_MATH_LOGARITHM:
+      node_sock_label(sock2, "Base");
+      break;
+  }
+}
+
 /**** Labels ****/
 
 void node_blend_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)

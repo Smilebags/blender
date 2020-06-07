@@ -63,6 +63,30 @@ ccl_device void svm_node_spectrum_math(KernelGlobals *kg,
     case NODE_SPECTRUM_MATH_DIVIDE:
       result = safe_divide(a, b);
       break;
+    case NODE_SPECTRUM_MATH_POWER:
+      result = pow(a, b);
+      break;
+    case NODE_SPECTRUM_MATH_LOGARITHM:
+      result = log(a);
+      break;
+    case NODE_SPECTRUM_MATH_SQRT:
+      result = sqrt(a);
+      break;
+    case NODE_SPECTRUM_MATH_INV_SQRT:
+      result = safe_rcp(sqrt(a));
+      break;
+    case NODE_SPECTRUM_MATH_ABSOLUTE:
+      result = fabs(a);
+      break;
+    case NODE_SPECTRUM_MATH_EXPONENT:
+      result = exp(a);
+      break;
+    case NODE_SPECTRUM_MATH_MINIMUM:
+      result = min(a, b);
+      break;
+    case NODE_SPECTRUM_MATH_MAXIMUM:
+      result = max(a, b);
+      break;
   }
 
   if (use_clamp) {

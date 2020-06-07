@@ -274,10 +274,25 @@ const EnumPropertyItem rna_enum_node_vec_math_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_spectrum_math_items[] = {
+    {0, "", 0, N_("Functions"), ""},
     {NODE_SPECTRUM_MATH_ADD, "ADD", 0, "Add", "A + B"},
     {NODE_SPECTRUM_MATH_SUBTRACT, "SUBTRACT", 0, "Subtract", "A - B"},
     {NODE_SPECTRUM_MATH_MULTIPLY, "MULTIPLY", 0, "Multiply", "A * B"},
     {NODE_SPECTRUM_MATH_DIVIDE, "DIVIDE", 0, "Divide", "A / B"},
+    {0, "", ICON_NONE, NULL, NULL},
+    {NODE_SPECTRUM_MATH_POWER, "POWER", 0, "Power", "A power B"},
+    {NODE_SPECTRUM_MATH_LOGARITHM, "LOGARITHM", 0, "Logarithm", "Logarithm A base B"},
+    {NODE_SPECTRUM_MATH_SQRT, "SQRT", 0, "Square Root", "Square root of A"},
+    {NODE_SPECTRUM_MATH_INV_SQRT,
+     "INVERSE_SQRT",
+     0,
+     "Inverse Square Root",
+     "1 / Square root of A"},
+    {NODE_SPECTRUM_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Magnitude of A"},
+    {NODE_SPECTRUM_MATH_EXPONENT, "EXPONENT", 0, "Exponent", "exp(A)"},
+    {0, "", 0, N_("Comparison"), ""},
+    {NODE_SPECTRUM_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "The minimum from A and B"},
+    {NODE_SPECTRUM_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "The maximum from A and B"},
     {0, NULL, 0, NULL, NULL},
 };
 

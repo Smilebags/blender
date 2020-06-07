@@ -429,19 +429,24 @@ ccl_device_inline bool isfinite_safe(float8 v)
          isfinite_safe(v.e) && isfinite_safe(v.f) && isfinite_safe(v.g) && isfinite_safe(v.h);
 }
 
+ccl_device_inline float8 pow(float8 v, float8 e)
+{
+  return make_float8(powf(v.a, e.a),
+                     powf(v.b, e.b),
+                     powf(v.c, e.c),
+                     powf(v.d, e.d),
+                     powf(v.e, e.e),
+                     powf(v.f, e.f),
+                     powf(v.g, e.g),
+                     powf(v.h, e.h));
+}
+
 ccl_device_inline float8 pow(float8 v, float e)
 {
 #if defined(__KERNEL_AVX2__) && defined(_INCLUDED_IMM)
   return float8(_mm256_pow_ps(v.m256, _mm256_set1_ps(e)));
 #else
-  return make_float8(powf(v.a, e),
-                     powf(v.b, e),
-                     powf(v.c, e),
-                     powf(v.d, e),
-                     powf(v.e, e),
-                     powf(v.f, e),
-                     powf(v.g, e),
-                     powf(v.h, e));
+  return pow(v, make_float8(e));
 #endif
 }
 

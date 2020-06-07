@@ -5995,6 +5995,14 @@ NODE_DEFINE(SpectrumMathNode)
   type_enum.insert("subtract", NODE_SPECTRUM_MATH_SUBTRACT);
   type_enum.insert("multiply", NODE_SPECTRUM_MATH_MULTIPLY);
   type_enum.insert("divide", NODE_SPECTRUM_MATH_DIVIDE);
+  type_enum.insert("power", NODE_SPECTRUM_MATH_POWER);
+  type_enum.insert("logarithm", NODE_SPECTRUM_MATH_LOGARITHM);
+  type_enum.insert("minimum", NODE_SPECTRUM_MATH_MINIMUM);
+  type_enum.insert("maximum", NODE_SPECTRUM_MATH_MAXIMUM);
+  type_enum.insert("absolute", NODE_SPECTRUM_MATH_ABSOLUTE);
+  type_enum.insert("sqrt", NODE_SPECTRUM_MATH_SQRT);
+  type_enum.insert("inversesqrt", NODE_SPECTRUM_MATH_INV_SQRT);
+  type_enum.insert("exponent", NODE_SPECTRUM_MATH_EXPONENT);
   SOCKET_ENUM(type, "Type", type_enum, NODE_SPECTRUM_MATH_ADD);
 
   SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);
