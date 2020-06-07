@@ -1658,9 +1658,9 @@ class VectorDisplacementNode : public ShaderNode {
   float scale;
 };
 
-class RGBToSpectralNode : public ShaderNode {
+class RGBToSpectrumNode : public ShaderNode {
  public:
-  SHADER_NODE_CLASS(RGBToSpectralNode)
+  SHADER_NODE_CLASS(RGBToSpectrumNode)
   virtual int get_group()
   {
     return NODE_GROUP_LEVEL_0;

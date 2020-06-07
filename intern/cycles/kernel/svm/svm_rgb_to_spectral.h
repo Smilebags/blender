@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* RGB to Spectral Node */
 
-ccl_device void svm_node_rgb_to_spectral(
+ccl_device void svm_node_rgb_to_spectrum(
     KernelGlobals *kg, PathState *state, float *stack, uint color_in, uint spectral_out)
 {
   /* Input */

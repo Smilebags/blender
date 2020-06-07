@@ -2023,7 +2023,12 @@ void ConvertNode::compile(SVMCompiler &compiler)
   ShaderOutput *out = outputs[0];
 
   if (from == SocketType::COLOR && to == SocketType::SPECTRAL) {
-    compiler.add_node(NODE_RGB_TO_SPECTRAL, compiler.stack_assign(in), compiler.stack_assign(out));
+    compiler.add_node(NODE_RGB_TO_SPECTRUM, compiler.stack_assign(in), compiler.stack_assign(out));
+    return;
+  }
+
+  if (from == SocketType::FLOAT && to == SocketType::SPECTRAL) {
+    compiler.add_node(NODE_RGB_TO_SPECTRUM, compiler.stack_assign(in), compiler.stack_assign(out));
     return;
   }
 
@@ -7071,33 +7076,33 @@ void VectorDisplacementNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_vector_displacement");
 }
 
-NODE_DEFINE(RGBToSpectralNode)
+NODE_DEFINE(RGBToSpectrumNode)
 {
-  NodeType *type = NodeType::add("rgb_to_spectral", create, NodeType::SHADER);
+  NodeType *type = NodeType::add("rgb_to_spectrum", create, NodeType::SHADER);
 
   SOCKET_IN_COLOR(color, "Color", make_float3(0.8f, 0.8f, 0.8f));
 
-  SOCKET_OUT_SPECTRAL(spectral, "Spectral");
+  SOCKET_OUT_SPECTRAL(spectral, "Spectrum");
 
   return type;
 }
 
-RGBToSpectralNode::RGBToSpectralNode() : ShaderNode(node_type)
+RGBToSpectrumNode::RGBToSpectrumNode() : ShaderNode(node_type)
 {
 }
 
-void RGBToSpectralNode::compile(SVMCompiler &compiler)
+void RGBToSpectrumNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *color_in = input("Color");
-  ShaderOutput *spectral_out = output("Spectral");
+  ShaderOutput *spectral_out = output("Spectrum");
 
   compiler.add_node(
-      NODE_RGB_TO_SPECTRAL, compiler.stack_assign(color_in), compiler.stack_assign(spectral_out));
+      NODE_RGB_TO_SPECTRUM, compiler.stack_assign(color_in), compiler.stack_assign(spectral_out));
 }
 
-void RGBToSpectralNode::compile(OSLCompiler &compiler)
+void RGBToSpectrumNode::compile(OSLCompiler &compiler)
 {
-  // compiler.add(this, "node_rgb_to_spectral");
+  // compiler.add(this, "node_rgb_to_spectrum");
 }
 
 CCL_NAMESPACE_END

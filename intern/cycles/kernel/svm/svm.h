@@ -373,8 +373,8 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
       case NODE_HSV:
         svm_node_hsv(kg, sd, stack, node, &offset);
         break;
-      case NODE_RGB_TO_SPECTRAL:
-        svm_node_rgb_to_spectral(kg, state, stack, node.y, node.z);
+      case NODE_RGB_TO_SPECTRUM:
+        svm_node_rgb_to_spectrum(kg, state, stack, node.y, node.z);
         break;
 #endif /* NODES_GROUP(NODE_GROUP_LEVEL_0) */
 
