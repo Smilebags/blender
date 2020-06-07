@@ -2028,7 +2028,7 @@ void ConvertNode::compile(SVMCompiler &compiler)
   }
 
   if (from == SocketType::FLOAT && to == SocketType::SPECTRAL) {
-    compiler.add_node(NODE_RGB_TO_SPECTRUM, compiler.stack_assign(in), compiler.stack_assign(out));
+    compiler.add_node(NODE_FLAT_SPECTRUM, compiler.stack_assign(in), compiler.stack_assign(out));
     return;
   }
 

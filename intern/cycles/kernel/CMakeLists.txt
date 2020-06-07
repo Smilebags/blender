@@ -242,6 +242,7 @@ set(SRC_SVM_HEADERS
   svm/svm_white_noise.h
   svm/svm_vertex_color.h
   svm/svm_rgb_to_spectrum.h
+  svm/svm_flat_spectrum.h
 )
 
 set(SRC_GEOM_HEADERS

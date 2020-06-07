@@ -189,6 +189,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_closure.h"
 #include "kernel/svm/svm_convert.h"
 #include "kernel/svm/svm_displace.h"
+#include "kernel/svm/svm_flat_spectrum.h"
 #include "kernel/svm/svm_fresnel.h"
 #include "kernel/svm/svm_gamma.h"
 #include "kernel/svm/svm_geometry.h"
@@ -375,6 +376,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         break;
       case NODE_RGB_TO_SPECTRUM:
         svm_node_rgb_to_spectrum(kg, state, stack, node.y, node.z);
+        break;
+      case NODE_FLAT_SPECTRUM:
+        svm_node_flat_spectrum(kg, state, stack, node.y, node.z);
         break;
 #endif /* NODES_GROUP(NODE_GROUP_LEVEL_0) */
 
