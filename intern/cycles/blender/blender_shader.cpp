@@ -614,6 +614,9 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeBlackbody)) {
     node = new BlackbodyNode();
   }
+  else if (b_node.is_a(&RNA_ShaderNodeBlackbodySpectral)) {
+    node = new BlackbodySpectralNode();
+  }
   else if (b_node.is_a(&RNA_ShaderNodeLightPath)) {
     node = new LightPathNode();
   }

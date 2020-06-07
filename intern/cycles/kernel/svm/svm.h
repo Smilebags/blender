@@ -179,6 +179,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_aov.h"
 #include "kernel/svm/svm_attribute.h"
 #include "kernel/svm/svm_blackbody.h"
+#include "kernel/svm/svm_blackbody_spectral.h"
 #include "kernel/svm/svm_brick.h"
 #include "kernel/svm/svm_brightness.h"
 #include "kernel/svm/svm_bump.h"
@@ -528,7 +529,10 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         svm_node_wavelength(kg, sd, stack, node.y, node.z);
         break;
       case NODE_BLACKBODY:
-        svm_node_blackbody(kg, state, stack, node.y, node.z);
+        svm_node_blackbody(kg, sd, stack, node.y, node.z);
+        break;
+      case NODE_BLACKBODY_SPECTRAL:
+        svm_node_blackbody_spectral(kg, state, stack, node.y, node.z);
         break;
       case NODE_MAP_RANGE:
         svm_node_map_range(kg, sd, stack, node.y, node.z, node.w, &offset);

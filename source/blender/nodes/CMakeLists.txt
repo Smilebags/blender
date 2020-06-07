@@ -142,6 +142,7 @@ set(SRC
   shader/nodes/node_shader_background.c
   shader/nodes/node_shader_bevel.c
   shader/nodes/node_shader_blackbody.c
+  shader/nodes/node_shader_blackbody_spectral.c
   shader/nodes/node_shader_brightness.c
   shader/nodes/node_shader_bsdf_anisotropic.c
   shader/nodes/node_shader_bsdf_diffuse.c

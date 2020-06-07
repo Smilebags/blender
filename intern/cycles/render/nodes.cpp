@@ -5557,7 +5557,7 @@ NODE_DEFINE(BlackbodyNode)
   NodeType *type = NodeType::add("blackbody", create, NodeType::SHADER);
 
   SOCKET_IN_FLOAT(temperature, "Temperature", 1200.0f);
-  SOCKET_OUT_SPECTRAL(color, "Color");
+  SOCKET_OUT_COLOR(color, "Color");
 
   return type;
 }
@@ -5585,6 +5585,38 @@ void BlackbodyNode::compile(SVMCompiler &compiler)
 void BlackbodyNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_blackbody");
+}
+
+/* Spectral Blackbody */
+
+NODE_DEFINE(BlackbodySpectralNode)
+{
+  NodeType *type = NodeType::add("blackbody_spectral", create, NodeType::SHADER);
+
+  SOCKET_IN_FLOAT(temperature, "Temperature", 1200.0f);
+  SOCKET_OUT_SPECTRAL(color, "Spectrum");
+
+  return type;
+}
+
+BlackbodySpectralNode::BlackbodySpectralNode() : ShaderNode(node_type)
+{
+}
+
+void BlackbodySpectralNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *temperature_in = input("Temperature");
+  ShaderOutput *spectrum_out = output("Spectrum");
+
+  compiler.add_node(NODE_BLACKBODY_SPECTRAL,
+                    compiler.stack_assign(temperature_in),
+                    compiler.stack_assign(spectrum_out));
+}
+
+void BlackbodySpectralNode::compile(OSLCompiler &compiler)
+{
+  /* TODO: OSL */
+  compiler.add(this, "node_blackbody_spectral");
 }
 
 /* Output */

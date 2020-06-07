@@ -295,7 +295,7 @@ shader_node_categories = [
     ShaderNodeCategory("SH_NEW_SPECTRAL", "Spectral", items=[
         NodeItem("ShaderNodeSpectrumCurve"),
         NodeItem("ShaderNodeSpectrumMath"),
-        NodeItem("ShaderNodeBlackbody"),
+        NodeItem("ShaderNodeBlackbodySpectral"),
     ]),
     ShaderNodeCategory("SH_NEW_SCRIPT", "Script", items=[
         NodeItem("ShaderNodeScript"),

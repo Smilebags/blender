@@ -1302,6 +1302,17 @@ class BlackbodyNode : public ShaderNode {
   float temperature;
 };
 
+class BlackbodySpectralNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(BlackbodySpectralNode)
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+
+  float temperature;
+};
+
 class MapRangeNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(MapRangeNode)
