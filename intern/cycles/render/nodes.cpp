@@ -2936,7 +2936,7 @@ NODE_DEFINE(SubsurfaceScatteringNode)
   falloff_enum.insert("random_walk", CLOSURE_BSSRDF_RANDOM_WALK_ID);
   SOCKET_ENUM(falloff, "Falloff", falloff_enum, CLOSURE_BSSRDF_BURLEY_ID);
   SOCKET_IN_FLOAT(scale, "Scale", 0.01f);
-  SOCKET_IN_VECTOR(radius, "Radius", make_float3(0.1f, 0.1f, 0.1f));
+  SOCKET_IN_SPECTRAL(radius, "Radius", make_float3(0.1f));
   SOCKET_IN_FLOAT(sharpness, "Sharpness", 0.0f);
   SOCKET_IN_FLOAT(texture_blur, "Texture Blur", 1.0f);
 

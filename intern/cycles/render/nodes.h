@@ -663,7 +663,7 @@ class SubsurfaceScatteringNode : public BsdfNode {
   }
 
   float scale;
-  float3 radius;
+  RGBColor radius;
   float sharpness;
   float texture_blur;
   ClosureType falloff;
