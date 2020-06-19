@@ -519,7 +519,7 @@ class MicrofacetClosure : public CBSDFClosure {
   ustring distribution;
   int refract;
 
-  void setup(ShaderData *sd, int path_flag, float3 weight)
+  void setup(ShaderData *sd, int path_flag, SpectralColor weight)
   {
     static ustring u_ggx("ggx");
     static ustring u_default("default");
