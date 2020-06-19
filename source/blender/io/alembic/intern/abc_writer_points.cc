@@ -51,7 +51,8 @@ AbcPointsWriter::AbcPointsWriter(Object *ob,
 {
   m_psys = psys;
 
-  OPoints points(parent->alembicXform(), psys->name, m_time_sampling);
+  std::string psys_name = get_valid_abc_name(psys->name);
+  OPoints points(parent->alembicXform(), psys_name, m_time_sampling);
   m_schema = points.getSchema();
 }
 
@@ -104,7 +105,7 @@ void AbcPointsWriter::do_write()
   }
 
   if (m_psys->lattice_deform_data) {
-    end_latt_deform(m_psys->lattice_deform_data);
+    BKE_lattice_deform_data_destroy(m_psys->lattice_deform_data);
     m_psys->lattice_deform_data = NULL;
   }
 

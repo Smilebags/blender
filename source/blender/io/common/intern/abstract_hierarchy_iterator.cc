@@ -16,7 +16,7 @@
  * The Original Code is Copyright (C) 2019 Blender Foundation.
  * All rights reserved.
  */
-#include "abstract_hierarchy_iterator.h"
+#include "IO_abstract_hierarchy_iterator.h"
 
 #include <iostream>
 #include <limits.h>
@@ -41,7 +41,8 @@
 
 #include "DEG_depsgraph_query.h"
 
-namespace USD {
+namespace blender {
+namespace io {
 
 const HierarchyContext *HierarchyContext::root()
 {
@@ -74,6 +75,43 @@ void HierarchyContext::mark_as_not_instanced()
   original_export_path.clear();
 }
 
+EnsuredWriter::EnsuredWriter() : writer_(nullptr), newly_created_(false)
+{
+}
+
+EnsuredWriter::EnsuredWriter(AbstractHierarchyWriter *writer, bool newly_created)
+    : writer_(writer), newly_created_(newly_created)
+{
+}
+
+EnsuredWriter EnsuredWriter::empty()
+{
+  return EnsuredWriter(nullptr, false);
+}
+EnsuredWriter EnsuredWriter::existing(AbstractHierarchyWriter *writer)
+{
+  return EnsuredWriter(writer, false);
+}
+EnsuredWriter EnsuredWriter::newly_created(AbstractHierarchyWriter *writer)
+{
+  return EnsuredWriter(writer, true);
+}
+
+bool EnsuredWriter::is_newly_created() const
+{
+  return newly_created_;
+}
+
+EnsuredWriter::operator bool() const
+{
+  return writer_ != nullptr;
+}
+
+AbstractHierarchyWriter *EnsuredWriter::operator->()
+{
+  return writer_;
+}
+
 AbstractHierarchyWriter::~AbstractHierarchyWriter()
 {
 }
@@ -104,7 +142,7 @@ bool AbstractHierarchyWriter::check_is_animated(const HierarchyContext &context)
 }
 
 AbstractHierarchyIterator::AbstractHierarchyIterator(Depsgraph *depsgraph)
-    : depsgraph_(depsgraph), writers_()
+    : depsgraph_(depsgraph), writers_(), export_subset_({true, true})
 {
 }
 
@@ -129,6 +167,11 @@ void AbstractHierarchyIterator::release_writers()
     delete_object_writer(it.second);
   }
   writers_.clear();
+}
+
+void AbstractHierarchyIterator::set_export_subset(ExportSubset export_subset)
+{
+  export_subset_ = export_subset;
 }
 
 std::string AbstractHierarchyIterator::make_valid_name(const std::string &name) const
@@ -341,6 +384,8 @@ void AbstractHierarchyIterator::visit_object(Object *object,
   context->animation_check_include_parent = false;
   context->export_path = "";
   context->original_export_path = "";
+  context->higher_up_export_path = "";
+
   copy_m4_m4(context->matrix_world, object->obmat);
 
   ExportGraph::key_type graph_index = determine_graph_index_object(context);
@@ -494,7 +539,6 @@ void AbstractHierarchyIterator::determine_duplication_references(
 
 void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_context)
 {
-  AbstractHierarchyWriter *transform_writer = nullptr;
   float parent_matrix_inv_world[4][4];
 
   if (parent_context) {
@@ -507,20 +551,27 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
   for (HierarchyContext *context : graph_children(parent_context)) {
     // Update the context so that it is correct for this parent-child relation.
     copy_m4_m4(context->parent_matrix_inv_world, parent_matrix_inv_world);
+    if (parent_context != nullptr) {
+      context->higher_up_export_path = parent_context->export_path;
+    }
 
     // Get or create the transform writer.
-    transform_writer = ensure_writer(context, &AbstractHierarchyIterator::create_transform_writer);
-    if (transform_writer == nullptr) {
+    EnsuredWriter transform_writer = ensure_writer(
+        context, &AbstractHierarchyIterator::create_transform_writer);
+
+    if (!transform_writer) {
       // Unable to export, so there is nothing to attach any children to; just abort this entire
       // branch of the export hierarchy.
       return;
     }
 
     BLI_assert(DEG_is_evaluated_object(context->object));
-    /* XXX This can lead to too many XForms being written. For example, a camera writer can refuse
-     * to write an orthographic camera. By the time that this is known, the XForm has already been
-     * written. */
-    transform_writer->write(*context);
+    if (transform_writer.is_newly_created() || export_subset_.transforms) {
+      /* XXX This can lead to too many XForms being written. For example, a camera writer can
+       * refuse to write an orthographic camera. By the time that this is known, the XForm has
+       * already been written. */
+      transform_writer->write(*context);
+    }
 
     if (!context->weak_export) {
       make_writers_particle_systems(context);
@@ -534,17 +585,24 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
   // TODO(Sybren): iterate over all unused writers and call unused_during_iteration() or something.
 }
 
+HierarchyContext AbstractHierarchyIterator::context_for_object_data(
+    const HierarchyContext *object_context) const
+{
+  HierarchyContext data_context = *object_context;
+  data_context.higher_up_export_path = object_context->export_path;
+  data_context.export_name = get_object_data_name(data_context.object);
+  data_context.export_path = path_concatenate(data_context.higher_up_export_path,
+                                              data_context.export_name);
+  return data_context;
+}
+
 void AbstractHierarchyIterator::make_writer_object_data(const HierarchyContext *context)
 {
   if (context->object->data == nullptr) {
     return;
   }
 
-  HierarchyContext data_context = *context;
-  data_context.export_path = get_object_data_path(context);
-
-  /* data_context.original_export_path is just a copy from the context. It points to the object,
-   * but needs to point to the object data. */
+  HierarchyContext data_context = context_for_object_data(context);
   if (data_context.is_instance()) {
     ID *object_data = static_cast<ID *>(context->object->data);
     data_context.original_export_path = duplisource_export_path_[object_data];
@@ -553,13 +611,16 @@ void AbstractHierarchyIterator::make_writer_object_data(const HierarchyContext *
     BLI_assert(data_context.is_instance());
   }
 
-  AbstractHierarchyWriter *data_writer;
-  data_writer = ensure_writer(&data_context, &AbstractHierarchyIterator::create_data_writer);
-  if (data_writer == nullptr) {
+  /* Always write upon creation, otherwise depend on which subset is active. */
+  EnsuredWriter data_writer = ensure_writer(&data_context,
+                                            &AbstractHierarchyIterator::create_data_writer);
+  if (!data_writer) {
     return;
   }
 
-  data_writer->write(data_context);
+  if (data_writer.is_newly_created() || export_subset_.shapes) {
+    data_writer->write(data_context);
+  }
 }
 
 void AbstractHierarchyIterator::make_writers_particle_systems(
@@ -573,11 +634,13 @@ void AbstractHierarchyIterator::make_writers_particle_systems(
     }
 
     HierarchyContext hair_context = *transform_context;
+    hair_context.export_name = make_valid_name(psys->name);
     hair_context.export_path = path_concatenate(transform_context->export_path,
-                                                make_valid_name(psys->name));
+                                                hair_context.export_name);
+    hair_context.higher_up_export_path = transform_context->export_path;
     hair_context.particle_system = psys;
 
-    AbstractHierarchyWriter *writer = nullptr;
+    EnsuredWriter writer;
     switch (psys->part->type) {
       case PART_HAIR:
         writer = ensure_writer(&hair_context, &AbstractHierarchyIterator::create_hair_writer);
@@ -586,8 +649,12 @@ void AbstractHierarchyIterator::make_writers_particle_systems(
         writer = ensure_writer(&hair_context, &AbstractHierarchyIterator::create_particle_writer);
         break;
     }
+    if (!writer) {
+      continue;
+    }
 
-    if (writer != nullptr) {
+    /* Always write upon creation, otherwise depend on which subset is active. */
+    if (writer.is_newly_created() || export_subset_.shapes) {
       writer->write(hair_context);
     }
   }
@@ -615,22 +682,21 @@ AbstractHierarchyWriter *AbstractHierarchyIterator::get_writer(
   return it->second;
 }
 
-AbstractHierarchyWriter *AbstractHierarchyIterator::ensure_writer(
+EnsuredWriter AbstractHierarchyIterator::ensure_writer(
     HierarchyContext *context, AbstractHierarchyIterator::create_writer_func create_func)
 {
   AbstractHierarchyWriter *writer = get_writer(context->export_path);
   if (writer != nullptr) {
-    return writer;
+    return EnsuredWriter::existing(writer);
   }
 
   writer = (this->*create_func)(context);
   if (writer == nullptr) {
-    return nullptr;
+    return EnsuredWriter::empty();
   }
 
   writers_[context->export_path] = writer;
-
-  return writer;
+  return EnsuredWriter::newly_created(writer);
 }
 
 std::string AbstractHierarchyIterator::path_concatenate(const std::string &parent_path,
@@ -649,4 +715,5 @@ bool AbstractHierarchyIterator::should_visit_dupli_object(const DupliObject *dup
   return !dupli_object->no_draw;
 }
 
-}  // namespace USD
+}  // namespace io
+}  // namespace blender

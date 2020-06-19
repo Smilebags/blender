@@ -25,7 +25,7 @@ import buildbot_utils
 
 def get_cmake_options(builder):
     post_install_script = os.path.join(
-        builder.blender_dir, 'build_files', 'buildbot', 'slave_codesign.cmake')
+        builder.blender_dir, 'build_files', 'buildbot', 'worker_codesign.cmake')
 
     config_file = "build_files/cmake/config/blender_release.cmake"
     options = ['-DCMAKE_BUILD_TYPE:STRING=Release',
@@ -35,7 +35,7 @@ def get_cmake_options(builder):
         options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64')
         options.append('-DCMAKE_OSX_DEPLOYMENT_TARGET=10.9')
     elif builder.platform == 'win':
-        options.extend(['-G', 'Visual Studio 15 2017 Win64'])
+        options.extend(['-G', 'Visual Studio 16 2019', '-A', 'x64'])
         options.extend(['-DPOSTINSTALL_SCRIPT:PATH=' + post_install_script])
     elif builder.platform == 'linux':
         config_file = "build_files/buildbot/config/blender_linux.cmake"

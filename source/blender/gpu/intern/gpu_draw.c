@@ -912,6 +912,11 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, ImBuf *ibuf, 
 
   GPU_texture_orig_size_set(*tex, ibuf_intern->x, ibuf_intern->y);
 
+  if (textarget == GL_TEXTURE_1D_ARRAY) {
+    /* Special for tile mapping. */
+    GPU_texture_mipmap_mode(*tex, false, false);
+  }
+
   return *tex;
 #endif
   return NULL;
@@ -1379,7 +1384,7 @@ static void gpu_free_image_immediate(Image *ima)
     }
   }
 
-  ima->gpuflag &= ~(IMA_GPU_MIPMAP_COMPLETE);
+  ima->gpuflag &= ~IMA_GPU_MIPMAP_COMPLETE;
 }
 
 void GPU_free_image(Image *ima)

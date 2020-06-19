@@ -48,7 +48,8 @@ struct Object;
 struct ParticleSystem;
 struct ViewLayer;
 
-namespace USD {
+namespace blender {
+namespace io {
 
 class AbstractHierarchyWriter;
 
@@ -90,6 +91,14 @@ struct HierarchyContext {
    * exported objects, in which case this string is empty even though 'duplicator' is set. */
   std::string original_export_path;
 
+  /* Export path of the higher-up exported data. For transforms, this is the export path of the
+   * parent object. For object data, this is the export path of that object's transform.
+   *
+   * From the exported file's point of view, this is the path to the parent in that file. The term
+   * "parent" is not used here to avoid confusion with Blender's meaning of the word (which always
+   * refers to a different object). */
+  std::string higher_up_export_path;
+
   bool operator<(const HierarchyContext &other) const;
 
   /* Return a HierarchyContext representing the root of the export hierarchy. */
@@ -117,6 +126,39 @@ class AbstractHierarchyWriter {
   // which the particle is no longer alive).
  protected:
   virtual bool check_is_animated(const HierarchyContext &context) const;
+};
+
+/* Determines which subset of the writers actually gets to write. */
+struct ExportSubset {
+  bool transforms : 1;
+  bool shapes : 1;
+};
+
+/* EnsuredWriter represents an AbstractHierarchyWriter* combined with information whether it was
+ * newly created or not. It's returned by AbstractHierarchyIterator::ensure_writer(). */
+class EnsuredWriter {
+ private:
+  AbstractHierarchyWriter *writer_;
+
+  /* Is set to truth when ensure_writer() did not find existing writer and created a new one.
+   * Is set to false when writer has been re-used or when allocation of the new one has failed
+   * (`writer` will be `nullptr` in that case and bool(ensured_writer) will be false). */
+  bool newly_created_;
+
+  EnsuredWriter(AbstractHierarchyWriter *writer, bool newly_created);
+
+ public:
+  EnsuredWriter();
+
+  static EnsuredWriter empty();
+  static EnsuredWriter existing(AbstractHierarchyWriter *writer);
+  static EnsuredWriter newly_created(AbstractHierarchyWriter *writer);
+
+  bool is_newly_created() const;
+
+  /* These operators make an EnsuredWriter* act as an AbstractHierarchyWriter* */
+  operator bool() const;
+  AbstractHierarchyWriter *operator->();
 };
 
 /* AbstractHierarchyIterator iterates over objects in a dependency graph, and constructs export
@@ -147,6 +189,7 @@ class AbstractHierarchyIterator {
   ExportPathMap duplisource_export_path_;
   Depsgraph *depsgraph_;
   WriterMap writers_;
+  ExportSubset export_subset_;
 
  public:
   explicit AbstractHierarchyIterator(Depsgraph *depsgraph);
@@ -159,6 +202,15 @@ class AbstractHierarchyIterator {
 
   /* Release all writers. Call after all frames have been exported. */
   void release_writers();
+
+  /* Determine which subset of writers is used for exporting.
+   * Set this before calling iterate_and_write().
+   *
+   * Note that writers are created for each iterated object, regardless of this option. When a
+   * writer is created it will also write the current iteration, to ensure the hierarchy is
+   * complete. The `export_subset` option is only in effect when the writer already existed from a
+   * previous iteration. */
+  void set_export_subset(ExportSubset export_subset_);
 
   /* Convert the given name to something that is valid for the exported file format.
    * This base implementation is a no-op; override in a concrete subclass. */
@@ -200,6 +252,10 @@ class AbstractHierarchyIterator {
   void make_writer_object_data(const HierarchyContext *context);
   void make_writers_particle_systems(const HierarchyContext *context);
 
+  /* Return the appropriate HierarchyContext for the data of the object represented by
+   * object_context. */
+  HierarchyContext context_for_object_data(const HierarchyContext *object_context) const;
+
   /* Convenience wrappers around get_id_name(). */
   std::string get_object_name(const Object *object) const;
   std::string get_object_data_name(const Object *object) const;
@@ -208,10 +264,11 @@ class AbstractHierarchyIterator {
 
   typedef AbstractHierarchyWriter *(AbstractHierarchyIterator::*create_writer_func)(
       const HierarchyContext *);
-  /* Ensure that a writer exists; if it doesn't, call create_func(context). The create_func
-   * function should be one of the create_XXXX_writer(context) functions declared below. */
-  AbstractHierarchyWriter *ensure_writer(HierarchyContext *context,
-                                         create_writer_func create_func);
+  /* Ensure that a writer exists; if it doesn't, call create_func(context).
+   *
+   * The create_func function should be one of the create_XXXX_writer(context) functions declared
+   * below. */
+  EnsuredWriter ensure_writer(HierarchyContext *context, create_writer_func create_func);
 
  protected:
   /* Construct a valid path for the export file format. This class concatenates by using '/' as a
@@ -258,6 +315,7 @@ class AbstractHierarchyIterator {
   virtual void delete_object_writer(AbstractHierarchyWriter *writer) = 0;
 };
 
-}  // namespace USD
+}  // namespace io
+}  // namespace blender
 
 #endif /* __ABSTRACT_HIERARCHY_ITERATOR_H__ */

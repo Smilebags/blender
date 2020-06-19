@@ -21,7 +21,8 @@
 #include "BLI_float3.hh"
 #include "BLI_float4x4.hh"
 
-namespace FN {
+namespace blender {
+namespace fn {
 
 MAKE_CPP_TYPE(bool, bool)
 
@@ -38,4 +39,5 @@ MAKE_CPP_TYPE(Color4b, blender::Color4b)
 
 MAKE_CPP_TYPE(string, std::string)
 
-}  // namespace FN
+}  // namespace fn
+}  // namespace blender

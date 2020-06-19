@@ -1771,7 +1771,10 @@ static Collection *single_object_users_collection(Main *bmain,
   /* Generate new copies for objects in given collection and all its children,
    * and optionally also copy collections themselves. */
   if (copy_collections && !is_master_collection) {
-    collection = ID_NEW_SET(collection, BKE_collection_copy(bmain, NULL, collection));
+    Collection *collection_new;
+    BKE_id_copy(bmain, &collection->id, (ID **)&collection_new);
+    id_us_min(&collection_new->id);
+    collection = ID_NEW_SET(collection, collection_new);
   }
 
   /* We do not remap to new objects here, this is done in separate step. */
@@ -2399,10 +2402,6 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
         if (new_ob == (Object *)obact->id.newid) {
           /* TODO: is setting active needed? */
           BKE_view_layer_base_select_and_set_active(view_layer, base);
-        }
-        else {
-          /* Disable auto-override tags for non-active objects, will help with performaces... */
-          new_ob->id.override_library->flag &= ~OVERRIDE_LIBRARY_AUTO;
         }
         /* We still want to store all objects' current override status (i.e. change of parent). */
         BKE_lib_override_library_operations_create(bmain, &new_ob->id, true);

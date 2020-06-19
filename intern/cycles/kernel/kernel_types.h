@@ -1296,6 +1296,24 @@ typedef struct KernelBackground {
   float ao_factor;
   float ao_distance;
   float ao_bounces_factor;
+
+  /* portal sampling */
+  float portal_weight;
+  int num_portals;
+  int portal_offset;
+
+  /* sun sampling */
+  float sun_weight;
+  /* xyz store direction, w the angle. float4 instead of float3 is used
+   * to ensure consistent padding/alignment across devices. */
+  float4 sun;
+
+  /* map sampling */
+  float map_weight;
+  int map_res_x;
+  int map_res_y;
+
+  int use_mis;
 } KernelBackground;
 static_assert_align(KernelBackground, 16);
 
@@ -1307,14 +1325,7 @@ typedef struct KernelIntegrator {
   int num_all_lights;
   float pdf_triangles;
   float pdf_lights;
-  int pdf_background_res_x;
-  int pdf_background_res_y;
   float light_inv_rr_threshold;
-
-  /* light portals */
-  float portal_pdf;
-  int num_portals;
-  int portal_offset;
 
   /* bounces */
   int min_bounce;
@@ -1377,7 +1388,7 @@ typedef struct KernelIntegrator {
 
   int max_closures;
 
-  int pad1;
+  int pad1, pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

@@ -70,11 +70,8 @@
 #include "BLI_math_base.h"
 #include "BLI_string_ref.hh"
 
-namespace FN {
-
-using blender::IndexMask;
-using blender::StringRef;
-using blender::StringRefNull;
+namespace blender {
+namespace fn {
 
 class CPPType {
  public:
@@ -211,7 +208,7 @@ class CPPType {
   }
 
   /**
-   * Returns true, when the given pointer fullfills the alignment requirement of this type.
+   * Returns true, when the given pointer fulfills the alignment requirement of this type.
    */
   bool pointer_has_valid_alignment(const void *ptr) const
   {
@@ -240,14 +237,14 @@ class CPPType {
 
   void construct_default_n(void *ptr, uint n) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(ptr));
+    BLI_assert(this->pointer_has_valid_alignment(ptr));
 
     m_construct_default_n(ptr, n);
   }
 
   void construct_default_indices(void *ptr, IndexMask index_mask) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(ptr));
+    BLI_assert(this->pointer_has_valid_alignment(ptr));
 
     m_construct_default_indices(ptr, index_mask);
   }
@@ -269,14 +266,14 @@ class CPPType {
 
   void destruct_n(void *ptr, uint n) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(ptr));
+    BLI_assert(this->pointer_has_valid_alignment(ptr));
 
     m_destruct_n(ptr, n);
   }
 
   void destruct_indices(void *ptr, IndexMask index_mask) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(ptr));
+    BLI_assert(this->pointer_has_valid_alignment(ptr));
 
     m_destruct_indices(ptr, index_mask);
   }
@@ -299,8 +296,8 @@ class CPPType {
   void copy_to_initialized_n(const void *src, void *dst, uint n) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_copy_to_initialized_n(src, dst, n);
   }
@@ -308,8 +305,8 @@ class CPPType {
   void copy_to_initialized_indices(const void *src, void *dst, IndexMask index_mask) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_copy_to_initialized_indices(src, dst, index_mask);
   }
@@ -334,8 +331,8 @@ class CPPType {
   void copy_to_uninitialized_n(const void *src, void *dst, uint n) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_copy_to_uninitialized_n(src, dst, n);
   }
@@ -343,8 +340,8 @@ class CPPType {
   void copy_to_uninitialized_indices(const void *src, void *dst, IndexMask index_mask) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_copy_to_uninitialized_indices(src, dst, index_mask);
   }
@@ -369,8 +366,8 @@ class CPPType {
   void relocate_to_initialized_n(void *src, void *dst, uint n) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_relocate_to_initialized_n(src, dst, n);
   }
@@ -378,8 +375,8 @@ class CPPType {
   void relocate_to_initialized_indices(void *src, void *dst, IndexMask index_mask) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_relocate_to_initialized_indices(src, dst, index_mask);
   }
@@ -404,8 +401,8 @@ class CPPType {
   void relocate_to_uninitialized_n(void *src, void *dst, uint n) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_relocate_to_uninitialized_n(src, dst, n);
   }
@@ -413,8 +410,8 @@ class CPPType {
   void relocate_to_uninitialized_indices(void *src, void *dst, IndexMask index_mask) const
   {
     BLI_assert(src != dst);
-    BLI_assert(this->pointer_can_point_to_instance(src));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(src));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_relocate_to_uninitialized_indices(src, dst, index_mask);
   }
@@ -434,8 +431,8 @@ class CPPType {
 
   void fill_initialized_indices(const void *value, void *dst, IndexMask index_mask) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(value));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(value));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_fill_initialized_indices(value, dst, index_mask);
   }
@@ -455,8 +452,8 @@ class CPPType {
 
   void fill_uninitialized_indices(const void *value, void *dst, IndexMask index_mask) const
   {
-    BLI_assert(this->pointer_can_point_to_instance(value));
-    BLI_assert(this->pointer_can_point_to_instance(dst));
+    BLI_assert(this->pointer_has_valid_alignment(value));
+    BLI_assert(this->pointer_has_valid_alignment(dst));
 
     m_fill_uninitialized_indices(value, dst, index_mask);
   }
@@ -718,14 +715,15 @@ static std::unique_ptr<const CPPType> create_cpp_type(StringRef name, const T &d
   return std::unique_ptr<const CPPType>(type);
 }
 
-}  // namespace FN
+}  // namespace fn
+}  // namespace blender
 
 #define MAKE_CPP_TYPE(IDENTIFIER, TYPE_NAME) \
   static TYPE_NAME default_value_##IDENTIFIER; \
-  static std::unique_ptr<const FN::CPPType> CPPTYPE_##IDENTIFIER##_owner = \
-      FN::create_cpp_type<TYPE_NAME>(STRINGIFY(IDENTIFIER), default_value_##IDENTIFIER); \
-  const FN::CPPType &CPPType_##IDENTIFIER = *CPPTYPE_##IDENTIFIER##_owner; \
-  template<> const FN::CPPType &FN::CPPType::get<TYPE_NAME>() \
+  static std::unique_ptr<const blender::fn::CPPType> CPPTYPE_##IDENTIFIER##_owner = \
+      blender::fn::create_cpp_type<TYPE_NAME>(STRINGIFY(IDENTIFIER), default_value_##IDENTIFIER); \
+  const blender::fn::CPPType &CPPType_##IDENTIFIER = *CPPTYPE_##IDENTIFIER##_owner; \
+  template<> const blender::fn::CPPType &blender::fn::CPPType::get<TYPE_NAME>() \
   { \
     return CPPType_##IDENTIFIER; \
   }
