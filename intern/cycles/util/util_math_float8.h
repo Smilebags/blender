@@ -21,6 +21,8 @@
 #  error "Do not include this file directly, include util_types.h instead."
 #endif
 
+#include <immintrin.h>
+
 CCL_NAMESPACE_BEGIN
 
 /*******************************************************************************
@@ -429,7 +431,7 @@ ccl_device_inline bool isfinite_safe(float8 v)
 
 ccl_device_inline float8 pow(float8 v, float e)
 {
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && defined(_INCLUDED_IMM)
   return float8(_mm256_pow_ps(v.m256, _mm256_set1_ps(e)));
 #else
   return make_float8(powf(v.a, e),
@@ -445,7 +447,7 @@ ccl_device_inline float8 pow(float8 v, float e)
 
 ccl_device_inline float8 exp(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && defined(_INCLUDED_IMM)
   return float8(_mm256_exp_ps(v.m256));
 #else
   return make_float8(
@@ -455,7 +457,7 @@ ccl_device_inline float8 exp(float8 v)
 
 ccl_device_inline float8 expm1(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && defined(_INCLUDED_IMM)
   return float8(_mm256_expm1_ps(v.m256));
 #else
   return make_float8(expm1f(v.a),
@@ -471,7 +473,7 @@ ccl_device_inline float8 expm1(float8 v)
 
 ccl_device_inline float8 log(float8 v)
 {
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && defined(_INCLUDED_IMM)
   return float8(_mm256_log_ps(v.m256));
 #else
   return make_float8(

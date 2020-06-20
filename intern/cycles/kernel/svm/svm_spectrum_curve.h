@@ -40,7 +40,6 @@ ccl_device void svm_node_spectrum_curves(
                  fetch_node_float(kg, table_offset + min(table_size - 1, position + 1)).x,
                  progress);
   }
-  out = saturate(out);
 
   stack_store_spectral(stack, out_offset, out);
 

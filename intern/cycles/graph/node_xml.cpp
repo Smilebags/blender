@@ -307,6 +307,7 @@ xml_node xml_write_node(Node *node, xml_node xml_root)
         break;
       }
       case SocketType::COLOR:
+      case SocketType::SPECTRAL:
       case SocketType::VECTOR:
       case SocketType::POINT:
       case SocketType::NORMAL: {

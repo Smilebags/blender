@@ -246,8 +246,8 @@ static ShaderNode *add_node(Scene *scene,
     curves->curve.resize(RAMP_TABLE_SIZE);
 
     for (int i = 0; i < RAMP_TABLE_SIZE; i++) {
-      curves->curve[i] = mapping.evaluate(map_spectrum,
-                                          mix(-1.0f, 1.0f, (float)i / (RAMP_TABLE_SIZE - 1)));
+      float x = mix(MIN_WAVELENGTH, MAX_WAVELENGTH, (float)i / (RAMP_TABLE_SIZE - 1));
+      curves->curve[i] = mapping.evaluate(map_spectrum, x);
     }
 
     node = curves;
