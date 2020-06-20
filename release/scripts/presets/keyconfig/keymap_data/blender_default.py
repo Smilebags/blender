@@ -695,9 +695,12 @@ def km_user_interface(_params):
         ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "shift": True, "ctrl": True, "alt": True},
          {"properties": [("full_path", True)]}),
         # Keyframes and drivers
-        ("anim.keyframe_insert_button", {"type": 'I', "value": 'PRESS'}, None),
-        ("anim.keyframe_delete_button", {"type": 'I', "value": 'PRESS', "alt": True}, None),
-        ("anim.keyframe_clear_button", {"type": 'I', "value": 'PRESS', "shift": True, "alt": True}, None),
+        ("anim.keyframe_insert_button", {"type": 'I', "value": 'PRESS'},
+         {"properties": [("all", True)]}),
+        ("anim.keyframe_delete_button", {"type": 'I', "value": 'PRESS', "alt": True},
+         {"properties": [("all", True)]}),
+        ("anim.keyframe_clear_button", {"type": 'I', "value": 'PRESS', "shift": True, "alt": True},
+         {"properties": [("all", True)]}),
         ("anim.driver_button_add", {"type": 'D', "value": 'PRESS', "ctrl": True}, None),
         ("anim.driver_button_remove", {"type": 'D', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("anim.keyingset_button_add", {"type": 'K', "value": 'PRESS'}, None),
@@ -2391,7 +2394,8 @@ def km_sequencercommon(_params):
         ),
         ("wm.context_toggle", {"type": 'O', "value": 'PRESS', "shift": True},
          {"properties": [("data_path", 'scene.sequence_editor.show_overlay')]}),
-        ("sequencer.view_toggle", {"type": 'TAB', "value": 'PRESS', "ctrl": True}, None),
+        ("wm.context_toggle_enum", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
+         {"properties": [("data_path", 'space_data.view_type'), ("value_1", 'SEQUENCER'), ("value_2", 'PREVIEW')]}),
     ])
 
     if _params.select_mouse == 'LEFTMOUSE' and not _params.legacy:
@@ -2463,7 +2467,7 @@ def km_sequencer(params):
          {"properties": [("all", False)]}),
         ("sequencer.gap_remove", {"type": 'BACK_SPACE', "value": 'PRESS', "shift": True},
          {"properties": [("all", True)]}),
-        ("sequencer.gap_insert", {"type": 'BACK_SPACE', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.gap_insert", {"type": 'EQUAL', "value": 'PRESS', "shift": True}, None),
         ("sequencer.snap", {"type": 'S', "value": 'PRESS', "shift": True}, None),
         ("sequencer.swap_inputs", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         *(
@@ -2519,14 +2523,6 @@ def km_sequencer(params):
          {"properties": [("side", 'LEFT')]}),
         ("sequencer.select_side_of_frame", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
          {"properties": [("side", 'RIGHT')]}),
-        ("sequencer.select_side_of_frame", {"type": 'EQUAL', "value": 'PRESS'},
-         {"properties": [("side", 'OVERLAP')]}),
-        ("sequencer.select_side_of_frame", {"type": 'LEFT_BRACKET', "value": 'PRESS', "shift": True},
-         {"properties": [("side", 'LEFT'), ("extend", True)]}),
-        ("sequencer.select_side_of_frame", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "shift": True},
-         {"properties": [("side", 'RIGHT'), ("extend", True)]}),
-        ("sequencer.select_side_of_frame", {"type": 'EQUAL', "value": 'PRESS', "shift": True},
-         {"properties": [("side", 'OVERLAP'), ("extend", True)]}),
 
         *_template_items_context_menu("SEQUENCER_MT_context_menu", params.context_menu_event),
     ])
@@ -4318,6 +4314,10 @@ def km_sculpt(params):
          {"properties": [("mode", 'SHOW_ALL')]}),
         ("sculpt.mask_expand", {"type": 'W', "value": 'PRESS', "shift": True},
          {"properties": [("use_normals", False), ("keep_previous_mask", False), ("invert", False), ("smooth_iterations", 0), ("create_face_set", True)]}),
+        ("sculpt.face_set_edit", {"type": 'W', "value": 'PRESS', "ctrl": True},
+         {"properties": [("mode", "GROW")]}),
+        ("sculpt.face_set_edit", {"type": 'W', "value": 'PRESS', "ctrl": True, "alt": True},
+         {"properties": [("mode", "SHRINK")]}),
         # Subdivision levels
         *_template_items_object_subdivision_set(),
         ("object.subdivision_set", {"type": 'PAGE_UP', "value": 'PRESS'},

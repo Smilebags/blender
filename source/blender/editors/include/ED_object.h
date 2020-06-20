@@ -185,7 +185,7 @@ struct Base *ED_object_add_duplicate(struct Main *bmain,
                                      struct Scene *scene,
                                      struct ViewLayer *view_layer,
                                      struct Base *base,
-                                     int dupflag);
+                                     const uint dupflag);
 
 void ED_object_parent(struct Object *ob,
                       struct Object *parent,
@@ -295,10 +295,6 @@ struct Object *ED_object_add_type(struct bContext *C,
                                   unsigned short local_view_bits)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 
-void ED_object_single_users(struct Main *bmain,
-                            struct Scene *scene,
-                            const bool full,
-                            const bool copy_groups);
 void ED_object_single_user(struct Main *bmain, struct Scene *scene, struct Object *ob);
 
 /* object motion paths */

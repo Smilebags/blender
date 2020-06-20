@@ -39,7 +39,6 @@
 #include "BLI_array_utils.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
@@ -48,25 +47,20 @@
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
-#include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_message.h"
-#include "WM_toolsystem.h"
 #include "WM_types.h"
 #include "wm.h"
 
 #include "ED_armature.h"
-#include "ED_curve.h"
 #include "ED_gizmo_library.h"
 #include "ED_gizmo_utils.h"
 #include "ED_gpencil.h"
@@ -89,8 +83,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_state.h"
-
-#include "DEG_depsgraph_query.h"
 
 /* return codes for select, and drawing flags */
 
@@ -595,7 +587,9 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
       if (pchan->parent) {
         float parent_mat[3][3];
 
-        copy_m3_m4(parent_mat, pchan->parent->pose_mat);
+        copy_m3_m4(parent_mat,
+                   (pchan->bone->flag & BONE_HINGE) ? pchan->parent->bone->arm_mat :
+                                                      pchan->parent->pose_mat);
         mul_m3_m3m3(mat, parent_mat, tmat);
 
         /* needed if object transformation isn't identity */

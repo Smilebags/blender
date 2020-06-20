@@ -289,6 +289,16 @@ void BKE_gpencil_eval_delete(bGPdata *gpd_eval)
   MEM_freeN(gpd_eval);
 }
 
+/**
+ * Tag datablock for depsgraph update.
+ * Wrapper to avoid include Depsgraph tag functions in other modules.
+ * \param gpd Grease pencil datablock
+ */
+void BKE_gpencil_tag(bGPdata *gpd)
+{
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+}
+
 /* ************************************************** */
 /* Container Creation */
 
@@ -1009,6 +1019,12 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
       /* don't do anything... this may be when no frames yet! */
       /* gpl->actframe should still be NULL */
     }
+  }
+
+  /* Don't select first frame if greater than current frame. */
+  if ((gpl->actframe != NULL) && (gpl->actframe == gpl->frames.first) &&
+      (gpl->actframe->framenum > cframe)) {
+    gpl->actframe = NULL;
   }
 
   /* return */
@@ -1840,6 +1856,30 @@ bool BKE_gpencil_from_image(SpaceImage *sima, bGPDframe *gpf, const float size, 
   return done;
 }
 
+/**
+ * Helper to check if a layers is used as mask
+ * \param view_layer Actual view layer
+ * \param gpd Grease pencil datablock
+ * \param gpl_mask Actual Layer
+ * \return True if the layer is used as mask
+ */
+static bool gpencil_is_layer_mask(ViewLayer *view_layer, bGPdata *gpd, bGPDlayer *gpl_mask)
+{
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    if ((gpl->viewlayername[0] != '\0') && (!STREQ(view_layer->name, gpl->viewlayername))) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
+      if (STREQ(gpl_mask->info, mask->name)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Iterators
  *
@@ -1859,6 +1899,7 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
   bGPdata *gpd = (bGPdata *)ob->data;
   const bool is_multiedit = GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
   const bool is_onion = do_onion && ((gpd->flag & GP_DATA_STROKE_WEIGHTMODE) == 0);
+  const bool is_drawing = (gpd->runtime.sbuffer_used > 0);
 
   /* Onion skinning. */
   const bool onion_mode_abs = (gpd->onion_mode == GP_ONION_MODE_ABSOLUTE);
@@ -1867,6 +1908,8 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
   const short onion_keytype = gpd->onion_keytype;
 
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    /* Reset by layer. */
+    bool is_before_first = false;
 
     bGPDframe *act_gpf = gpl->actframe;
     bGPDframe *sta_gpf = act_gpf;
@@ -1881,7 +1924,11 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
      * This is used only in final render and never in Viewport. */
     if ((view_layer != NULL) && (gpl->viewlayername[0] != '\0') &&
         (!STREQ(view_layer->name, gpl->viewlayername))) {
-      continue;
+      /* If the layer is used as mask, cannot be filtered or the masking system
+       * will crash because needs the mask layer in the draw pipeline. */
+      if (!gpencil_is_layer_mask(view_layer, gpd, gpl)) {
+        continue;
+      }
     }
 
     if (is_multiedit) {
@@ -1901,6 +1948,16 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
       }
     }
     else if (is_onion && (gpl->onion_flag & GP_LAYER_ONIONSKIN)) {
+      /* Special cases when cframe is before first frame. */
+      bGPDframe *gpf_first = gpl->frames.first;
+      if ((gpf_first != NULL) && (act_gpf != NULL) && (gpf_first->framenum > act_gpf->framenum)) {
+        is_before_first = true;
+      }
+      if ((gpf_first != NULL) && (act_gpf == NULL)) {
+        act_gpf = gpf_first;
+        is_before_first = true;
+      }
+
       if (act_gpf) {
         bGPDframe *last_gpf = gpl->frames.last;
 
@@ -1914,6 +1971,10 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
           bool is_in_range;
           int delta = (onion_mode_abs) ? (gpf->framenum - cfra) :
                                          (gpf->runtime.frameid - act_gpf->runtime.frameid);
+
+          if (is_before_first) {
+            delta++;
+          }
 
           if (onion_mode_sel) {
             is_in_range = (gpf->flag & GP_FRAME_SELECT) != 0;
@@ -1934,7 +1995,9 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
           gpf->runtime.onion_id = (is_wrong_keytype || !is_in_range) ? INT_MAX : delta;
         }
         /* Active frame is always shown. */
-        act_gpf->runtime.onion_id = 0;
+        if (!is_before_first || is_drawing) {
+          act_gpf->runtime.onion_id = 0;
+        }
       }
 
       sta_gpf = gpl->frames.first;
@@ -1954,8 +2017,13 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
 
     /* Draw multiedit/onion skinning first */
     for (bGPDframe *gpf = sta_gpf; gpf && gpf != end_gpf; gpf = gpf->next) {
-      if (gpf->runtime.onion_id == INT_MAX || gpf == act_gpf) {
+      if ((gpf->runtime.onion_id == INT_MAX || gpf == act_gpf) && (!is_before_first)) {
         continue;
+      }
+
+      /* Only do once for frame before first. */
+      if (is_before_first && gpf == act_gpf) {
+        is_before_first = false;
       }
 
       if (layer_cb) {
@@ -1972,8 +2040,8 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
     /* Draw Active frame on top. */
     /* Use evaluated frame (with modifiers for active stroke)/ */
     act_gpf = gpl->actframe;
-    act_gpf->runtime.onion_id = 0;
     if (act_gpf) {
+      act_gpf->runtime.onion_id = 0;
       if (layer_cb) {
         layer_cb(gpl, act_gpf, NULL, thunk);
       }

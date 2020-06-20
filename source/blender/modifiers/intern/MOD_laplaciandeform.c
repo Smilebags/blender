@@ -42,11 +42,14 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_particle.h"
 #include "BKE_screen.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
+
+#include "BLO_read_write.h"
 
 #include "RNA_access.h"
 
@@ -854,6 +857,21 @@ static void panelRegister(ARegionType *region_type)
   modifier_panel_register(region_type, eModifierType_LaplacianDeform, panel_draw);
 }
 
+static void blendWrite(BlendWriter *writer, const ModifierData *md)
+{
+  LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
+
+  BLO_write_float3_array(writer, lmd->total_verts, lmd->vertexco);
+}
+
+static void blendRead(BlendDataReader *reader, ModifierData *md)
+{
+  LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
+
+  BLO_read_float3_array(reader, lmd->total_verts, &lmd->vertexco);
+  lmd->cache_system = NULL;
+}
+
 ModifierTypeInfo modifierType_LaplacianDeform = {
     /* name */ "LaplacianDeform",
     /* structName */ "LaplacianDeformModifierData",
@@ -883,4 +901,6 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,
+    /* blendWrite */ blendWrite,
+    /* blendRead */ blendRead,
 };

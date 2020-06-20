@@ -188,7 +188,7 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
       Base *base = NULL;
       bool sel;
 
-      hitresult &= ~(BONESEL_ANY);
+      hitresult &= ~BONESEL_ANY;
       /* Determine what the current bone is */
       if (is_editmode == false) {
         base = ED_armature_base_and_pchan_from_select_buffer(bases, bases_len, hitresult, &pchan);
@@ -678,6 +678,8 @@ static EditBone *get_nearest_editbonepoint(
 
   /* matching logic from 'mixed_bones_object_selectbuffer' */
   int hits = 0;
+  /* Don't use hits with this ID, (armature drawing uses this). */
+  const int select_id_ignore = -1;
 
   /* we _must_ end cache before return, use 'goto cache_end' */
   view3d_opengl_select_cache_begin();
@@ -688,8 +690,9 @@ static EditBone *get_nearest_editbonepoint(
 
     rcti rect;
     BLI_rcti_init_pt_radius(&rect, vc->mval, 12);
-    const int hits12 = view3d_opengl_select(
-        vc, buffer, MAXPICKBUF, &rect, select_mode, select_filter);
+    const int hits12 = view3d_opengl_select_with_id_filter(
+        vc, buffer, MAXPICKBUF, &rect, select_mode, select_filter, select_id_ignore);
+
     if (hits12 == 1) {
       hits = selectbuffer_ret_hits_12(buffer, hits12);
       goto cache_end;
@@ -699,8 +702,13 @@ static EditBone *get_nearest_editbonepoint(
 
       offs = 4 * hits12;
       BLI_rcti_init_pt_radius(&rect, vc->mval, 5);
-      const int hits5 = view3d_opengl_select(
-          vc, buffer + offs, MAXPICKBUF - offs, &rect, select_mode, select_filter);
+      const int hits5 = view3d_opengl_select_with_id_filter(vc,
+                                                            buffer + offs,
+                                                            MAXPICKBUF - offs,
+                                                            &rect,
+                                                            select_mode,
+                                                            select_filter,
+                                                            select_id_ignore);
 
       if (hits5 == 1) {
         hits = selectbuffer_ret_hits_5(buffer, hits12, hits5);
@@ -1294,7 +1302,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
         if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
           ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
           if (ebone->parent) {
-            ebone->parent->flag |= (BONE_TIPSEL);
+            ebone->parent->flag |= BONE_TIPSEL;
           }
         }
         break;
@@ -1309,7 +1317,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
           if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
             ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
             if (ebone->parent) {
-              ebone->parent->flag |= (BONE_TIPSEL);
+              ebone->parent->flag |= BONE_TIPSEL;
             }
           }
         }

@@ -20,6 +20,7 @@
 
 set(INC
   .
+  ../common
   ../../blenkernel
   ../../blenlib
   ../../blenloader
@@ -36,7 +37,6 @@ set(INC
 set(INC_SYS
   ${ALEMBIC_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
-  ${HDF5_INCLUDE_DIRS}
   ${OPENEXR_INCLUDE_DIRS}
 )
 
@@ -93,17 +93,11 @@ set(SRC
 set(LIB
   bf_blenkernel
   bf_blenlib
+  bf_io_common
 
   ${ALEMBIC_LIBRARIES}
   ${OPENEXR_LIBRARIES}
 )
-
-if(WITH_ALEMBIC_HDF5)
-  add_definitions(-DWITH_ALEMBIC_HDF5)
-  list(APPEND LIB
-    ${HDF5_LIBRARIES}
-  )
-endif()
 
 list(APPEND LIB
   ${BOOST_LIBRARIES}
