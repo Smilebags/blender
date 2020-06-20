@@ -292,6 +292,7 @@ set(SRC_UTIL_HEADERS
   ../util/util_math_int3.h
   ../util/util_math_int4.h
   ../util/util_math_matrix.h
+  ../util/util_math_spectral_color.h
   ../util/util_projection.h
   ../util/util_rect.h
   ../util/util_static_assert.h
@@ -312,6 +313,8 @@ set(SRC_UTIL_HEADERS
   ../util/util_types_int3_impl.h
   ../util/util_types_int4.h
   ../util/util_types_int4_impl.h
+  ../util/util_types_spectral_color.h
+  ../util/util_types_spectral_color_impl.h
   ../util/util_types_uchar2.h
   ../util/util_types_uchar2_impl.h
   ../util/util_types_uchar3.h
