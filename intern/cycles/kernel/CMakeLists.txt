@@ -113,6 +113,8 @@ set(SRC_HEADERS
   kernel_id_passes.h
   kernel_jitter.h
   kernel_light.h
+  kernel_light_background.h
+  kernel_light_common.h
   kernel_math.h
   kernel_montecarlo.h
   kernel_passes.h
@@ -232,6 +234,7 @@ set(SRC_SVM_HEADERS
   svm/svm_sky.h
   svm/svm_tex_coord.h
   svm/svm_fractal_noise.h
+  svm/svm_spectrum_curve.h
   svm/svm_types.h
   svm/svm_value.h
   svm/svm_vector_rotate.h
@@ -290,10 +293,12 @@ set(SRC_UTIL_HEADERS
   ../util/util_math_float2.h
   ../util/util_math_float3.h
   ../util/util_math_float4.h
+  ../util/util_math_float8.h
   ../util/util_math_int2.h
   ../util/util_math_int3.h
   ../util/util_math_int4.h
   ../util/util_math_matrix.h
+  ../util/util_math_spectral_color.h
   ../util/util_projection.h
   ../util/util_rect.h
   ../util/util_static_assert.h
@@ -314,6 +319,8 @@ set(SRC_UTIL_HEADERS
   ../util/util_types_int3_impl.h
   ../util/util_types_int4.h
   ../util/util_types_int4_impl.h
+  ../util/util_types_spectral_color.h
+  ../util/util_types_spectral_color_impl.h
   ../util/util_types_uchar2.h
   ../util/util_types_uchar2_impl.h
   ../util/util_types_uchar3.h
