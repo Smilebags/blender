@@ -25,7 +25,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
-#include "BLI_ghash.h"
+#include "BLI_edgehash.h"
 #include "BLI_gsqueue.h"
 #include "BLI_hash.h"
 #include "BLI_math.h"
@@ -106,25 +106,11 @@
 #define CLOTH_MAX_CONSTRAINTS_PER_VERTEX 1024
 #define CLOTH_SIMULATION_TIME_STEP 0.01f
 
-static void cloth_brush_constraint_key_get(int r_key[2], const int v1, const int v2)
-{
-  if (v1 < v2) {
-    r_key[0] = v1;
-    r_key[1] = v2;
-  }
-  else {
-    r_key[0] = v2;
-    r_key[1] = v1;
-  }
-}
-
 static bool cloth_brush_sim_has_length_constraint(SculptClothSimulation *cloth_sim,
                                                   const int v1,
                                                   const int v2)
 {
-  int constraint[2];
-  cloth_brush_constraint_key_get(constraint, v1, v2);
-  return BLI_gset_haskey(cloth_sim->created_length_constraints, constraint);
+  return BLI_edgeset_haskey(cloth_sim->created_length_constraints, v1, v2);
 }
 
 static void cloth_brush_add_length_constraint(SculptSession *ss,
@@ -149,9 +135,7 @@ static void cloth_brush_add_length_constraint(SculptSession *ss,
   }
 
   /* Add the constraint to the GSet to avoid creating it again. */
-  int constraint[2];
-  cloth_brush_constraint_key_get(constraint, v1, v2);
-  BLI_gset_add(cloth_sim->created_length_constraints, constraint);
+  BLI_edgeset_add(cloth_sim->created_length_constraints, v1, v2);
 }
 
 static void do_cloth_brush_build_constraints_task_cb_ex(
@@ -472,8 +456,7 @@ static void cloth_brush_build_nodes_constraints(Sculpt *sd,
   TaskParallelSettings settings;
   BKE_pbvh_parallel_range_settings(&settings, false, totnode);
 
-  cloth_sim->created_length_constraints = BLI_gset_new(
-      BLI_ghashutil_inthash_v2_p, BLI_ghashutil_inthash_v2_cmp, "created length constraints");
+  cloth_sim->created_length_constraints = BLI_edgeset_new("created length constraints");
 
   SculptThreadedTaskData build_constraints_data = {
       .sd = sd,
@@ -487,7 +470,7 @@ static void cloth_brush_build_nodes_constraints(Sculpt *sd,
   BLI_task_parallel_range(
       0, totnode, &build_constraints_data, do_cloth_brush_build_constraints_task_cb_ex, &settings);
 
-  BLI_gset_free(cloth_sim->created_length_constraints, NULL);
+  BLI_edgeset_free(cloth_sim->created_length_constraints);
 }
 
 static void cloth_brush_satisfy_constraints(SculptSession *ss,
@@ -564,7 +547,7 @@ static void cloth_brush_do_simulation_step(
   };
 
   TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+  BKE_pbvh_parallel_range_settings(&settings, true, totnode);
   BLI_task_parallel_range(
       0, totnode, &solve_simulation_data, do_cloth_brush_solve_simulation_task_cb_ex, &settings);
 }
@@ -639,7 +622,7 @@ static void cloth_brush_apply_brush_foces(Sculpt *sd, Object *ob, PBVHNode **nod
   }
 
   TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+  BKE_pbvh_parallel_range_settings(&settings, true, totnode);
   BLI_task_parallel_range(
       0, totnode, &apply_forces_data, do_cloth_brush_apply_forces_task_cb_ex, &settings);
 }
@@ -657,10 +640,10 @@ void SCULPT_do_cloth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
    * nodes inside the simulation's limits. */
   /* Brush stroke types that restore the mesh on each brush step also need the cloth sim data to be
    * created on each step. */
-  if (ss->cache->first_time || !ss->cache->cloth_sim) {
+  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(ss->cache) || !ss->cache->cloth_sim) {
 
     /* The simulation structure only needs to be created on the first symmetry pass. */
-    if (ss->cache->mirror_symmetry_pass == 0) {
+    if (SCULPT_stroke_is_first_brush_step(ss->cache)) {
       ss->cache->cloth_sim = cloth_brush_simulation_create(
           ss, brush->cloth_mass, brush->cloth_damping);
       for (int i = 0; i < totverts; i++) {
@@ -873,7 +856,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
 
   SCULPT_vertex_random_access_init(ss);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
   const int totverts = SCULPT_vertex_count_get(ss);
   for (int i = 0; i < totverts; i++) {
@@ -889,8 +872,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   };
 
   TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(
-      &settings, (sd->flags & SCULPT_USE_OPENMP), ss->filter_cache->totnode);
+  BKE_pbvh_parallel_range_settings(&settings, true, ss->filter_cache->totnode);
   BLI_task_parallel_range(
       0, ss->filter_cache->totnode, &data, cloth_filter_apply_forces_task_cb, &settings);
 
@@ -922,10 +904,10 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
   SCULPT_vertex_random_access_init(ss);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
   SCULPT_undo_push_begin("Cloth filter");
-  SCULPT_filter_cache_init(ob, sd);
+  SCULPT_filter_cache_init(ob, sd, SCULPT_UNDO_COORDS);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

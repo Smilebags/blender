@@ -185,8 +185,10 @@ class SequencerFadesAdd(Operator):
             ('IN_OUT', 'Fade In And Out', 'Fade selected strips in and out'),
             ('IN', 'Fade In', 'Fade in selected strips'),
             ('OUT', 'Fade Out', 'Fade out selected strips'),
-            ('CURSOR_FROM', 'From Playhead', 'Fade from the time cursor to the end of overlapping sequences'),
-            ('CURSOR_TO', 'To Playhead', 'Fade from the start of sequences under the time cursor to the current frame'),
+            ('CURSOR_FROM', 'From Current Frame',
+             'Fade from the time cursor to the end of overlapping sequences'),
+            ('CURSOR_TO', 'To Current Frame',
+             'Fade from the start of sequences under the time cursor to the current frame'),
         ),
         name="Fade type",
         description="Fade in, out, both in and out, to, or from the current frame. Default is both in and out",
@@ -234,7 +236,7 @@ class SequencerFadesAdd(Operator):
             sequence.invalidate('COMPOSITE')
 
         sequence_string = "sequence" if len(faded_sequences) == 1 else "sequences"
-        self.report({'INFO'}, "Added fade animation to {} {}.".format(len(faded_sequences), sequence_string))
+        self.report({'INFO'}, "Added fade animation to %d %s." % (len(faded_sequences), sequence_string))
         return {'FINISHED'}
 
     def calculate_fade_duration(self, context, sequence):
@@ -362,7 +364,7 @@ class Fade:
         return max_value if max_value > 0.0 else 1.0
 
     def __repr__(self):
-        return "Fade {}: {} to {}".format(self.type, self.start, self.end)
+        return "Fade %r: %r to %r" % (self.type, self.start, self.end)
 
 
 def calculate_duration_frames(context, duration_seconds):

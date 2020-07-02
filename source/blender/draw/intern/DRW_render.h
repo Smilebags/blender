@@ -462,6 +462,10 @@ void DRW_shgroup_uniform_texture_ex(DRWShadingGroup *shgroup,
                                     const char *name,
                                     const struct GPUTexture *tex,
                                     eGPUSamplerState sampler_state);
+void DRW_shgroup_uniform_texture_ref_ex(DRWShadingGroup *shgroup,
+                                        const char *name,
+                                        GPUTexture **tex,
+                                        eGPUSamplerState sampler_state);
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup,
                                  const char *name,
                                  const struct GPUTexture *tex);
@@ -569,7 +573,7 @@ void DRW_view_update_sub(DRWView *view, const float viewmat[4][4], const float w
 
 const DRWView *DRW_view_default_get(void);
 void DRW_view_default_set(DRWView *view);
-
+void DRW_view_reset(void);
 void DRW_view_set_active(DRWView *view);
 
 void DRW_view_clip_planes_set(DRWView *view, float (*planes)[4], int plane_len);
@@ -625,6 +629,8 @@ void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
                          struct Depsgraph *depsgraph,
                          void (*callback)(void *vedata, void *user_data),
                          void *user_data);
+
+void DRW_cache_restart(void);
 
 /* ViewLayers */
 void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);

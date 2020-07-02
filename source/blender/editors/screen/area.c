@@ -646,7 +646,7 @@ void ED_region_tag_redraw(ARegion *region)
 void ED_region_tag_redraw_cursor(ARegion *region)
 {
   if (region) {
-    region->do_draw_overlay = RGN_DRAW;
+    region->do_draw_paintcursor = RGN_DRAW;
   }
 }
 
@@ -1556,7 +1556,14 @@ static void region_rect_recursive(
 
   /* Tag for redraw if size changes. */
   if (region->winx != prev_winx || region->winy != prev_winy) {
-    ED_region_tag_redraw(region);
+    /* 3D View needs a full rebuild in case a progressive render runs. Rest can live with
+     * no-rebuild (e.g. Outliner) */
+    if (area->spacetype == SPACE_VIEW3D) {
+      ED_region_tag_redraw(region);
+    }
+    else {
+      ED_region_tag_redraw_no_rebuild(region);
+    }
   }
 
   /* Clear, initialize on demand. */
@@ -2348,9 +2355,9 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
 /**
  * Builds the panel layout for the input \a panel or type \a pt.
  *
- * \param panel The panel to draw. Can be null, in which case a panel with the type of \a pt will
- * be created.
- * \param unique_panel_str A unique identifier for the name of the \a uiBlock associated with the
+ * \param panel: The panel to draw. Can be null,
+ * in which case a panel with the type of \a pt will be created.
+ * \param unique_panel_str: A unique identifier for the name of the \a uiBlock associated with the
  * panel. Used when the panel is an instanced panel so a unique identifier is needed to find the
  * correct old \a uiBlock, and NULL otherwise.
  */
@@ -2788,9 +2795,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     mask_buf.xmax -= UI_PANEL_CATEGORY_MARGIN_WIDTH;
     mask = &mask_buf;
   }
-  View2DScrollers *scrollers = UI_view2d_scrollers_calc(v2d, mask);
-  UI_view2d_scrollers_draw(v2d, scrollers);
-  UI_view2d_scrollers_free(scrollers);
+  UI_view2d_scrollers_draw(v2d, mask);
 }
 
 void ED_region_panels_ex(

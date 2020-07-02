@@ -107,7 +107,7 @@ class Vector {
 #endif
 
   /**
-   * Be a friend with other vector instanciations. This is necessary to implement some memory
+   * Be a friend with other vector instantiations. This is necessary to implement some memory
    * management logic.
    */
   template<typename OtherT, uint OtherInlineBufferCapacity, typename OtherAllocator>
@@ -147,7 +147,7 @@ class Vector {
   }
 
   /**
-   * Create a vector that contains copys of the values in the initialized list.
+   * Create a vector that contains copies of the values in the initialized list.
    *
    * This allows you to write code like:
    * Vector<int> vec = {3, 4, 5};
@@ -611,7 +611,7 @@ class Vector {
   }
 
   /**
-   * Finds the first occurence of the value, removes it and copies the last element to the hole in
+   * Finds the first occurrence of the value, removes it and copies the last element to the hole in
    * the vector. This takes O(n) time.
    */
   void remove_first_occurrence_and_reorder(const T &value)

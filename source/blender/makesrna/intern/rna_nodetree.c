@@ -3652,8 +3652,8 @@ static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
     if (node->id) {
       Text *text = (Text *)node->id;
 
-      if (value == NODE_IES_EXTERNAL && text->name) {
-        BLI_strncpy(nss->filepath, text->name, sizeof(nss->filepath));
+      if (value == NODE_IES_EXTERNAL && text->filepath) {
+        BLI_strncpy(nss->filepath, text->filepath, sizeof(nss->filepath));
         BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
       }
 
@@ -3677,8 +3677,8 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
     if (node->id) {
       Text *text = (Text *)node->id;
 
-      if (value == NODE_SCRIPT_EXTERNAL && text->name) {
-        BLI_strncpy(nss->filepath, text->name, sizeof(nss->filepath));
+      if (value == NODE_SCRIPT_EXTERNAL && text->filepath) {
+        BLI_strncpy(nss->filepath, text->filepath, sizeof(nss->filepath));
         BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
       }
 
@@ -9070,7 +9070,7 @@ static void rna_def_node_socket_standard_types(BlenderRNA *brna)
   /* XXX These types should eventually be registered at runtime.
    * Then use the nodeStaticSocketType and nodeStaticSocketInterfaceType functions
    * to get the idname strings from int type and subtype
-   * (see node_socket.c, register_standard_node_socket_types).
+   * (see node_socket.cc, register_standard_node_socket_types).
    */
 
   rna_def_node_socket_float(brna, "NodeSocketFloat", "NodeSocketInterfaceFloat", PROP_NONE);

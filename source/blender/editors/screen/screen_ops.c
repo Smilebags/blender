@@ -366,19 +366,20 @@ bool ED_operator_object_active_editable_mesh(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
   return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_MESH) &&
-          !ID_IS_LINKED(ob->data));
+          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_object_active_editable_font(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
-  return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT));
+  return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT) &&
+          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_editable_mesh(bContext *C)
 {
   Mesh *mesh = ED_mesh_context(C);
-  return (mesh != NULL) && !ID_IS_LINKED(mesh);
+  return (mesh != NULL) && !ID_IS_LINKED(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
 }
 
 bool ED_operator_editmesh(bContext *C)
@@ -1761,7 +1762,7 @@ static void area_move_apply_do(const bContext *C,
           screen->do_refresh = true;
           redraw_all = true;
         }
-        ED_area_tag_redraw(area);
+        ED_area_tag_redraw_no_rebuild(area);
       }
     }
     if (redraw_all) {
@@ -4273,12 +4274,20 @@ static void SCREEN_OT_region_context_menu(wmOperatorType *ot)
  *
  * Animation Step.
  * \{ */
+static bool screen_animation_region_supports_time_follow(eSpace_Type spacetype,
+                                                         eRegionType regiontype)
+{
+  return (regiontype == RGN_TYPE_WINDOW &&
+          ELEM(spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
+         (spacetype == SPACE_CLIP && regiontype == RGN_TYPE_PREVIEW);
+}
 
-static bool match_region_with_redraws(eSpace_Type spacetype,
+static bool match_region_with_redraws(const ScrArea *area,
                                       eRegionType regiontype,
                                       eScreen_Redraws_Flag redraws,
                                       bool from_anim_edit)
 {
+  const eSpace_Type spacetype = area->spacetype;
   if (regiontype == RGN_TYPE_WINDOW) {
 
     switch (spacetype) {
@@ -4329,19 +4338,6 @@ static bool match_region_with_redraws(eSpace_Type spacetype,
         break;
     }
   }
-  else if (regiontype == RGN_TYPE_CHANNELS) {
-    switch (spacetype) {
-      case SPACE_GRAPH:
-      case SPACE_ACTION:
-      case SPACE_NLA:
-        if (redraws & TIME_ALL_ANIM_WIN) {
-          return true;
-        }
-        break;
-      default:
-        break;
-    }
-  }
   else if (regiontype == RGN_TYPE_UI) {
     if (spacetype == SPACE_CLIP) {
       /* Track Preview button is on Properties Editor in SpaceClip,
@@ -4358,7 +4354,10 @@ static bool match_region_with_redraws(eSpace_Type spacetype,
   }
   else if (regiontype == RGN_TYPE_HEADER) {
     if (spacetype == SPACE_ACTION) {
-      return true;
+      /* The timeline shows the current frame in the header. Other headers
+       * don't need to be updated. */
+      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+      return saction->mode == SACTCONT_TIMELINE;
     }
   }
   else if (regiontype == RGN_TYPE_PREVIEW) {
@@ -4375,6 +4374,39 @@ static bool match_region_with_redraws(eSpace_Type spacetype,
     }
   }
   return false;
+}
+
+static void screen_animation_region_tag_redraw(ScrArea *area,
+                                               ARegion *region,
+                                               const Scene *scene,
+                                               eScreen_Redraws_Flag redraws)
+{
+  /* Do follow time here if editor type supports it */
+  if ((redraws & TIME_FOLLOW) &&
+      (screen_animation_region_supports_time_follow(area->spacetype, region->regiontype))) {
+    float w = BLI_rctf_size_x(&region->v2d.cur);
+    if (scene->r.cfra < region->v2d.cur.xmin) {
+      region->v2d.cur.xmax = scene->r.cfra;
+      region->v2d.cur.xmin = region->v2d.cur.xmax - w;
+      ED_region_tag_redraw(region);
+      return;
+    }
+    else if (scene->r.cfra > region->v2d.cur.xmax) {
+      region->v2d.cur.xmin = scene->r.cfra;
+      region->v2d.cur.xmax = region->v2d.cur.xmin + w;
+      ED_region_tag_redraw(region);
+      return;
+    }
+  }
+
+  /* No need to do a full redraw as the current frame indicator is only updated.
+   * We do need to redraw when this area is in full screen as no other areas
+   * will be tagged for redrawing. */
+  if ((region->regiontype == RGN_TYPE_WINDOW) &&
+      (ELEM(area->spacetype, SPACE_GRAPH, SPACE_NLA, SPACE_ACTION, SPACE_SEQ)) && !area->full) {
+    return;
+  }
+  ED_region_tag_redraw(region);
 }
 
 //#define PROFILE_AUDIO_SYNCH
@@ -4415,7 +4447,8 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
     }
 
     if (scene_eval == NULL) {
-      /* Happens when undo/redo system is used during playback, nothing meaningful we can do here.
+      /* Happens when undo/redo system is used during playback, nothing meaningful we can do
+       * here.
        */
     }
     else if (scene_eval->id.recalc & ID_RECALC_AUDIO_SEEK) {
@@ -4555,28 +4588,12 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
             redraw = true;
           }
           else if (match_region_with_redraws(
-                       area->spacetype, region->regiontype, sad->redraws, sad->from_anim_edit)) {
+                       area, region->regiontype, sad->redraws, sad->from_anim_edit)) {
             redraw = true;
           }
 
           if (redraw) {
-            ED_region_tag_redraw(region);
-            /* do follow here if editor type supports it */
-            if ((sad->redraws & TIME_FOLLOW)) {
-              if ((region->regiontype == RGN_TYPE_WINDOW &&
-                   ELEM(area->spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-                  (area->spacetype == SPACE_CLIP && region->regiontype == RGN_TYPE_PREVIEW)) {
-                float w = BLI_rctf_size_x(&region->v2d.cur);
-                if (scene->r.cfra < region->v2d.cur.xmin) {
-                  region->v2d.cur.xmax = scene->r.cfra;
-                  region->v2d.cur.xmin = region->v2d.cur.xmax - w;
-                }
-                else if (scene->r.cfra > region->v2d.cur.xmax) {
-                  region->v2d.cur.xmin = scene->r.cfra;
-                  region->v2d.cur.xmax = region->v2d.cur.xmin + w;
-                }
-              }
-            }
+            screen_animation_region_tag_redraw(area, region, scene, sad->redraws);
           }
         }
       }

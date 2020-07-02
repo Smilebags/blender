@@ -127,7 +127,7 @@ void modifier_panel_end(uiLayout *layout, PointerRNA *ptr)
 
 /**
  * Gets RNA pointers for the active object and the panel's modifier data. Also locks
- * the layout if the modifer is from a linked object, and sets the context pointer.
+ * the layout if the modifier is from a linked object, and sets the context pointer.
  */
 #define ERROR_LIBDATA_MESSAGE TIP_("External library data")
 void modifier_panel_get_property_pointers(const bContext *C,
@@ -146,8 +146,7 @@ void modifier_panel_get_property_pointers(const bContext *C,
   }
 
   uiBlock *block = uiLayoutGetBlock(panel->layout);
-  UI_block_lock_set(
-      block, BKE_object_obdata_is_libdata(ob) || ID_IS_LINKED(ob), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(block, ID_IS_LINKED(ob), ERROR_LIBDATA_MESSAGE);
 
   uiLayoutSetContextPointer(panel->layout, "modifier", r_md_ptr);
 }
@@ -427,7 +426,7 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
   panel_type->poll = modifier_ui_poll;
 
   /* Give the panel the special flag that says it was built here and corresponds to a
-   * modifer rather than a PanelType. */
+   * modifier rather than a #PanelType. */
   panel_type->flag = PNL_LAYOUT_HEADER_EXPAND | PNL_DRAW_BOX | PNL_INSTANCED;
   panel_type->reorder = modifier_reorder;
   panel_type->get_list_data_expand_flag = get_modifier_expand_flag;
@@ -439,7 +438,7 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
 }
 
 /**
- * Add a shild panel to the parent.
+ * Add a child panel to the parent.
  *
  * \note To create the panel type's idname, it appends the \a name argument to the \a parent's
  * idname.

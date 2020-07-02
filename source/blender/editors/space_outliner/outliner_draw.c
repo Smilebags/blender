@@ -709,9 +709,9 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
         Library *lib = (Library *)tselem->id;
         char expanded[FILE_MAX];
 
-        BKE_library_filepath_set(bmain, lib, lib->name);
+        BKE_library_filepath_set(bmain, lib, lib->filepath);
 
-        BLI_strncpy(expanded, lib->name, sizeof(expanded));
+        BLI_strncpy(expanded, lib->filepath, sizeof(expanded));
         BLI_path_abs(expanded, BKE_main_blendfile_path(bmain));
         if (!BLI_exists(expanded)) {
           BKE_reportf(CTX_wm_reports(C),
@@ -1657,7 +1657,6 @@ static void outliner_draw_userbuts(uiBlock *block,
         uiBut *bt;
         ID *id = tselem->id;
         const char *tip = NULL;
-        int icon = ICON_NONE;
         char buf[16] = "";
         int but_flag = UI_BUT_DRAG_LOCK;
 
@@ -1683,18 +1682,16 @@ static void outliner_draw_userbuts(uiBlock *block,
         UI_but_flag_enable(bt, but_flag);
 
         if (id->flag & LIB_FAKEUSER) {
-          icon = ICON_FILE_TICK;
           tip = TIP_("Data-block will be retained using a fake user");
         }
         else {
-          icon = ICON_X;
           tip = TIP_("Data-block has no users and will be deleted");
         }
         bt = uiDefIconButBitS(block,
                               UI_BTYPE_ICON_TOGGLE,
                               LIB_FAKEUSER,
                               1,
-                              icon,
+                              ICON_FAKE_USER_OFF,
                               (int)(region->v2d.cur.xmax - OL_TOG_USER_BUTS_STATUS),
                               te->ys,
                               UI_UNIT_X,
@@ -1705,25 +1702,6 @@ static void outliner_draw_userbuts(uiBlock *block,
                               0,
                               0,
                               tip);
-        UI_but_func_set(bt, restrictbutton_id_user_toggle, id, NULL);
-        UI_but_flag_enable(bt, but_flag);
-
-        bt = uiDefButBitS(block,
-                          UI_BTYPE_ICON_TOGGLE,
-                          LIB_FAKEUSER,
-                          1,
-                          (id->flag & LIB_FAKEUSER) ? "F" : " ",
-                          (int)(region->v2d.cur.xmax - OL_TOG_USER_BUTS_FAKEUSER),
-                          te->ys,
-                          UI_UNIT_X,
-                          UI_UNIT_Y,
-                          &id->flag,
-                          0,
-                          0,
-                          0,
-                          0,
-                          TIP_("Data-block has a 'fake' user which will keep it in the file "
-                               "even if nothing else uses it"));
         UI_but_func_set(bt, restrictbutton_id_user_toggle, id, NULL);
         UI_but_flag_enable(bt, but_flag);
       }
@@ -1864,7 +1842,7 @@ static void outliner_buttons(const bContext *C,
     len = sizeof(((ModifierData *)0)->name);
   }
   else if (tselem->id && GS(tselem->id->name) == ID_LI) {
-    len = sizeof(((Library *)0)->name);
+    len = sizeof(((Library *)0)->filepath);
   }
   else {
     len = MAX_ID_NAME - 2;
@@ -2703,7 +2681,7 @@ static void tselem_draw_icon(uiBlock *block,
                  0.0,
                  1.0,
                  alpha,
-                 (data.drag_id && ID_IS_LINKED(data.drag_id)) ? data.drag_id->lib->name : "");
+                 (data.drag_id && ID_IS_LINKED(data.drag_id)) ? data.drag_id->lib->filepath : "");
   }
 }
 
@@ -3130,33 +3108,14 @@ static void outliner_draw_tree_element(bContext *C,
       offsx += 2 * ufac;
     }
 
-    if (ELEM(tselem->type, 0, TSE_LAYER_COLLECTION) && ID_IS_LINKED(tselem->id)) {
-      if (tselem->id->tag & LIB_TAG_MISSING) {
-        UI_icon_draw_alpha((float)startx + offsx + 2 * ufac,
-                           (float)*starty + 2 * ufac,
-                           ICON_LIBRARY_DATA_BROKEN,
-                           alpha_fac);
+    if (ELEM(tselem->type, 0, TSE_LAYER_COLLECTION) ||
+        ((tselem->type == TSE_RNA_STRUCT) && RNA_struct_is_ID(te->rnaptr.type))) {
+      const BIFIconID lib_icon = UI_library_icon_get(tselem->id);
+      if (lib_icon != ICON_NONE) {
+        UI_icon_draw_alpha(
+            (float)startx + offsx + 2 * ufac, (float)*starty + 2 * ufac, lib_icon, alpha_fac);
+        offsx += UI_UNIT_X + 4 * ufac;
       }
-      else if (tselem->id->tag & LIB_TAG_INDIRECT) {
-        UI_icon_draw_alpha((float)startx + offsx + 2 * ufac,
-                           (float)*starty + 2 * ufac,
-                           ICON_LIBRARY_DATA_INDIRECT,
-                           alpha_fac);
-      }
-      else {
-        UI_icon_draw_alpha((float)startx + offsx + 2 * ufac,
-                           (float)*starty + 2 * ufac,
-                           ICON_LIBRARY_DATA_DIRECT,
-                           alpha_fac);
-      }
-      offsx += UI_UNIT_X + 4 * ufac;
-    }
-    else if (ELEM(tselem->type, 0, TSE_LAYER_COLLECTION) && ID_IS_OVERRIDE_LIBRARY(tselem->id)) {
-      UI_icon_draw_alpha((float)startx + offsx + 2 * ufac,
-                         (float)*starty + 2 * ufac,
-                         ICON_LIBRARY_DATA_OVERRIDE,
-                         alpha_fac);
-      offsx += UI_UNIT_X + 4 * ufac;
     }
     GPU_blend(false);
 

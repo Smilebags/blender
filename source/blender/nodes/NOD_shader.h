@@ -26,6 +26,10 @@
 
 #include "BKE_node.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern struct bNodeTreeType *ntreeType_Shader;
 
 /* the type definitions array */
@@ -141,5 +145,9 @@ void register_node_type_sh_tex_ies(void);
 void register_node_type_sh_tex_white_noise(void);
 
 void register_node_type_sh_custom_group(bNodeType *ntype);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

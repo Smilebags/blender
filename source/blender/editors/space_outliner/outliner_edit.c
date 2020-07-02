@@ -191,7 +191,14 @@ static int outliner_item_openclose_modal(bContext *C, wmOperator *op, const wmEv
       /* Only toggle openclose on the same level as the first clicked element */
       if (te->xs == data->x_location) {
         outliner_item_openclose(te, data->open, false);
-        ED_region_tag_redraw(region);
+
+        /* Avoid rebuild if possible. */
+        if (outliner_element_needs_rebuild_on_open_change(TREESTORE(te))) {
+          ED_region_tag_redraw(region);
+        }
+        else {
+          ED_region_tag_redraw_no_rebuild(region);
+        }
       }
     }
 
@@ -231,7 +238,13 @@ static int outliner_item_openclose_invoke(bContext *C, wmOperator *op, const wmE
                       (toggle_all && (outliner_flag_is_any_test(&te->subtree, TSE_CLOSED, 1)));
 
     outliner_item_openclose(te, open, toggle_all);
-    ED_region_tag_redraw(region);
+    /* Avoid rebuild if possible. */
+    if (outliner_element_needs_rebuild_on_open_change(TREESTORE(te))) {
+      ED_region_tag_redraw(region);
+    }
+    else {
+      ED_region_tag_redraw_no_rebuild(region);
+    }
 
     /* Only toggle once for single click toggling */
     if (event->type == LEFTMOUSE) {
@@ -532,7 +545,7 @@ static int outliner_id_delete_invoke_do(bContext *C,
         BKE_reportf(reports,
                     RPT_ERROR_INVALID_INPUT,
                     "Cannot delete indirectly linked library '%s'",
-                    ((Library *)tselem->id)->filepath);
+                    ((Library *)tselem->id)->filepath_abs);
         return OPERATOR_CANCELLED;
       }
       id_delete(C, reports, te, tselem);
@@ -898,12 +911,13 @@ static int lib_relocate(
     Library *lib = (Library *)tselem->id;
     char dir[FILE_MAXDIR], filename[FILE_MAX];
 
-    BLI_split_dirfile(lib->filepath, dir, filename, sizeof(dir), sizeof(filename));
+    BLI_split_dirfile(lib->filepath_abs, dir, filename, sizeof(dir), sizeof(filename));
 
-    printf("%s, %s\n", tselem->id->name, lib->filepath);
+    printf("%s, %s\n", tselem->id->name, lib->filepath_abs);
 
-    /* We assume if both paths in lib are not the same then lib->name was relative... */
-    RNA_boolean_set(&op_props, "relative_path", BLI_path_cmp(lib->filepath, lib->name) != 0);
+    /* We assume if both paths in lib are not the same then `lib->filepath` was relative. */
+    RNA_boolean_set(
+        &op_props, "relative_path", BLI_path_cmp(lib->filepath_abs, lib->filepath) != 0);
 
     RNA_string_set(&op_props, "directory", dir);
     RNA_string_set(&op_props, "filename", filename);
@@ -930,7 +944,7 @@ static int outliner_lib_relocate_invoke_do(
         BKE_reportf(reports,
                     RPT_ERROR_INVALID_INPUT,
                     "Cannot relocate indirectly linked library '%s'",
-                    ((Library *)tselem->id)->filepath);
+                    ((Library *)tselem->id)->filepath_abs);
         return OPERATOR_CANCELLED;
       }
       else {

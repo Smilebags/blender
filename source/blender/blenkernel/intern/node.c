@@ -748,7 +748,7 @@ GHashIterator *nodeSocketTypeGetIterator(void)
   return BLI_ghashIterator_new(nodesockettypes_hash);
 }
 
-struct bNodeSocket *nodeFindSocket(bNode *node, int in_out, const char *identifier)
+struct bNodeSocket *nodeFindSocket(const bNode *node, int in_out, const char *identifier)
 {
   bNodeSocket *sock = (in_out == SOCK_IN ? node->inputs.first : node->outputs.first);
   for (; sock; sock = sock->next) {
@@ -3216,7 +3216,7 @@ void BKE_node_clipboard_add_node(bNode *node)
     BLI_strncpy(node_info->id_name, node->id->name, sizeof(node_info->id_name));
     if (ID_IS_LINKED(node->id)) {
       BLI_strncpy(
-          node_info->library_name, node->id->lib->filepath, sizeof(node_info->library_name));
+          node_info->library_name, node->id->lib->filepath_abs, sizeof(node_info->library_name));
     }
     else {
       node_info->library_name[0] = '\0';

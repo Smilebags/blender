@@ -70,10 +70,10 @@ static void filter_cache_init_task_cb(void *__restrict userdata,
   SculptThreadedTaskData *data = userdata;
   PBVHNode *node = data->nodes[i];
 
-  SCULPT_undo_push_node(data->ob, node, SCULPT_UNDO_COORDS);
+  SCULPT_undo_push_node(data->ob, node, data->filter_undo_type);
 }
 
-void SCULPT_filter_cache_init(Object *ob, Sculpt *sd)
+void SCULPT_filter_cache_init(Object *ob, Sculpt *sd, const int undo_type)
 {
   SculptSession *ss = ob->sculpt;
   PBVH *pbvh = ob->sculpt->pbvh;
@@ -110,11 +110,11 @@ void SCULPT_filter_cache_init(Object *ob, Sculpt *sd)
       .sd = sd,
       .ob = ob,
       .nodes = ss->filter_cache->nodes,
+      .filter_undo_type = undo_type,
   };
 
   TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(
-      &settings, (sd->flags & SCULPT_USE_OPENMP), ss->filter_cache->totnode);
+  BKE_pbvh_parallel_range_settings(&settings, true, ss->filter_cache->totnode);
   BLI_task_parallel_range(
       0, ss->filter_cache->totnode, &data, filter_cache_init_task_cb, &settings);
 }
@@ -475,7 +475,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   SCULPT_vertex_random_access_init(ss);
 
   bool needs_pmap = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false, false);
 
   SculptThreadedTaskData data = {
       .sd = sd,
@@ -486,8 +486,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   };
 
   TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(
-      &settings, (sd->flags & SCULPT_USE_OPENMP), ss->filter_cache->totnode);
+  BKE_pbvh_parallel_range_settings(&settings, true, ss->filter_cache->totnode);
   BLI_task_parallel_range(0, ss->filter_cache->totnode, &data, mesh_filter_task_cb, &settings);
 
   if (filter_type == MESH_FILTER_SURFACE_SMOOTH) {
@@ -542,7 +541,7 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
   SCULPT_vertex_random_access_init(ss);
 
   bool needs_pmap = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false, false);
 
   const int totvert = SCULPT_vertex_count_get(ss);
   if (BKE_pbvh_type(pbvh) == PBVH_FACES && needs_pmap && !ob->sculpt->pmap) {
@@ -551,7 +550,7 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   SCULPT_undo_push_begin("Mesh filter");
 
-  SCULPT_filter_cache_init(ob, sd);
+  SCULPT_filter_cache_init(ob, sd, SCULPT_UNDO_COORDS);
 
   if (use_face_sets) {
     ss->filter_cache->active_face_set = SCULPT_active_face_set_get(ss);

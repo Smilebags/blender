@@ -95,7 +95,7 @@ bool BKE_gpencil_data_minmax(const bGPdata *gpd, float r_min[3], float r_max[3])
 
     if (gpf != NULL) {
       LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        changed = BKE_gpencil_stroke_minmax(gps, false, r_min, r_max);
+        changed |= BKE_gpencil_stroke_minmax(gps, false, r_min, r_max);
       }
     }
   }
@@ -1908,14 +1908,27 @@ void BKE_gpencil_convert_mesh(Main *bmain,
   /* Export faces as filled strokes. */
   if (use_faces) {
     if (create_mat) {
+      /* Find a material slot with material assigned */
+      bool material_found = false;
+      for (i = 0; i < ob_mesh->totcol; i++) {
+        Material *ma = BKE_object_material_get(ob_mesh, i + 1);
+        if (ma != NULL) {
+          material_found = true;
+          break;
+        }
+      }
+
       /* If no materials, create a simple fill. */
-      if (ob_mesh->totcol == 0) {
+      if (!material_found) {
         gpencil_add_material(bmain, ob_gp, "Fill", default_colors[1], false, true, &r_idx);
       }
       else {
         /* Create all materials for fill. */
         for (i = 0; i < ob_mesh->totcol; i++) {
           Material *ma = BKE_object_material_get(ob_mesh, i + 1);
+          if (ma == NULL) {
+            continue;
+          }
           float color[4];
           copy_v3_v3(color, &ma->r);
           color[3] = 1.0f;

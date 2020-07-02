@@ -1511,6 +1511,14 @@ void OBJECT_OT_speaker_add(wmOperatorType *ot)
 /** \name Add Hair Operator
  * \{ */
 
+static bool object_hair_add_poll(bContext *C)
+{
+  if (!U.experimental.use_new_hair_type) {
+    return false;
+  }
+  return ED_operator_objectmode(C);
+}
+
 static int object_hair_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
@@ -1534,7 +1542,7 @@ void OBJECT_OT_hair_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = object_hair_add_exec;
-  ot->poll = ED_operator_objectmode;
+  ot->poll = object_hair_add_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1547,6 +1555,14 @@ void OBJECT_OT_hair_add(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Add Point Cloud Operator
  * \{ */
+
+static bool object_pointcloud_add_poll(bContext *C)
+{
+  if (!U.experimental.use_new_particle_system) {
+    return false;
+  }
+  return ED_operator_objectmode(C);
+}
 
 static int object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
@@ -1571,7 +1587,7 @@ void OBJECT_OT_pointcloud_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = object_pointcloud_add_exec;
-  ot->poll = ED_operator_objectmode;
+  ot->poll = object_pointcloud_add_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1756,6 +1772,21 @@ static void copy_object_set_idnew(bContext *C)
   }
   CTX_DATA_END;
 
+#ifndef NDEBUG
+  /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    if (GS(id_iter->name) == ID_OB) {
+      /* Not all duplicated objects would be used by other newly duplicated data, so their flag
+       * will not always be cleared. */
+      continue;
+    }
+    BLI_assert((id_iter->tag & LIB_TAG_NEW) == 0);
+  }
+  FOREACH_MAIN_ID_END;
+#endif
+
+  BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
   BKE_main_id_clear_newpoins(bmain);
 }
 
@@ -2194,8 +2225,13 @@ static bool object_convert_poll(bContext *C)
   Base *base_act = CTX_data_active_base(C);
   Object *obact = base_act ? base_act->object : NULL;
 
-  return (!ID_IS_LINKED(scene) && obact && (BKE_object_is_in_editmode(obact) == false) &&
-          (base_act->flag & BASE_SELECTED) && !ID_IS_LINKED(obact));
+  if (obact == NULL || obact->data == NULL || ID_IS_LINKED(obact) ||
+      ID_IS_OVERRIDE_LIBRARY(obact) || ID_IS_OVERRIDE_LIBRARY(obact->data)) {
+    return false;
+  }
+
+  return (!ID_IS_LINKED(scene) && (BKE_object_is_in_editmode(obact) == false) &&
+          (base_act->flag & BASE_SELECTED));
 }
 
 /* Helper for object_convert_exec */
@@ -2886,9 +2922,14 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   const eDupli_ID_Flags dupflag = (linked) ? 0 : (eDupli_ID_Flags)U.dupflag;
 
+  /* We need to handle that here ourselves, because we may duplicate several objects, in which case
+   * we also want to remap pointers between those... */
+  BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
+  BKE_main_id_clear_newpoins(bmain);
+
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     Base *basen = object_add_duplicate_internal(
-        bmain, scene, view_layer, base->object, dupflag, 0);
+        bmain, scene, view_layer, base->object, dupflag, LIB_ID_DUPLICATE_IS_SUBPROCESS);
 
     /* note that this is safe to do with this context iterator,
      * the list is made in advance */
@@ -2910,6 +2951,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
+  /* Note that this will also clear newid pointers and tags. */
   copy_object_set_idnew(C);
 
   ED_outliner_select_sync_from_object_tag(C);
@@ -3047,15 +3089,16 @@ static bool object_join_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
 
-  if (!ob || ID_IS_LINKED(ob)) {
-    return 0;
+  if (ob == NULL || ob->data == NULL || ID_IS_LINKED(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
+      ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+    return false;
   }
 
   if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_ARMATURE, OB_GPENCIL)) {
     return ED_operator_screenactive(C);
   }
   else {
-    return 0;
+    return false;
   }
 }
 
@@ -3120,8 +3163,9 @@ static bool join_shapes_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
 
-  if (!ob || ID_IS_LINKED(ob)) {
-    return 0;
+  if (ob == NULL || ob->data == NULL || ID_IS_LINKED(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
+      ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+    return false;
   }
 
   /* only meshes supported at the moment */
@@ -3129,7 +3173,7 @@ static bool join_shapes_poll(bContext *C)
     return ED_operator_screenactive(C);
   }
   else {
-    return 0;
+    return false;
   }
 }
 

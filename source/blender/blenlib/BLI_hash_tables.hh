@@ -39,7 +39,7 @@ namespace blender {
 /* -------------------------------------------------------------------- */
 /** \name Constexpr Utility Functions
  *
- * Those should eventually be deduplicated with functions in BLI_math_base.h.
+ * Those should eventually be de-duplicated with functions in BLI_math_base.h.
  * \{ */
 
 inline constexpr int is_power_of_2_i_constexpr(int n)
@@ -158,10 +158,10 @@ class LoadFactor {
  * two values of the key type are selected to indicate whether the slot is empty or removed.
  *
  * The classes below tell a slot implementation which special key values it can use. They can be
- * used as KeyInfo in slot types like IntrusiveSetSlot and IntrusiveMapSlot.
+ * used as #KeyInfo in slot types like #IntrusiveSetSlot and #IntrusiveMapSlot.
  *
- * A KeyInfo type has to implement a couple of static methods that are descriped in
- * TemplatedKeyInfo.
+ * A #KeyInfo type has to implement a couple of static methods that are descried in
+ * #TemplatedKeyInfo.
  *
  * \{ */
 

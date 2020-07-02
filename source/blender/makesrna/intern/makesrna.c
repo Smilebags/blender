@@ -3770,7 +3770,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
       /* XXX This systematically enforces that flag on ID pointers...
        * we'll probably have to revisit. :/ */
       StructRNA *type = rna_find_struct((const char *)pprop->type);
-      if (type && (type->flag & STRUCT_ID)) {
+      if (type && (type->flag & STRUCT_ID) &&
+          !(prop->flag_internal & PROP_INTERN_PTR_OWNERSHIP_FORCED)) {
         prop->flag |= PROP_PTR_NO_OWNERSHIP;
       }
       break;
@@ -3781,7 +3782,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
       /* XXX This systematically enforces that flag on ID pointers...
        * we'll probably have to revisit. :/ */
       StructRNA *type = rna_find_struct((const char *)cprop->item_type);
-      if (type && (type->flag & STRUCT_ID)) {
+      if (type && (type->flag & STRUCT_ID) &&
+          !(prop->flag_internal & PROP_INTERN_PTR_OWNERSHIP_FORCED)) {
         prop->flag |= PROP_PTR_NO_OWNERSHIP;
       }
       break;
@@ -4269,9 +4271,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
     {"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
     {"rna_gpencil.c", NULL, RNA_def_gpencil},
-#ifdef WITH_NEW_OBJECT_TYPES
     {"rna_hair.c", NULL, RNA_def_hair},
-#endif
     {"rna_image.c", "rna_image_api.c", RNA_def_image},
     {"rna_key.c", NULL, RNA_def_key},
     {"rna_light.c", NULL, RNA_def_light},
@@ -4294,9 +4294,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_packedfile.c", NULL, RNA_def_packedfile},
     {"rna_palette.c", NULL, RNA_def_palette},
     {"rna_particle.c", NULL, RNA_def_particle},
-#ifdef WITH_NEW_OBJECT_TYPES
     {"rna_pointcloud.c", NULL, RNA_def_pointcloud},
-#endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_curveprofile.c", NULL, RNA_def_profile},
     {"rna_lightprobe.c", NULL, RNA_def_lightprobe},
@@ -4306,9 +4304,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_screen.c", NULL, RNA_def_screen},
     {"rna_sculpt_paint.c", NULL, RNA_def_sculpt_paint},
     {"rna_sequencer.c", "rna_sequencer_api.c", RNA_def_sequencer},
-#ifdef WITH_NEW_SIMULATION_TYPE
     {"rna_simulation.c", NULL, RNA_def_simulation},
-#endif
     {"rna_space.c", "rna_space_api.c", RNA_def_space},
     {"rna_speaker.c", NULL, RNA_def_speaker},
     {"rna_test.c", NULL, RNA_def_test},

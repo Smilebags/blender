@@ -245,20 +245,25 @@ static bool panels_need_realign(ScrArea *area, ARegion *region, Panel **r_panel_
 
 /********* Functions for instanced panels. ***********/
 
-static Panel *UI_panel_add_instanced_ex(
-    ScrArea *area, ARegion *region, ListBase *panels, PanelType *panel_type, int list_index)
+static Panel *UI_panel_add_instanced_ex(ScrArea *area,
+                                        ARegion *region,
+                                        ListBase *panels,
+                                        PanelType *panel_type,
+                                        int list_index,
+                                        PointerRNA *custom_data)
 {
   Panel *panel = MEM_callocN(sizeof(Panel), "instanced panel");
   panel->type = panel_type;
   BLI_strncpy(panel->panelname, panel_type->idname, sizeof(panel->panelname));
 
   panel->runtime.list_index = list_index;
+  panel->runtime.custom_data_ptr = custom_data;
 
   /* Add the panel's children too. Although they aren't instanced panels, we can still use this
    * function to create them, as UI_panel_begin does other things we don't need to do. */
   LISTBASE_FOREACH (LinkData *, child, &panel_type->children) {
     PanelType *child_type = child->data;
-    UI_panel_add_instanced_ex(area, region, &panel->children, child_type, list_index);
+    UI_panel_add_instanced_ex(area, region, &panel->children, child_type, list_index, custom_data);
   }
 
   /* Make sure the panel is added to the end of the display-order as well. This is needed for
@@ -283,8 +288,12 @@ static Panel *UI_panel_add_instanced_ex(
  * Called in situations where panels need to be added dynamically rather than having only one panel
  * corresponding to each PanelType.
  */
-Panel *UI_panel_add_instanced(
-    ScrArea *area, ARegion *region, ListBase *panels, char *panel_idname, int list_index)
+Panel *UI_panel_add_instanced(ScrArea *area,
+                              ARegion *region,
+                              ListBase *panels,
+                              char *panel_idname,
+                              int list_index,
+                              PointerRNA *custom_data)
 {
   ARegionType *region_type = region->type;
 
@@ -296,7 +305,7 @@ Panel *UI_panel_add_instanced(
     return NULL;
   }
 
-  return UI_panel_add_instanced_ex(area, region, panels, panel_type, list_index);
+  return UI_panel_add_instanced_ex(area, region, panels, panel_type, list_index, custom_data);
 }
 
 /**
@@ -332,7 +341,8 @@ static void panel_free_block(ARegion *region, Panel *panel)
 }
 
 /**
- * Free a panel and it's children.
+ * Free a panel and it's children. Custom data is shared by the panel and its children
+ * and is freed by #UI_panels_free_instanced.
  *
  * \note The only panels that should need to be deleted at runtime are panels with the
  * #PNL_INSTANCED flag set.
@@ -369,6 +379,13 @@ void UI_panels_free_instanced(bContext *C, ARegion *region)
       if (C != NULL && panel->activedata != NULL) {
         panel_activate_state(C, panel, PANEL_STATE_EXIT);
       }
+
+      /* Free panel's custom data. */
+      if (panel->runtime.custom_data_ptr != NULL) {
+        MEM_freeN(panel->runtime.custom_data_ptr);
+      }
+
+      /* Free the panel and its sub-panels. */
       panel_delete(region, &region->panels, panel);
     }
   }
@@ -387,9 +404,19 @@ bool UI_panel_list_matches_data(ARegion *region,
                                 ListBase *data,
                                 uiListPanelIDFromDataFunc panel_idname_func)
 {
-  int data_len = BLI_listbase_count(data);
+  /* Check for NULL data. */
+  int data_len = 0;
+  Link *data_link = NULL;
+  if (data == NULL) {
+    data_len = 0;
+    data_link = NULL;
+  }
+  else {
+    data_len = BLI_listbase_count(data);
+    data_link = data->first;
+  }
+
   int i = 0;
-  Link *data_link = data->first;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type != NULL && panel->type->flag & PNL_INSTANCED) {
       /* The panels were reordered by drag and drop. */
@@ -493,7 +520,7 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
 /**
  * Recursive implementation for #UI_panel_set_expand_from_list_data.
  *
- * \return Whether the closed flag for the panel or any subpanels changed.
+ * \return Whether the closed flag for the panel or any sub-panels changed.
  */
 static bool panel_set_expand_from_list_data_recursive(Panel *panel, short flag, short *flag_index)
 {
@@ -513,7 +540,7 @@ static bool panel_set_expand_from_list_data_recursive(Panel *panel, short flag, 
 }
 
 /**
- * Set the expansion of the panel and its subpanels from the flag stored by the list data
+ * Set the expansion of the panel and its sub-panels from the flag stored by the list data
  * corresponding to this panel. The flag has expansion stored in each bit in depth first
  * order.
  */
@@ -584,7 +611,7 @@ static void set_panels_list_data_expand_flag(const bContext *C, ARegion *region)
 /****************************** panels ******************************/
 
 /**
- * Set flag state for a panel and its subpanels.
+ * Set flag state for a panel and its sub-panels.
  *
  * \return True if this function changed any of the flags, false if it didn't.
  */
@@ -1180,7 +1207,7 @@ void ui_draw_aligned_panel(uiStyle *style,
     /* Draw panel backdrop if it wasn't already been drawn by the single opaque round box earlier.
      * Note: Sub-panels blend with panels, so they can't be opaque. */
     if (show_background && !(draw_box_style && !is_subpanel)) {
-      /* Draw the bottom subpanels . */
+      /* Draw the bottom sub-panels. */
       if (draw_box_style) {
         if (panel->next) {
           immUniformThemeColor(panel_col);
@@ -1481,11 +1508,6 @@ static bool uiAlignPanelStep(ScrArea *area, ARegion *region, const float fac, co
   ps->panel->ofsx = 0;
   ps->panel->ofsy = -get_panel_size_y(ps->panel);
   ps->panel->ofsx += ps->panel->runtime.region_ofsx;
-  /* Extra margin if the panel is a box style panel. */
-  if (ps->panel->type && ps->panel->type->flag & PNL_DRAW_BOX) {
-    ps->panel->ofsx += UI_PANEL_BOX_STYLE_MARGIN;
-    ps->panel->ofsy -= UI_PANEL_BOX_STYLE_MARGIN;
-  }
 
   for (a = 0; a < tot - 1; a++, ps++) {
     psnext = ps + 1;
@@ -1495,15 +1517,11 @@ static bool uiAlignPanelStep(ScrArea *area, ARegion *region, const float fac, co
       bool use_box_next = psnext->panel->type && psnext->panel->type->flag & PNL_DRAW_BOX;
       psnext->panel->ofsx = ps->panel->ofsx;
       psnext->panel->ofsy = get_panel_real_ofsy(ps->panel) - get_panel_size_y(psnext->panel);
+
       /* Extra margin for box style panels. */
+      ps->panel->ofsx += (use_box) ? UI_PANEL_BOX_STYLE_MARGIN : 0.0f;
       if (use_box || use_box_next) {
         psnext->panel->ofsy -= UI_PANEL_BOX_STYLE_MARGIN;
-      }
-      if (use_box && !use_box_next) {
-        psnext->panel->ofsx -= UI_PANEL_BOX_STYLE_MARGIN;
-      }
-      else if (!use_box && use_box_next) {
-        psnext->panel->ofsx += UI_PANEL_BOX_STYLE_MARGIN;
       }
     }
     else {
@@ -1511,6 +1529,10 @@ static bool uiAlignPanelStep(ScrArea *area, ARegion *region, const float fac, co
       psnext->panel->ofsy = ps->panel->ofsy + get_panel_size_y(ps->panel) -
                             get_panel_size_y(psnext->panel);
     }
+  }
+  /* Extra margin for the last panel if it's a box-style panel. */
+  if (panelsort[tot - 1].panel->type && panelsort[tot - 1].panel->type->flag & PNL_DRAW_BOX) {
+    panelsort[tot - 1].panel->ofsx += UI_PANEL_BOX_STYLE_MARGIN;
   }
 
   /* we interpolate */
@@ -2041,24 +2063,24 @@ static void ui_handle_panel_header(
       /* Collapse and expand panels. */
 
       if (ctrl) {
-        /* Only collapse all for parent panels. */
+        /* For parent panels, collapse all other panels or toggle children. */
         if (block->panel->type != NULL && block->panel->type->parent == NULL) {
           if (block->panel->flag & PNL_CLOSED || BLI_listbase_is_empty(&block->panel->children)) {
             panels_collapse_all(C, area, region, block->panel);
+
+            /* Reset the view - we don't want to display a view without content. */
+            UI_view2d_offset(&region->v2d, 0.0f, 1.0f);
           }
           else {
             const int closed_flag = (align == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY;
-            /* If a panel has subpanels and it's open, toggle the expansion
-             * of the subpanels (based on the expansion of the first subpanel). */
+            /* If a panel has sub-panels and it's open, toggle the expansion
+             * of the sub-panels (based on the expansion of the first subpanel). */
             Panel *first_child = block->panel->children.first;
             BLI_assert(first_child != NULL);
             panel_set_flag_recursive(
                 block->panel, closed_flag, (first_child->flag & PNL_CLOSED) == 0);
             block->panel->flag |= closed_flag;
           }
-
-          /* reset the view - we don't want to display a view without content */
-          UI_view2d_offset(&region->v2d, 0.0f, 1.0f);
         }
       }
 
@@ -2881,6 +2903,56 @@ int ui_handler_panel_region(bContext *C,
   return retval;
 }
 
+static void ui_panel_custom_data_set_recursive(Panel *panel, PointerRNA *custom_data)
+{
+  panel->runtime.custom_data_ptr = custom_data;
+
+  LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
+    ui_panel_custom_data_set_recursive(child_panel, custom_data);
+  }
+}
+
+void UI_panel_custom_data_set(Panel *panel, PointerRNA *custom_data)
+{
+  BLI_assert(panel->type != NULL);
+
+  /* Free the old custom data, which should be shared among all of the panel's sub-panels. */
+  if (panel->runtime.custom_data_ptr != NULL) {
+    MEM_freeN(panel->runtime.custom_data_ptr);
+  }
+
+  ui_panel_custom_data_set_recursive(panel, custom_data);
+}
+
+PointerRNA *UI_region_panel_custom_data_under_cursor(const bContext *C, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+
+  Panel *panel = NULL;
+  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+    panel = block->panel;
+    if (panel == NULL) {
+      continue;
+    }
+
+    int mx = event->x;
+    int my = event->y;
+    ui_window_to_block(region, block, &mx, &my);
+    int mouse_state = ui_panel_mouse_state_get(block, panel, mx, my);
+    if (ELEM(mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER)) {
+      break;
+    }
+  }
+
+  if (panel == NULL) {
+    return NULL;
+  }
+
+  PointerRNA *customdata = panel->runtime.custom_data_ptr;
+
+  return customdata;
+}
+
 /**************** window level modal panel interaction **************/
 
 /* note, this is modal handler and should not swallow events for animation */
@@ -2945,7 +3017,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, uiHandlePanelS
 
   bool was_drag_drop = (data && data->state == PANEL_STATE_DRAG);
 
-  /* Set selection state for the panel and its subpanels, which need to know they are selected
+  /* Set selection state for the panel and its sub-panels, which need to know they are selected
    * too so they can be drawn above their parent when it's dragged. */
   if (state == PANEL_STATE_EXIT || state == PANEL_STATE_ANIMATION) {
     if (data && data->state != PANEL_STATE_ANIMATION) {
