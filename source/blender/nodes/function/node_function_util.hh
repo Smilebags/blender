@@ -14,17 +14,31 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "node_function_util.hh"
+#ifndef __NODE_FUNCTION_UTIL_H__
+#define __NODE_FUNCTION_UTIL_H__
+
+#include <string.h>
+
+#include "BLI_float3.hh"
+#include "BLI_utildefines.h"
+
+#include "MEM_guardedalloc.h"
+
+#include "DNA_node_types.h"
+
+#include "BKE_node.h"
+#include "BKE_node_tree_multi_function.hh"
+
+#include "BLT_translation.h"
+
+#include "NOD_function.h"
+
 #include "node_util.h"
 
-bool fn_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
-{
-  /* Function nodes are only supported in simulation node trees so far. */
-  return STREQ(ntree->idname, "SimulationNodeTree");
-}
+#include "FN_multi_function_builder.hh"
 
-void fn_node_type_base(bNodeType *ntype, int type, const char *name, short nclass, short flag)
-{
-  node_type_base(ntype, type, name, nclass, flag);
-  ntype->poll = fn_node_poll_default;
-}
+void fn_node_type_base(
+    struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
+bool fn_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
+
+#endif /* __NODE_FUNCTION_UTIL_H__ */
