@@ -142,6 +142,19 @@ void dead_node_removal(MFNetwork &network)
  *
  * \{ */
 
+static Vector<MFNode *> find_non_constant_nodes(MFNetwork &network)
+{
+  Vector<MFNode *> non_constant_nodes;
+  non_constant_nodes.extend(network.dummy_nodes());
+
+  for (MFFunctionNode *node : network.function_nodes()) {
+    if (!node->all_inputs_have_origin()) {
+      non_constant_nodes.append(node);
+    }
+  }
+  return non_constant_nodes;
+}
+
 static bool output_has_non_constant_target_node(MFOutputSocket *output_socket,
                                                 Span<bool> is_not_constant_mask)
 {
@@ -168,7 +181,7 @@ static MFInputSocket *try_find_dummy_target_socket(MFOutputSocket *output_socket
 static Vector<MFInputSocket *> find_constant_inputs_to_fold(
     MFNetwork &network, Vector<MFDummyNode *> &r_temporary_nodes)
 {
-  Span<MFNode *> non_constant_nodes = network.dummy_nodes();
+  Vector<MFNode *> non_constant_nodes = find_non_constant_nodes(network);
   Array<bool> is_not_constant_mask = mask_nodes_to_the_right(network, non_constant_nodes);
   Vector<MFNode *> constant_nodes = find_nodes_based_on_mask(network, is_not_constant_mask, false);
 
@@ -287,20 +300,20 @@ void constant_folding(MFNetwork &network, ResourceCollector &resources)
   }
 
   Array<MFOutputSocket *> folded_sockets = compute_constant_sockets_and_add_folded_nodes(
-      network, inputs_to_fold.as_span(), resources);
+      network, inputs_to_fold, resources);
 
   for (uint i : inputs_to_fold.index_range()) {
     MFOutputSocket &original_socket = *inputs_to_fold[i]->origin();
     network.relink(original_socket, *folded_sockets[i]);
   }
 
-  network.remove(temporary_nodes.as_span());
+  network.remove(temporary_nodes);
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Common Subnetwork Elimination
+/** \name Common Sub-network Elimination
  *
  * \{ */
 
@@ -441,8 +454,9 @@ static void relink_duplicate_nodes(MFNetwork &network,
     }
 
     Vector<MFNode *, 16> nodes_to_check = nodes_with_same_hash;
-    Vector<MFNode *, 16> remaining_nodes;
     while (nodes_to_check.size() >= 2) {
+      Vector<MFNode *, 16> remaining_nodes;
+
       MFNode &deduplicated_node = *nodes_to_check[0];
       for (MFNode *node : nodes_to_check.as_span().drop_front(1)) {
         /* This is true with fairly high probability, but hash collisions can happen. So we have to
@@ -462,7 +476,7 @@ static void relink_duplicate_nodes(MFNetwork &network,
 }
 
 /**
- * Tries to detect duplicate subnetworks and eliminates them. This can help quite a lot when node
+ * Tries to detect duplicate sub-networks and eliminates them. This can help quite a lot when node
  * groups were used to create the network.
  */
 void common_subnetwork_elimination(MFNetwork &network)

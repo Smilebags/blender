@@ -100,10 +100,6 @@ set(SRC_HEADERS
   util_rect.h
   util_set.h
   util_simd.h
-  util_sky_model.cpp
-  util_sky_model.h
-  util_sky_model_data.h
-  util_sky_nishita.cpp
   util_avxf.h
   util_avxb.h
   util_semaphore.h

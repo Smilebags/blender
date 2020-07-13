@@ -224,7 +224,7 @@ void BKE_pbvh_bounding_box(const PBVH *pbvh, float min[3], float max[3]);
 unsigned int **BKE_pbvh_grid_hidden(const PBVH *pbvh);
 
 int BKE_pbvh_count_grid_quads(BLI_bitmap **grid_hidden,
-                              int *grid_indices,
+                              const int *grid_indices,
                               int totgrid,
                               int gridsize);
 
@@ -264,6 +264,7 @@ void BKE_pbvh_node_mark_redraw(PBVHNode *node);
 void BKE_pbvh_node_mark_normals_update(PBVHNode *node);
 void BKE_pbvh_node_mark_topology_update(PBVHNode *node);
 void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
+bool BKE_pbvh_node_fully_hidden_get(PBVHNode *node);
 void BKE_pbvh_node_fully_masked_set(PBVHNode *node, int fully_masked);
 bool BKE_pbvh_node_fully_masked_get(PBVHNode *node);
 void BKE_pbvh_node_fully_unmasked_set(PBVHNode *node, int fully_masked);

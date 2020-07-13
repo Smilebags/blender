@@ -1127,6 +1127,7 @@ static void modifier_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem
 {
   bContext *C = (bContext *)Carg;
   Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   ModifierData *md = (ModifierData *)te->directdata;
   Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
@@ -1141,7 +1142,7 @@ static void modifier_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   }
   else if (event == OL_MODIFIER_OP_DELETE) {
-    ED_object_modifier_remove(NULL, bmain, ob, md);
+    ED_object_modifier_remove(NULL, bmain, scene, ob, md);
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
     te->store_elem->flag &= ~TSE_SELECTED;
   }
@@ -1562,7 +1563,7 @@ static bool outliner_id_operation_item_poll(bContext *C,
 
   switch (enum_value) {
     case OUTLINER_IDOP_OVERRIDE_LIBRARY:
-      return BKE_lib_override_library_is_enabled();
+      return true;
     case OUTLINER_IDOP_SINGLE:
       if (!soops || ELEM(soops->outlinevis, SO_SCENES, SO_VIEW_LAYER)) {
         return true;
@@ -1676,12 +1677,10 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
       break;
     }
     case OUTLINER_IDOP_OVERRIDE_LIBRARY: {
-      if (BKE_lib_override_library_is_enabled()) {
-        /* make local */
-        outliner_do_libdata_operation(
-            C, op->reports, scene, soops, &soops->tree, id_override_library_cb, NULL);
-        ED_undo_push(C, "Overridden Data");
-      }
+      /* make local */
+      outliner_do_libdata_operation(
+          C, op->reports, scene, soops, &soops->tree, id_override_library_cb, NULL);
+      ED_undo_push(C, "Overridden Data");
       break;
     }
     case OUTLINER_IDOP_SINGLE: {

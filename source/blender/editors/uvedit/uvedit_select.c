@@ -88,6 +88,59 @@ static void uv_select_tag_update_for_object(Depsgraph *depsgraph,
                                             Object *obedit);
 
 /* -------------------------------------------------------------------- */
+/** \name Active Selection Tracking
+ *
+ * Currently we don't store loops in the selection history,
+ * store face/edge/vert combinations (needed for UV path selection).
+ * \{ */
+
+void ED_uvedit_active_vert_loop_set(BMesh *bm, BMLoop *l)
+{
+  BM_select_history_clear(bm);
+  BM_select_history_remove(bm, (BMElem *)l->f);
+  BM_select_history_remove(bm, (BMElem *)l->v);
+  BM_select_history_store_notest(bm, (BMElem *)l->f);
+  BM_select_history_store_notest(bm, (BMElem *)l->v);
+}
+
+BMLoop *ED_uvedit_active_vert_loop_get(BMesh *bm)
+{
+  BMEditSelection *ese = bm->selected.last;
+  if (ese && ese->prev) {
+    BMEditSelection *ese_prev = ese->prev;
+    if ((ese->htype == BM_VERT) && (ese_prev->htype == BM_FACE)) {
+      /* May be NULL. */
+      return BM_face_vert_share_loop((BMFace *)ese_prev->ele, (BMVert *)ese->ele);
+    }
+  }
+  return NULL;
+}
+
+void ED_uvedit_active_edge_loop_set(BMesh *bm, BMLoop *l)
+{
+  BM_select_history_clear(bm);
+  BM_select_history_remove(bm, (BMElem *)l->f);
+  BM_select_history_remove(bm, (BMElem *)l->e);
+  BM_select_history_store_notest(bm, (BMElem *)l->f);
+  BM_select_history_store_notest(bm, (BMElem *)l->e);
+}
+
+BMLoop *ED_uvedit_active_edge_loop_get(BMesh *bm)
+{
+  BMEditSelection *ese = bm->selected.last;
+  if (ese && ese->prev) {
+    BMEditSelection *ese_prev = ese->prev;
+    if ((ese->htype == BM_EDGE) && (ese_prev->htype == BM_FACE)) {
+      /* May be NULL. */
+      return BM_face_edge_share_loop((BMFace *)ese_prev->ele, (BMEdge *)ese->ele);
+    }
+  }
+  return NULL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Visibility and Selection Utilities
  * \{ */
 
@@ -1424,7 +1477,7 @@ void UV_OT_select_all(wmOperatorType *ot)
  * \{ */
 
 static bool uv_sticky_select(
-    float *limit, int hitv[], int v, float *hituv[], float *uv, int sticky, int hitlen)
+    const float *limit, const int hitv[], int v, float *hituv[], float *uv, int sticky, int hitlen)
 {
   int i;
 
@@ -1531,6 +1584,11 @@ static int uv_mouse_select_multi(bContext *C,
       hituv[hit.lindex] = hit.luv->uv;
 
       hitlen = hit.efa->len;
+
+      if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+        BMesh *bm = BKE_editmesh_from_object(hit.ob)->bm;
+        ED_uvedit_active_vert_loop_set(bm, hit.l);
+      }
     }
   }
   else if (selectmode == UV_SELECT_EDGE) {
@@ -1550,6 +1608,11 @@ static int uv_mouse_select_multi(bContext *C,
       hituv[(hit.lindex + 1) % hit.efa->len] = hit.luv_next->uv;
 
       hitlen = hit.efa->len;
+
+      if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+        BMesh *bm = BKE_editmesh_from_object(hit.ob)->bm;
+        ED_uvedit_active_edge_loop_set(bm, hit.l);
+      }
     }
   }
   else if (selectmode == UV_SELECT_FACE) {
@@ -3353,6 +3416,157 @@ void UV_OT_select_overlap(wmOperatorType *ot)
                   0,
                   "Extend",
                   "Extend selection rather than clearing the existing selection");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Selected Elements as Arrays (Vertex, Edge & Faces)
+ *
+ * These functions return single elements per connected vertex/edge.
+ * So an edge that has two connected edge loops only assigns one loop in the array.
+ * \{ */
+
+BMFace **ED_uvedit_selected_faces(Scene *scene, BMesh *bm, int len_max, int *r_faces_len)
+{
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+  CLAMP_MAX(len_max, bm->totface);
+  int faces_len = 0;
+  BMFace **faces = MEM_mallocN(sizeof(*faces) * len_max, __func__);
+
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (uvedit_face_visible_test(scene, f)) {
+      if (uvedit_face_select_test(scene, f, cd_loop_uv_offset)) {
+        faces[faces_len++] = f;
+        if (faces_len == len_max) {
+          goto finally;
+        }
+      }
+    }
+  }
+
+finally:
+  *r_faces_len = faces_len;
+  if (faces_len != len_max) {
+    faces = MEM_reallocN(faces, sizeof(*faces) * faces_len);
+  }
+  return faces;
+}
+
+BMLoop **ED_uvedit_selected_edges(Scene *scene, BMesh *bm, int len_max, int *r_edges_len)
+{
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+  CLAMP_MAX(len_max, bm->totloop);
+  int edges_len = 0;
+  BMLoop **edges = MEM_mallocN(sizeof(*edges) * len_max, __func__);
+
+  BMIter iter;
+  BMFace *f;
+
+  /* Clear tag. */
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BMIter liter;
+    BMLoop *l_iter;
+    BM_ITER_ELEM (l_iter, &liter, f, BM_LOOPS_OF_FACE) {
+      BM_elem_flag_disable(l_iter, BM_ELEM_TAG);
+    }
+  }
+
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (uvedit_face_visible_test(scene, f)) {
+      BMIter liter;
+      BMLoop *l_iter;
+      BM_ITER_ELEM (l_iter, &liter, f, BM_LOOPS_OF_FACE) {
+        if (!BM_elem_flag_test(l_iter, BM_ELEM_TAG)) {
+          const MLoopUV *luv_curr = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_uv_offset);
+          const MLoopUV *luv_next = BM_ELEM_CD_GET_VOID_P(l_iter->next, cd_loop_uv_offset);
+          if ((luv_curr->flag & MLOOPUV_VERTSEL) && (luv_next->flag & MLOOPUV_VERTSEL)) {
+            BM_elem_flag_enable(l_iter, BM_ELEM_TAG);
+
+            edges[edges_len++] = l_iter;
+            if (edges_len == len_max) {
+              goto finally;
+            }
+
+            /* Tag other connected loops so we don't consider them separate edges. */
+            if (l_iter != l_iter->radial_next) {
+              BMLoop *l_radial_iter = l_iter->radial_next;
+              do {
+                if (BM_loop_uv_share_edge_check(l_iter, l_radial_iter, cd_loop_uv_offset)) {
+                  BM_elem_flag_enable(l_radial_iter, BM_ELEM_TAG);
+                }
+              } while ((l_radial_iter = l_radial_iter->radial_next) != l_iter);
+            }
+          }
+        }
+      }
+    }
+  }
+
+finally:
+  *r_edges_len = edges_len;
+  if (edges_len != len_max) {
+    edges = MEM_reallocN(edges, sizeof(*edges) * edges_len);
+  }
+  return edges;
+}
+
+BMLoop **ED_uvedit_selected_verts(Scene *scene, BMesh *bm, int len_max, int *r_verts_len)
+{
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+  CLAMP_MAX(len_max, bm->totloop);
+  int verts_len = 0;
+  BMLoop **verts = MEM_mallocN(sizeof(*verts) * len_max, __func__);
+
+  BMIter iter;
+  BMFace *f;
+
+  /* Clear tag. */
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BMIter liter;
+    BMLoop *l_iter;
+    BM_ITER_ELEM (l_iter, &liter, f, BM_LOOPS_OF_FACE) {
+      BM_elem_flag_disable(l_iter, BM_ELEM_TAG);
+    }
+  }
+
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (uvedit_face_visible_test(scene, f)) {
+      BMIter liter;
+      BMLoop *l_iter;
+      BM_ITER_ELEM (l_iter, &liter, f, BM_LOOPS_OF_FACE) {
+        if (!BM_elem_flag_test(l_iter, BM_ELEM_TAG)) {
+          const MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_uv_offset);
+          if ((luv->flag & MLOOPUV_VERTSEL)) {
+            BM_elem_flag_enable(l_iter->v, BM_ELEM_TAG);
+
+            verts[verts_len++] = l_iter;
+            if (verts_len == len_max) {
+              goto finally;
+            }
+
+            /* Tag other connected loops so we don't consider them separate vertices. */
+            BMIter liter_disk;
+            BMLoop *l_disk_iter;
+            BM_ITER_ELEM (l_disk_iter, &liter_disk, l_iter->v, BM_LOOPS_OF_VERT) {
+              if (BM_loop_uv_share_vert_check(l_iter, l_disk_iter, cd_loop_uv_offset)) {
+                BM_elem_flag_enable(l_disk_iter, BM_ELEM_TAG);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+finally:
+  *r_verts_len = verts_len;
+  if (verts_len != len_max) {
+    verts = MEM_reallocN(verts, sizeof(*verts) * verts_len);
+  }
+  return verts;
 }
 
 /** \} */

@@ -59,6 +59,18 @@ TEST(vector, InitializerListConstructor)
   EXPECT_EQ(vec[3], 6);
 }
 
+TEST(vector, ConvertingConstructor)
+{
+  std::array<float, 5> values = {5.4f, 7.3f, -8.1f, 5.0f, 0.0f};
+  Vector<int> vec = values;
+  EXPECT_EQ(vec.size(), 5u);
+  EXPECT_EQ(vec[0], 5);
+  EXPECT_EQ(vec[1], 7);
+  EXPECT_EQ(vec[2], -8);
+  EXPECT_EQ(vec[3], 5);
+  EXPECT_EQ(vec[4], 0);
+}
+
 struct TestListValue {
   TestListValue *next, *prev;
   int value;
@@ -637,6 +649,15 @@ TEST(vector, OveralignedValues)
     vec.append({});
     EXPECT_EQ((uintptr_t)&vec.last() % 512, 0);
   }
+}
+
+TEST(vector, ConstructVoidPointerVector)
+{
+  int a;
+  float b;
+  double c;
+  Vector<void *> vec = {&a, &b, &c};
+  EXPECT_EQ(vec.size(), 3);
 }
 
 }  // namespace blender

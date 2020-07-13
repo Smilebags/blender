@@ -2308,7 +2308,7 @@ bool ui_but_is_rna_valid(uiBut *but)
 }
 
 /**
- * Checks if the button supports ctrl+mousewheel cycling
+ * Checks if the button supports cycling next/previous menu items (ctrl+mouse-wheel).
  */
 bool ui_but_supports_cycling(const uiBut *but)
 {
@@ -6262,7 +6262,7 @@ uiBut *uiDefHotKeyevtButS(uiBlock *block,
                           short width,
                           short height,
                           short *keypoin,
-                          short *modkeypoin,
+                          const short *modkeypoin,
                           const char *tip)
 {
   uiBut *but = ui_def_but(block,
