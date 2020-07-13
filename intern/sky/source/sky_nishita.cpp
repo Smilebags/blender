@@ -243,7 +243,7 @@ static void single_scattering(float3 ray_dir,
         float3 extinction_density = total_optical_depth * make_float3(rayleigh_coeff[wl],
                                                                       1.11f * mie_coeff,
                                                                       ozone_coeff[wl]);
-        float attenuation = expf(-reduce_add_f(extinction_density));
+        float attenuation = expf(-reduce_add(extinction_density));
 
         float3 scattering_density = density * make_float3(rayleigh_coeff[wl], mie_coeff, 0.0f);
 
@@ -260,7 +260,7 @@ static void single_scattering(float3 ray_dir,
          * The code here is just that, with a bit of additional optimization to not store full
          * spectra for the optical depth.
          */
-        r_spectrum[wl] += attenuation * reduce_add_f(phase_function * scattering_density) *
+        r_spectrum[wl] += attenuation * reduce_add(phase_function * scattering_density) *
                           irradiance[wl] * segment_length;
       }
     }
