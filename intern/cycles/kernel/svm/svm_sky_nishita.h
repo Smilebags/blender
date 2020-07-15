@@ -23,6 +23,7 @@ ccl_static_constant float rayleigh_scale = 8e3f;        // Rayleigh scale height
 ccl_static_constant float mie_scale = 1.2e3f;           // Mie scale height (m)
 ccl_static_constant float mie_coeff = 2e-5f;            // Mie scattering coefficient
 ccl_static_constant float mie_G = 0.76f;                // aerosols anisotropy
+ccl_static_constant float sqr_G = mie_G * mie_G;        // squared aerosols anisotropy
 ccl_static_constant float earth_radius = 6360e3f;       // radius of Earth (m)
 ccl_static_constant float atmosphere_radius = 6420e3f;  // radius of atmosphere (m)
 ccl_static_constant int steps = 32;                     // segments per primary ray
@@ -101,8 +102,6 @@ ccl_device_inline float phase_rayleigh(float mu)
 
 ccl_device_inline float phase_mie(float mu)
 {
-  ccl_static_constant float sqr_G = mie_G * mie_G;
-
   return (3.0f * (1.0f - sqr_G) * (1.0f + sqr(mu))) /
          (8.0f * M_PI_F * (2.0f + sqr_G) * powf((1.0f + sqr_G - 2.0f * mie_G * mu), 1.5));
 }
@@ -146,6 +145,7 @@ ccl_device_inline float3 ray_optical_depth(float3 ray_origin, float3 ray_dir)
 
   /* The density of each segment is evaluated at its middle. */
   float3 P = ray_origin + 0.5f * segment;
+
   for (int i = 0; i < steps_light; i++) {
     /* Compute height above sea level. */
     float height = len(P) - earth_radius;
@@ -153,13 +153,13 @@ ccl_device_inline float3 ray_optical_depth(float3 ray_origin, float3 ray_dir)
     /* Accumulate optical depth of this segment (density is assumed to be constant along it). */
     float3 density = make_float3(
         density_rayleigh(height), density_mie(height), density_ozone(height));
-    optical_depth += segment_length * density;
+    optical_depth += density;
 
     /* Advance along ray. */
     P += segment;
   }
 
-  return optical_depth;
+  return optical_depth * segment_length;
 }
 
 /* Single Scattering implementation */
@@ -195,6 +195,7 @@ ccl_device SpectralColor single_scattering(float3 ray_dir,
 
   /* The density and in-scattering of each segment is evaluated at its middle. */
   float3 P = ray_origin + 0.5f * segment;
+
   for (int i = 0; i < steps; i++) {
     /* Compute height above sea level. */
     float height = len(P) - earth_radius;
@@ -295,7 +296,7 @@ ccl_device SpectralColor sun_radiation(float3 cam_dir,
     /* Combine spectra and the optical depth into transmittance. */
     float transmittance = current_rayleigh_coeff * optical_depth.x * air_density +
                           1.11f * mie_coeff * optical_depth.y * dust_density;
-    radiation[i] = (current_irradiance / solid_angle) * expf(-transmittance);
+    radiation[i] = current_irradiance * expf(-transmittance) / solid_angle;
   }
 
   return radiation;
