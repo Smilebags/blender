@@ -53,9 +53,9 @@
 #  include "BLI_string_utf8.h"
 #  include "BLI_winstuff.h"
 #  include "utfconv.h"
+#  include <ShObjIdl.h>
 #  include <direct.h>
 #  include <io.h>
-#  include <ShObjIdl.h>
 #  include <stdbool.h>
 #else
 #  include <pwd.h>
@@ -291,7 +291,7 @@ eFileAttributes BLI_file_attributes(const char *path)
 /* Return alias/shortcut file target. Apple version is defined in storage_apple.mm */
 #ifndef __APPLE__
 bool BLI_file_alias_target(
-    /* This parameter can only be const on non-windows plaforms.
+    /* This parameter can only be const on non-windows platforms.
      * NOLINTNEXTLINE: readability-non-const-parameter. */
     char target[FILE_MAXDIR],
     const char *filepath)
