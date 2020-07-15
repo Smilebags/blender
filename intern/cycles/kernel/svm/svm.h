@@ -212,6 +212,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_sepcomb_hsv.h"
 #include "kernel/svm/svm_sepcomb_vector.h"
 #include "kernel/svm/svm_sky.h"
+#include "kernel/svm/svm_sky_nishita.h"
 #include "kernel/svm/svm_spectrum_curve.h"
 #include "kernel/svm/svm_tex_coord.h"
 #include "kernel/svm/svm_value.h"
@@ -452,6 +453,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         break;
       case NODE_TEX_SKY:
         svm_node_tex_sky(kg, sd, stack, node, &offset);
+        break;
+      case NODE_TEX_SKY_NISHITA:
+        svm_node_tex_sky_nishita(kg, state, stack, node, &offset);
         break;
       case NODE_TEX_GRADIENT:
         svm_node_tex_gradient(sd, stack, node);

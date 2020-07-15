@@ -580,6 +580,23 @@ ccl_device float3 find_position_in_lookup_unit_step(
   return mix(load_float3(lookup[lower_bound]), load_float3(lookup[upper_bound]), progress);
 }
 
+ccl_device float find_position_in_lookup_unit_step(
+    ccl_constant float lookup[], float position_to_find, int start, int end, int step)
+{
+  if (UNLIKELY(position_to_find <= start)) {
+    return lookup[0];
+  }
+  if (UNLIKELY(position_to_find >= end)) {
+    int i = (end - start) / step;
+    return lookup[i];
+  }
+
+  int lower_bound = (int(position_to_find) - start) / step;
+  int upper_bound = lower_bound + 1;
+  float progress = position_to_find - int(position_to_find);
+  return mix(lookup[lower_bound], lookup[upper_bound], progress);
+}
+
 ccl_device float3 wavelength_to_xyz(float wavelength)
 {
   return find_position_in_lookup_unit_step(wavelength_xyz_lookup, wavelength, 360, 830, 1);

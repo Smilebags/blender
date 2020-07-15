@@ -121,93 +121,93 @@ ccl_device float3 sky_radiance_hosek(KernelGlobals *kg,
   return xyz_to_rgb(kg, make_float3(x, y, z)) * (M_2PI_F / 683);
 }
 
-/* Nishita improved sky model */
-ccl_device float3 geographical_to_direction(float lat, float lon)
-{
-  return make_float3(cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat));
-}
+// /* Nishita improved sky model */
+// ccl_device float3 geographical_to_direction(float lat, float lon)
+// {
+//   return make_float3(cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat));
+// }
 
-ccl_device float3 sky_radiance_nishita(KernelGlobals *kg,
-                                       float3 dir,
-                                       float *nishita_data,
-                                       uint texture_id)
-{
-  /* definitions */
-  float sun_elevation = nishita_data[6];
-  float sun_rotation = nishita_data[7];
-  float angular_diameter = nishita_data[8];
-  float sun_intensity = nishita_data[9];
-  bool sun_disc = (angular_diameter > 0.0f);
-  float3 xyz;
-  /* convert dir to spherical coordinates */
-  float2 direction = direction_to_spherical(dir);
+// ccl_device float3 sky_radiance_nishita(KernelGlobals *kg,
+//                                        float3 dir,
+//                                        float *nishita_data,
+//                                        uint texture_id)
+// {
+//   /* definitions */
+//   float sun_elevation = nishita_data[6];
+//   float sun_rotation = nishita_data[7];
+//   float angular_diameter = nishita_data[8];
+//   float sun_intensity = nishita_data[9];
+//   bool sun_disc = (angular_diameter > 0.0f);
+//   float3 xyz;
+//   /* convert dir to spherical coordinates */
+//   float2 direction = direction_to_spherical(dir);
 
-  /* render above the horizon */
-  if (dir.z >= 0.0f) {
-    /* definitions */
-    float3 sun_dir = geographical_to_direction(sun_elevation, sun_rotation + M_PI_2_F);
-    float sun_dir_angle = precise_angle(dir, sun_dir);
-    float half_angular = angular_diameter / 2.0f;
-    float dir_elevation = M_PI_2_F - direction.x;
+//   /* render above the horizon */
+//   if (dir.z >= 0.0f) {
+//     /* definitions */
+//     float3 sun_dir = geographical_to_direction(sun_elevation, sun_rotation + M_PI_2_F);
+//     float sun_dir_angle = precise_angle(dir, sun_dir);
+//     float half_angular = angular_diameter / 2.0f;
+//     float dir_elevation = M_PI_2_F - direction.x;
 
-    /* if ray inside sun disc render it, otherwise render sky */
-    if (sun_disc && sun_dir_angle < half_angular) {
-      /* get 2 pixels data */
-      float3 pixel_bottom = make_float3(nishita_data[0], nishita_data[1], nishita_data[2]);
-      float3 pixel_top = make_float3(nishita_data[3], nishita_data[4], nishita_data[5]);
-      float y;
+//     /* if ray inside sun disc render it, otherwise render sky */
+//     if (sun_disc && sun_dir_angle < half_angular) {
+//       /* get 2 pixels data */
+//       float3 pixel_bottom = make_float3(nishita_data[0], nishita_data[1], nishita_data[2]);
+//       float3 pixel_top = make_float3(nishita_data[3], nishita_data[4], nishita_data[5]);
+//       float y;
 
-      /* sun interpolation */
-      if (sun_elevation - half_angular > 0.0f) {
-        if (sun_elevation + half_angular > 0.0f) {
-          y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-          xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-        }
-      }
-      else {
-        if (sun_elevation + half_angular > 0.0f) {
-          y = dir_elevation / (sun_elevation + half_angular);
-          xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-        }
-      }
-      /* limb darkening, coefficient is 0.6f */
-      float limb_darkening = (1.0f -
-                              0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
-      xyz *= limb_darkening;
-    }
-    /* sky */
-    else {
-      /* sky interpolation */
-      float x = (direction.y + M_PI_F + sun_rotation) / M_2PI_F;
-      /* more pixels toward horizon compensation */
-      float y = safe_sqrtf(dir_elevation / M_PI_2_F);
-      if (x > 1.0f) {
-        x -= 1.0f;
-      }
-      xyz = float4_to_float3(kernel_tex_image_interp(kg, texture_id, x, y));
-    }
-  }
-  /* ground */
-  else {
-    if (dir.z < -0.4f) {
-      xyz = make_float3(0.0f, 0.0f, 0.0f);
-    }
-    else {
-      /* black ground fade */
-      float fade = 1.0f + dir.z * 2.5f;
-      fade = sqr(fade) * fade;
-      /* interpolation */
-      float x = (direction.y + M_PI_F + sun_rotation) / M_2PI_F;
-      if (x > 1.0f) {
-        x -= 1.0f;
-      }
-      xyz = float4_to_float3(kernel_tex_image_interp(kg, texture_id, x, -0.5)) * fade;
-    }
-  }
+//       /* sun interpolation */
+//       if (sun_elevation - half_angular > 0.0f) {
+//         if (sun_elevation + half_angular > 0.0f) {
+//           y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
+//           xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+//         }
+//       }
+//       else {
+//         if (sun_elevation + half_angular > 0.0f) {
+//           y = dir_elevation / (sun_elevation + half_angular);
+//           xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+//         }
+//       }
+//       /* limb darkening, coefficient is 0.6f */
+//       float limb_darkening = (1.0f -
+//                               0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
+//       xyz *= limb_darkening;
+//     }
+//     /* sky */
+//     else {
+//       /* sky interpolation */
+//       float x = (direction.y + M_PI_F + sun_rotation) / M_2PI_F;
+//       /* more pixels toward horizon compensation */
+//       float y = safe_sqrtf(dir_elevation / M_PI_2_F);
+//       if (x > 1.0f) {
+//         x -= 1.0f;
+//       }
+//       xyz = float4_to_float3(kernel_tex_image_interp(kg, texture_id, x, y));
+//     }
+//   }
+//   /* ground */
+//   else {
+//     if (dir.z < -0.4f) {
+//       xyz = make_float3(0.0f, 0.0f, 0.0f);
+//     }
+//     else {
+//       /* black ground fade */
+//       float fade = 1.0f + dir.z * 2.5f;
+//       fade = sqr(fade) * fade;
+//       /* interpolation */
+//       float x = (direction.y + M_PI_F + sun_rotation) / M_2PI_F;
+//       if (x > 1.0f) {
+//         x -= 1.0f;
+//       }
+//       xyz = float4_to_float3(kernel_tex_image_interp(kg, texture_id, x, -0.5)) * fade;
+//     }
+//   }
 
-  /* convert to rgb and adjust strength */
-  return xyz_to_rgb(kg, xyz) * 120000.0f;
-}
+//   /* convert to rgb and adjust strength */
+//   return xyz_to_rgb(kg, xyz) * 120000.0f;
+// }
 
 ccl_device void svm_node_tex_sky(
     KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
@@ -323,7 +323,7 @@ ccl_device void svm_node_tex_sky(
     uint texture_id = __float_as_uint(data.z);
 
     /* Compute Sky */
-    f = sky_radiance_nishita(kg, dir, nishita_data, texture_id);
+    // f = sky_radiance_nishita(kg, dir, nishita_data, texture_id);
   }
 
   stack_store_float3(stack, out_offset, f);
