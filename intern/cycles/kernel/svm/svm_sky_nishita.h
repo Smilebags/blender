@@ -326,7 +326,7 @@ ccl_device void svm_node_tex_sky_nishita(
   float ozone_density = data.w;
 
   float3 cam_pos = make_float3(0, 0, earth_radius + altitude);
-  float3 sun_dir = geographical_to_direction(sun_elevation, sun_rotation + M_PI_2_F);
+  float3 sun_dir = geographical_to_direction(sun_elevation, -sun_rotation + M_PI_2_F);
 
   /* render above the horizon */
   if (cam_dir.z >= 0.0f) {
