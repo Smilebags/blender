@@ -558,11 +558,6 @@ ccl_device float linear_rgb_to_gray(KernelGlobals *kg, float3 c)
   return dot(c, float4_to_float3(kernel_data.film.rgb_to_y));
 }
 
-ccl_device float float_lerp(float start, float end, float progress)
-{
-  return start + ((end - start) * progress);
-}
-
 ccl_device float3 find_position_in_lookup_unit_step(
     ccl_constant float lookup[][3], float position_to_find, int start, int end, int step)
 {
