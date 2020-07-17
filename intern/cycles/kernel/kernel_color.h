@@ -569,9 +569,10 @@ ccl_device float3 find_position_in_lookup_unit_step(
     return load_float3(lookup[i]);
   }
 
-  int lower_bound = (int(position_to_find) - start) / step;
-  int upper_bound = lower_bound + 1;
-  float progress = position_to_find - int(position_to_find);
+  float lookup_pos = (position_to_find - start) / (float)step;
+  int lower_bound = floor_to_int(lookup_pos);
+  int upper_bound = min(lower_bound + 1, (end - start) / step);
+  float progress = lookup_pos - int(lookup_pos);
   return mix(load_float3(lookup[lower_bound]), load_float3(lookup[upper_bound]), progress);
 }
 
