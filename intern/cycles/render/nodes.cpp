@@ -979,6 +979,7 @@ NODE_DEFINE(NishitaSpectralSkyTextureNode)
 
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
+  SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
   SOCKET_FLOAT(sun_elevation, "Sun Elevation", M_PI_2_F);
   SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
   SOCKET_FLOAT(altitude, "Altitude", 1.0f);
@@ -1009,7 +1010,10 @@ void NishitaSpectralSkyTextureNode::compile(SVMCompiler &compiler)
    * Below 1m causes numerical issues and above 60km is space. */
   float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
 
-  compiler.add_node(NODE_TEX_SKY_NISHITA, vector_offset, compiler.stack_assign(spectrum_out));
+  compiler.add_node(NODE_TEX_SKY_NISHITA,
+                    vector_offset,
+                    compiler.stack_assign(spectrum_out),
+                    __float_as_uint(sun_intensity));
 
   compiler.add_node(__float_as_uint(sun_elevation),
                     __float_as_uint(sun_rotation),

@@ -313,6 +313,7 @@ ccl_device void svm_node_tex_sky_nishita(
   float3 cam_dir = stack_load_float3(stack, dir_offset);
   //   float2 direction = direction_to_spherical(dir);
 
+  float sky_intensity = node.w;
   float4 data = read_node_float(kg, offset);
   float sun_elevation = data.x;
   float sun_rotation = data.y;
@@ -345,6 +346,7 @@ ccl_device void svm_node_tex_sky_nishita(
       float limb_darkening = (1.0f -
                               0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
       spectrum *= limb_darkening;
+      spectrum *= sky_intensity;
     }
     /* sky */
     else {
