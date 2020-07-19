@@ -859,6 +859,22 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(&sky->tex_mapping, b_texture_mapping);
     node = sky;
   }
+  else if (b_node.is_a(&RNA_ShaderNodeTexSkySpectral)) {
+    BL::ShaderNodeTexSkySpectral b_sky_node(b_node);
+    NishitaSpectralSkyTextureNode *sky = new NishitaSpectralSkyTextureNode();
+    sky->sun_disc = b_sky_node.sun_disc();
+    sky->sun_size = b_sky_node.sun_size();
+    sky->sun_intensity = b_sky_node.sun_intensity();
+    sky->sun_elevation = b_sky_node.sun_elevation();
+    sky->sun_rotation = b_sky_node.sun_rotation();
+    sky->altitude = 1000.0f * b_sky_node.altitude();
+    sky->air_density = b_sky_node.air_density();
+    sky->dust_density = b_sky_node.dust_density();
+    sky->ozone_density = b_sky_node.ozone_density();
+    BL::TexMapping b_texture_mapping(b_sky_node.texture_mapping());
+    get_tex_mapping(&sky->tex_mapping, b_texture_mapping);
+    node = sky;
+  }
   else if (b_node.is_a(&RNA_ShaderNodeTexIES)) {
     BL::ShaderNodeTexIES b_ies_node(b_node);
     IESLightNode *ies = new IESLightNode();

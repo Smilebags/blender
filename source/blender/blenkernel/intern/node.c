@@ -4260,6 +4260,7 @@ static void registerShaderNodes(void)
   register_node_type_sh_tex_image();
   register_node_type_sh_tex_environment();
   register_node_type_sh_tex_sky();
+  register_node_type_sh_tex_sky_spectral();
   register_node_type_sh_tex_noise();
   register_node_type_sh_tex_wave();
   register_node_type_sh_tex_voronoi();

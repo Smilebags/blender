@@ -855,6 +855,29 @@ static void node_shader_buts_tex_environment_ex(uiLayout *layout, bContext *C, P
   uiItemR(layout, ptr, "projection", DEFAULT_FLAGS, IFACE_("Projection"), ICON_NONE);
 }
 
+static void node_shader_buts_sky_nishita(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "sun_disc", DEFAULT_FLAGS, NULL, 0);
+
+  uiLayout *col;
+  if (RNA_boolean_get(ptr, "sun_disc")) {
+    col = uiLayoutColumn(layout, true);
+    uiItemR(col, ptr, "sun_size", DEFAULT_FLAGS, NULL, ICON_NONE);
+    uiItemR(col, ptr, "sun_intensity", DEFAULT_FLAGS, NULL, ICON_NONE);
+  }
+
+  col = uiLayoutColumn(layout, true);
+  uiItemR(col, ptr, "sun_elevation", DEFAULT_FLAGS, NULL, ICON_NONE);
+  uiItemR(col, ptr, "sun_rotation", DEFAULT_FLAGS, NULL, ICON_NONE);
+
+  uiItemR(layout, ptr, "altitude", DEFAULT_FLAGS, NULL, ICON_NONE);
+
+  col = uiLayoutColumn(layout, true);
+  uiItemR(col, ptr, "air_density", DEFAULT_FLAGS, NULL, ICON_NONE);
+  uiItemR(col, ptr, "dust_density", DEFAULT_FLAGS, NULL, ICON_NONE);
+  uiItemR(col, ptr, "ozone_density", DEFAULT_FLAGS, NULL, ICON_NONE);
+}
+
 static void node_shader_buts_tex_sky(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "sky_type", DEFAULT_FLAGS, "", ICON_NONE);
@@ -1276,6 +1299,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_WIREFRAME:
       ntype->draw_buttons = node_shader_buts_wireframe;
+      break;
+    case SH_NODE_TEX_SKY_SPECTRAL:
+      ntype->draw_buttons = node_shader_buts_sky_nishita;
       break;
     case SH_NODE_TEX_SKY:
       ntype->draw_buttons = node_shader_buts_tex_sky;

@@ -969,6 +969,63 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_sky_texture");
 }
 
+/* Nishita Spectral Sky Texture */
+
+NODE_DEFINE(NishitaSpectralSkyTextureNode)
+{
+  NodeType *type = NodeType::add("nishita_spectral_sky_texture", create, NodeType::SHADER);
+
+  TEXTURE_MAPPING_DEFINE(NishitaSpectralSkyTextureNode);
+
+  SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
+  SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
+  SOCKET_FLOAT(sun_elevation, "Sun Elevation", M_PI_2_F);
+  SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
+  SOCKET_FLOAT(altitude, "Altitude", 1.0f);
+  SOCKET_FLOAT(air_density, "Air", 1.0f);
+  SOCKET_FLOAT(dust_density, "Dust", 1.0f);
+  SOCKET_FLOAT(ozone_density, "Ozone", 1.0f);
+
+  SOCKET_IN_POINT(
+      vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_GENERATED);
+
+  SOCKET_OUT_SPECTRAL(color, "Spectrum");
+
+  return type;
+}
+
+NishitaSpectralSkyTextureNode::NishitaSpectralSkyTextureNode() : TextureNode(node_type)
+{
+}
+
+void NishitaSpectralSkyTextureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderOutput *spectrum_out = output("Spectrum");
+
+  int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+
+  /* Clamp altitude to reasonable values.
+   * Below 1m causes numerical issues and above 60km is space. */
+  float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+
+  compiler.add_node(NODE_TEX_SKY_NISHITA, vector_offset, compiler.stack_assign(spectrum_out));
+
+  compiler.add_node(__float_as_uint(sun_elevation),
+                    __float_as_uint(sun_rotation),
+                    __float_as_uint(sun_size),
+                    sun_disc);
+  compiler.add_node(__float_as_uint(clamped_altitude),
+                    __float_as_uint(air_density),
+                    __float_as_uint(dust_density),
+                    __float_as_uint(ozone_density));
+}
+
+void NishitaSpectralSkyTextureNode::compile(OSLCompiler &compiler)
+{
+  /* TODO: OSL */
+}
+
 /* Gradient Texture */
 
 NODE_DEFINE(GradientTextureNode)

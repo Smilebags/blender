@@ -68,10 +68,10 @@ ccl_static_constant float ozone_coeff[] = {
     0.00000073527551487574f, 0.00000046450130357806f, 0.00000033096079921048f,
     0.00000022512612292678f, 0.00000014879129266490f, 0.00000016828623364192f};
 
-ccl_device_inline float3 geographical_to_direction(float lat, float lon)
-{
-  return make_float3(cosf(lat) * cosf(lon), cosf(lat) * sinf(lon), sinf(lat));
-}
+// ccl_device_inline float3 geographical_to_direction(float lat, float lon)
+// {
+//   return make_float3(cosf(lat) * cosf(lon), cosf(lat) * sinf(lon), sinf(lat));
+// }
 
 /* Atmosphere volume models */
 

@@ -181,6 +181,27 @@ class SkyTextureNode : public TextureNode {
   ImageHandle handle;
 };
 
+class NishitaSpectralSkyTextureNode : public TextureNode {
+ public:
+  SHADER_NODE_CLASS(NishitaSpectralSkyTextureNode)
+
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_2;
+  }
+  float3 sun_direction;
+  bool sun_disc;
+  float sun_size;
+  float sun_intensity;
+  float sun_elevation;
+  float sun_rotation;
+  float altitude;
+  float air_density;
+  float dust_density;
+  float ozone_density;
+  float3 vector;
+};
+
 class OutputNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(OutputNode)
