@@ -808,7 +808,7 @@ NODE_DEFINE(SkyTextureNode)
   SOCKET_IN_POINT(
       vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_GENERATED);
 
-  SOCKET_OUT_SPECTRAL(color, "Color");
+  SOCKET_OUT_COLOR(color, "Color");
 
   return type;
 }
@@ -828,6 +828,31 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   else if (type == NODE_SKY_HOSEK)
     sky_texture_precompute_hosek(&sunsky, sun_direction, turbidity, ground_albedo);
   else if (type == NODE_SKY_NISHITA) {
+    /* Clamp altitude to reasonable values.
+     * Below 1m causes numerical issues and above 60km is space. */
+    float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+
+    sky_texture_precompute_nishita(&sunsky,
+                                   sun_disc,
+                                   sun_size,
+                                   sun_intensity,
+                                   sun_elevation,
+                                   sun_rotation,
+                                   clamped_altitude,
+                                   air_density,
+                                   dust_density);
+    /* precomputed texture image parameters */
+    ImageManager *image_manager = compiler.scene->image_manager;
+    ImageParams impar;
+    impar.interpolation = INTERPOLATION_LINEAR;
+    impar.extension = EXTENSION_EXTEND;
+
+    /* precompute sky texture */
+    if (handle.empty()) {
+      SkyLoader *loader = new SkyLoader(
+          sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+      handle = image_manager->add_image(loader, impar);
+    }
   }
   else
     assert(false);
@@ -835,26 +860,9 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
   compiler.stack_assign(color_out);
-
-  if (type == NODE_SKY_NISHITA) {
-    /* Clamp altitude to reasonable values.
-     * Below 1m causes numerical issues and above 60km is space. */
-    float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
-
-    compiler.add_node(NODE_TEX_SKY_NISHITA, vector_offset, compiler.stack_assign(color_out), type);
-
-    compiler.add_node(__float_as_uint(sun_elevation),
-                      __float_as_uint(sun_rotation),
-                      __float_as_uint(sun_size),
-                      sun_disc);
-    compiler.add_node(__float_as_uint(clamped_altitude),
-                      __float_as_uint(air_density),
-                      __float_as_uint(dust_density),
-                      __float_as_uint(ozone_density));
-  }
-  else {
-    compiler.add_node(NODE_TEX_SKY, vector_offset, compiler.stack_assign(color_out), type);
-
+  compiler.add_node(NODE_TEX_SKY, vector_offset, compiler.stack_assign(color_out), type);
+  /* nishita doesn't need this data */
+  if (type != NODE_SKY_NISHITA) {
     compiler.add_node(__float_as_uint(sunsky.phi),
                       __float_as_uint(sunsky.theta),
                       __float_as_uint(sunsky.radiance_x),
@@ -887,6 +895,20 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                       __float_as_uint(sunsky.config_z[6]),
                       __float_as_uint(sunsky.config_z[7]),
                       __float_as_uint(sunsky.config_z[8]));
+  }
+  else {
+    compiler.add_node(__float_as_uint(sunsky.nishita_data[0]),
+                      __float_as_uint(sunsky.nishita_data[1]),
+                      __float_as_uint(sunsky.nishita_data[2]),
+                      __float_as_uint(sunsky.nishita_data[3]));
+    compiler.add_node(__float_as_uint(sunsky.nishita_data[4]),
+                      __float_as_uint(sunsky.nishita_data[5]),
+                      __float_as_uint(sunsky.nishita_data[6]),
+                      __float_as_uint(sunsky.nishita_data[7]));
+    compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
+                      __float_as_uint(sunsky.nishita_data[9]),
+                      handle.svm_slot(),
+                      0);
   }
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
