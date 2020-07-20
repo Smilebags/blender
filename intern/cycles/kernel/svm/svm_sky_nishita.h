@@ -313,7 +313,7 @@ ccl_device void svm_node_tex_sky_nishita(
   float3 cam_dir = stack_load_float3(stack, dir_offset);
   //   float2 direction = direction_to_spherical(dir);
 
-  float sky_intensity = node.w;
+  float sky_intensity = __uint_as_float(node.w);
   float4 data = read_node_float(kg, offset);
   float sun_elevation = data.x;
   float sun_rotation = data.y;
