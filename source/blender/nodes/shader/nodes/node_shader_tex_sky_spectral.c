@@ -68,7 +68,6 @@ static void node_shader_update_sky_spectral(bNodeTree *UNUSED(ntree), bNode *nod
 {
   bNodeSocket *sockVector = nodeFindSocket(node, SOCK_IN, "Vector");
 
-  NodeTexSky *tex = (NodeTexSky *)node->storage;
   nodeSetSocketAvailability(sockVector, false);
 }
 
