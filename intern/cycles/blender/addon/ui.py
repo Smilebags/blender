@@ -40,6 +40,13 @@ class CYCLES_PT_integrator_presets(PresetPanel, Panel):
     preset_add_operator = "render.cycles_integrator_preset_add"
     COMPAT_ENGINES = {'CYCLES'}
 
+class CYCLES_PT_camera_response_function_presets(PresetPanel, Panel):
+    bl_label = "Camera Response Function Presets"
+    preset_subdir = "cycles/camera_response_function"
+    preset_operator = "script.execute_preset"
+    preset_add_operator = "render.cycles_camera_response_funtion_preset_add"
+    COMPAT_ENGINES = {'CYCLES'}
+
 
 class CyclesButtonsPanel:
     bl_space_type = "PROPERTIES"
@@ -574,6 +581,37 @@ class CYCLES_RENDER_PT_motion_blur_curve(CyclesButtonsPanel, Panel):
         row.operator("render.shutter_curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
         row.operator("render.shutter_curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("render.shutter_curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+
+
+class CYCLES_RENDER_PT_spectral_rendering(CyclesButtonsPanel, Panel):
+    bl_label = "Spectral Rendering"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+
+class CYCLES_RENDER_PT_spectral_rendering_crf(CyclesButtonsPanel, Panel):
+    bl_label = "Camera Response Function"
+    bl_parent_id = "CYCLES_RENDER_PT_spectral_rendering"
+
+    def draw_header_preset(self, context):
+        CYCLES_PT_camera_response_function_presets.draw_panel_header(self.layout)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        rd = scene.render
+        # layout.active = rd.use_motion_blur
+
+        col = layout.column()
+
+        col.template_curve_mapping(rd, "camera_response_function_curve", type='VECTOR')
 
 
 class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):
@@ -2267,6 +2305,7 @@ def get_panels():
 classes = (
     CYCLES_PT_sampling_presets,
     CYCLES_PT_integrator_presets,
+    CYCLES_PT_camera_response_function_presets,
     CYCLES_RENDER_PT_sampling,
     CYCLES_RENDER_PT_sampling_sub_samples,
     CYCLES_RENDER_PT_sampling_adaptive,
@@ -2288,6 +2327,8 @@ classes = (
     CYCLES_VIEW3D_PT_shading_render_pass,
     CYCLES_RENDER_PT_motion_blur,
     CYCLES_RENDER_PT_motion_blur_curve,
+    CYCLES_RENDER_PT_spectral_rendering,
+    CYCLES_RENDER_PT_spectral_rendering_crf,
     CYCLES_RENDER_PT_film,
     CYCLES_RENDER_PT_film_pixel_filter,
     CYCLES_RENDER_PT_film_transparency,

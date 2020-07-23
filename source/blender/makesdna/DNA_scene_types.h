@@ -775,6 +775,9 @@ typedef struct RenderData {
 
   /* Motion blur shutter */
   struct CurveMapping mblur_shutter_curve;
+
+  /* Spectral Rendering */
+  struct CurveMapping camera_response_function_curve;
 } RenderData;
 
 /* RenderData.quality_flag */

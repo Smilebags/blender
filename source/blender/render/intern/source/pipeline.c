@@ -641,6 +641,7 @@ void RE_FreeRender(Render *re)
   BLI_freelistN(&re->r.views);
 
   BKE_curvemapping_free_data(&re->r.mblur_shutter_curve);
+  BKE_curvemapping_free_data(&re->r.camera_response_function_curve);
 
   /* main dbase can already be invalid now, some database-free code checks it */
   re->main = NULL;
@@ -771,11 +772,14 @@ void render_copy_renderdata(RenderData *to, RenderData *from)
 {
   BLI_freelistN(&to->views);
   BKE_curvemapping_free_data(&to->mblur_shutter_curve);
+  BKE_curvemapping_free_data(&to->camera_response_function_curve);
 
   *to = *from;
 
   BLI_duplicatelist(&to->views, &from->views);
   BKE_curvemapping_copy_data(&to->mblur_shutter_curve, &from->mblur_shutter_curve);
+  BKE_curvemapping_copy_data(&to->camera_response_function_curve,
+                             &from->camera_response_function_curve);
 }
 
 /* what doesn't change during entire render sequence */

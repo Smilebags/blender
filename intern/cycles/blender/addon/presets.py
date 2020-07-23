@@ -79,9 +79,25 @@ class AddPresetSampling(AddPresetBase, Operator):
     preset_subdir = "cycles/sampling"
 
 
+class AddPresetCameraResponseFunction(AddPresetBase, Operator):
+    '''Add a Camera Response Function Preset'''
+    bl_idname = "render.cycles_camera_response_funtion_preset_add"
+    bl_label = "Add Camera Response Function Preset"
+    preset_menu = "CYCLES_PT_camera_response_function_presets"
+
+    preset_defines = [
+    ]
+
+    preset_values = [
+    ]
+
+    preset_subdir = "cycles/camera_response_function"
+
+
 classes = (
     AddPresetIntegrator,
     AddPresetSampling,
+    AddPresetCameraResponseFunction
 )
 
 

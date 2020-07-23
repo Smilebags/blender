@@ -5941,6 +5941,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Shutter Curve", "Curve defining the shutter's openness over time");
 
+  /* Spectral Rendering */
+
+  prop = RNA_def_property(srna, "camera_response_function_curve", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "camera_response_function_curve");
+  RNA_def_property_struct_type(prop, "CurveMapping");
+  RNA_def_property_ui_text(prop,
+                           "Camera Response Function Curve",
+                           "Curve defining how spectrum is converted to the XYZ values");
+
   /* Hairs */
   prop = RNA_def_property(srna, "hair_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, hair_shape_type_items);

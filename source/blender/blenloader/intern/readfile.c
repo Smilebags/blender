@@ -6644,6 +6644,7 @@ static void direct_link_scene(BlendDataReader *reader, Scene *sce)
   sce->preview = direct_link_preview_image(reader, sce->preview);
 
   BKE_curvemapping_blend_read(reader, &sce->r.mblur_shutter_curve);
+  BKE_curvemapping_blend_read(reader, &sce->r.camera_response_function_curve);
 
 #ifdef USE_COLLECTION_COMPAT_28
   /* this runs before the very first doversion */
