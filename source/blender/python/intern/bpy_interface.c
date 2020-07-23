@@ -68,6 +68,7 @@
 /* inittab initialization functions */
 #include "../bmesh/bmesh_py_api.h"
 #include "../generic/bgl.h"
+#include "../generic/bl_math_py_api.h"
 #include "../generic/blf_py_api.h"
 #include "../generic/idprop_py_api.h"
 #include "../generic/imbuf_py_api.h"
@@ -228,6 +229,7 @@ static struct _inittab bpy_internal_modules[] = {
     {"_bpy_path", BPyInit__bpy_path},
     {"bgl", BPyInit_bgl},
     {"blf", BPyInit_blf},
+    {"bl_math", BPyInit_bl_math},
     {"imbuf", BPyInit_imbuf},
     {"bmesh", BPyInit_bmesh},
 #if 0
@@ -256,11 +258,13 @@ void BPY_python_start(int argc, const char **argv)
   PyThreadState *py_tstate = NULL;
   const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
 
-  /* not essential but nice to set our name */
-  static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
-  BLI_strncpy_wchar_from_utf8(
-      program_path_wchar, BKE_appdir_program_path(), ARRAY_SIZE(program_path_wchar));
-  Py_SetProgramName(program_path_wchar);
+  /* Not essential but nice to set our name. */
+  {
+    const char *program_path = BKE_appdir_program_path();
+    wchar_t program_path_wchar[FILE_MAX];
+    BLI_strncpy_wchar_from_utf8(program_path_wchar, program_path, ARRAY_SIZE(program_path_wchar));
+    Py_SetProgramName(program_path_wchar);
+  }
 
   /* must run before python initializes */
   PyImport_ExtendInittab(bpy_internal_modules);

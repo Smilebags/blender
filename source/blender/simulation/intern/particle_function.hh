@@ -41,8 +41,8 @@ class ParticleFunction {
   Array<const ParticleFunctionInput *> global_inputs_;
   Array<const ParticleFunctionInput *> per_particle_inputs_;
   Array<bool> output_is_global_;
-  Vector<uint> global_output_indices_;
-  Vector<uint> per_particle_output_indices_;
+  Vector<int> global_output_indices_;
+  Vector<int> per_particle_output_indices_;
   Vector<fn::MFDataType> output_types_;
   Vector<StringRefNull> output_names_;
 
@@ -60,6 +60,7 @@ class ParticleFunctionEvaluator {
  private:
   ResourceCollector resources_;
   const ParticleFunction &particle_fn_;
+  const SimulationSolveContext &solve_context_;
   const ParticleChunkContext &particle_chunk_context_;
   IndexMask mask_;
   fn::MFContextBuilder global_context_;
@@ -69,13 +70,14 @@ class ParticleFunctionEvaluator {
 
  public:
   ParticleFunctionEvaluator(const ParticleFunction &particle_fn,
+                            const SimulationSolveContext &solve_context,
                             const ParticleChunkContext &particle_chunk_context);
   ~ParticleFunctionEvaluator();
 
   void compute();
-  fn::GVSpan get(uint output_index, StringRef expected_name) const;
+  fn::GVSpan get(int output_index, StringRef expected_name) const;
 
-  template<typename T> fn::VSpan<T> get(uint output_index, StringRef expected_name) const
+  template<typename T> fn::VSpan<T> get(int output_index, StringRef expected_name) const
   {
     return this->get(output_index, expected_name).typed<T>();
   }

@@ -2493,6 +2493,7 @@ ID *BKE_node_tree_find_owner_ID(Main *bmain, struct bNodeTree *ntree)
                        &bmain->textures,
                        &bmain->scenes,
                        &bmain->linestyles,
+                       &bmain->simulations,
                        NULL};
 
   for (int i = 0; lists[i] != NULL; i++) {
@@ -3679,7 +3680,6 @@ void ntreeUpdateTree(Main *bmain, bNodeTree *ntree)
     ntreeInterfaceTypeUpdate(ntree);
   }
 
-  /* XXX hack, should be done by depsgraph!! */
   if (bmain) {
     ntreeUpdateAllUsers(bmain, &ntree->id);
   }
@@ -4349,6 +4349,7 @@ static void registerFunctionNodes(void)
   register_node_type_fn_switch();
   register_node_type_fn_group_instance_id();
   register_node_type_fn_combine_strings();
+  register_node_type_fn_object_transforms();
 }
 
 void init_nodesystem(void)
