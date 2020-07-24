@@ -81,6 +81,8 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(rolling_shutter_duration, "Rolling Shutter Duration", 0.1f);
 
   SOCKET_FLOAT_ARRAY(shutter_curve, "Shutter Curve", array<float>());
+  SOCKET_FLOAT_ARRAY(
+      camera_response_function_curve, "Camera Response Function Curve", array<float>());
 
   SOCKET_FLOAT(aperturesize, "Aperture Size", 0.0f);
   SOCKET_FLOAT(focaldistance, "Focal Distance", 10.0f);
@@ -154,6 +156,7 @@ NODE_DEFINE(Camera)
 Camera::Camera() : Node(node_type)
 {
   shutter_table_offset = TABLE_OFFSET_INVALID;
+  camera_response_function_table_offset = TABLE_OFFSET_INVALID;
 
   width = 1024;
   height = 512;
@@ -466,6 +469,17 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
   if (!need_device_update)
     return;
 
+  scene->lookup_tables->remove_table(&camera_response_function_table_offset);
+  vector<float> camera_response_function_table(camera_response_function_curve.size());
+
+  for (int i = 0; i < camera_response_function_curve.size(); i++) {
+    camera_response_function_table[i] = camera_response_function_curve[i];
+  }
+
+  camera_response_function_table_offset = scene->lookup_tables->add_table(
+      dscene, camera_response_function_table);
+  kernel_camera.camera_response_function_table_offset = (int)camera_response_function_table_offset;
+
   scene->lookup_tables->remove_table(&shutter_table_offset);
   if (kernel_camera.shuttertime != -1.0f) {
     vector<float> shutter_table;
@@ -533,6 +547,7 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
 void Camera::device_free(Device * /*device*/, DeviceScene *dscene, Scene *scene)
 {
   scene->lookup_tables->remove_table(&shutter_table_offset);
+  scene->lookup_tables->remove_table(&camera_response_function_table_offset);
   dscene->camera_motion.free();
 }
 

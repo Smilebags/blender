@@ -163,6 +163,23 @@ static inline void curvemapping_to_array(BL::CurveMapping &cumap, array<float> &
   }
 }
 
+static inline void curvemapping_crf_to_array(BL::CurveMapping &cumap, array<float> &data, int size)
+{
+  cumap.update();
+
+  BL::CurveMap curveX = cumap.curves[0];
+  BL::CurveMap curveY = cumap.curves[1];
+  BL::CurveMap curveZ = cumap.curves[2];
+
+  data.resize(3 * size);
+  for (int i = 0; i < size; i++) {
+    float t = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, inverse_lerp(0, size - 1, i));
+    data[3 * i + 0] = cumap.evaluate(curveX, t);
+    data[3 * i + 1] = cumap.evaluate(curveY, t);
+    data[3 * i + 2] = cumap.evaluate(curveZ, t);
+  }
+}
+
 static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
                                                array<float3> &data,
                                                int size,

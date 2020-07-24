@@ -86,6 +86,10 @@ class Camera : public Node {
    */
   float rolling_shutter_duration;
 
+  /* Spectral rendering */
+  array<float> camera_response_function_curve;
+  size_t camera_response_function_table_offset;
+
   /* depth of field */
   float focaldistance;
   float aperturesize;

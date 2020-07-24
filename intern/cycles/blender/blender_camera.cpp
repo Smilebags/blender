@@ -85,6 +85,8 @@ struct BlenderCamera {
   float offscreen_dicing_scale;
 
   int motion_steps;
+
+  array<float> camera_response_function_curve;
 };
 
 static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_render)
@@ -485,6 +487,7 @@ static void blender_camera_sync(Camera *cam,
   cam->rolling_shutter_duration = bcam->rolling_shutter_duration;
 
   cam->shutter_curve = bcam->shutter_curve;
+  cam->camera_response_function_curve = bcam->camera_response_function_curve;
 
   /* border */
   cam->border = bcam->border;
@@ -516,6 +519,10 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
 
   BL::CurveMapping b_shutter_curve(b_render.motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam.shutter_curve, RAMP_TABLE_SIZE);
+
+  BL::CurveMapping b_camera_response_function_curve(b_render.camera_response_function_curve());
+  curvemapping_crf_to_array(
+      b_camera_response_function_curve, bcam.camera_response_function_curve, RAMP_TABLE_SIZE);
 
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
   bcam.motion_position = (Camera::MotionPosition)get_enum(cscene,
@@ -652,6 +659,11 @@ static void blender_camera_from_view(BlenderCamera *bcam,
 
   BL::CurveMapping b_shutter_curve(b_scene.render().motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam->shutter_curve, RAMP_TABLE_SIZE);
+
+  BL::CurveMapping b_camera_response_function_curve(
+      b_scene.render().camera_response_function_curve());
+  curvemapping_crf_to_array(
+      b_camera_response_function_curve, bcam->camera_response_function_curve, RAMP_TABLE_SIZE);
 
   if (b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_CAMERA) {
     /* camera view */
