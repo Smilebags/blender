@@ -611,6 +611,9 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeWavelength)) {
     node = new WavelengthNode();
   }
+  else if (b_node.is_a(&RNA_ShaderNodeGaussianSpectrum)) {
+    node = new GaussianSpectrumNode();
+  }
   else if (b_node.is_a(&RNA_ShaderNodeBlackbody)) {
     node = new BlackbodyNode();
   }

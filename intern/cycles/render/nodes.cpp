@@ -5739,6 +5739,41 @@ void WavelengthNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_wavelength");
 }
 
+/* Gaussian Spectrum */
+
+NODE_DEFINE(GaussianSpectrumNode)
+{
+  NodeType *type = NodeType::add("gaussian_spectrum", create, NodeType::SHADER);
+
+  SOCKET_IN_FLOAT(wavelength, "Wavelength", 500.0f);
+  SOCKET_IN_FLOAT(width, "Width", 5.0f);
+  SOCKET_OUT_SPECTRAL(color, "Spectrum");
+
+  return type;
+}
+
+GaussianSpectrumNode::GaussianSpectrumNode() : ShaderNode(node_type)
+{
+}
+
+void GaussianSpectrumNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *wavelength_in = input("Wavelength");
+  ShaderInput *width_in = input("Width");
+  ShaderOutput *spectrum_out = output("Spectrum");
+
+  compiler.add_node(NODE_GAUSSIAN_SPECTRUM,
+                    compiler.stack_assign(wavelength_in),
+                    compiler.stack_assign(width_in),
+                    compiler.stack_assign(spectrum_out));
+}
+
+void GaussianSpectrumNode::compile(OSLCompiler &compiler)
+{
+  /* TODO: OSL */
+  //   compiler.add(this, "node_wavelength");
+}
+
 /* Blackbody */
 
 NODE_DEFINE(BlackbodyNode)

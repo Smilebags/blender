@@ -192,6 +192,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_flat_spectrum.h"
 #include "kernel/svm/svm_fresnel.h"
 #include "kernel/svm/svm_gamma.h"
+#include "kernel/svm/svm_gaussian_spectrum.h"
 #include "kernel/svm/svm_geometry.h"
 #include "kernel/svm/svm_gradient.h"
 #include "kernel/svm/svm_hsv.h"
@@ -535,6 +536,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         break;
       case NODE_WAVELENGTH:
         svm_node_wavelength(kg, sd, stack, node.y, node.z);
+        break;
+      case NODE_GAUSSIAN_SPECTRUM:
+        svm_node_gaussian_spectrum(kg, state, stack, node.y, node.z, node.w);
         break;
       case NODE_BLACKBODY:
         svm_node_blackbody(kg, sd, stack, node.y, node.z);

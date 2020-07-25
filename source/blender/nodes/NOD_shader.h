@@ -82,6 +82,7 @@ void register_node_type_sh_object_info(void);
 void register_node_type_sh_fresnel(void);
 void register_node_type_sh_wireframe(void);
 void register_node_type_sh_wavelength(void);
+void register_node_type_sh_gaussian_spectrum(void);
 void register_node_type_sh_blackbody(void);
 void register_node_type_sh_blackbody_spectral(void);
 void register_node_type_sh_layer_weight(void);

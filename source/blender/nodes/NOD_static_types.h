@@ -101,6 +101,7 @@ DefNode(ShaderNode,     SH_NODE_HAIR_INFO,          0,                      "HAI
 DefNode(ShaderNode,     SH_NODE_VOLUME_INFO,        0,                      "VOLUME_INFO",        VolumeInfo,       "Volume Info",       ""       )
 DefNode(ShaderNode,     SH_NODE_WIREFRAME,          def_sh_tex_wireframe,   "WIREFRAME",          Wireframe,        "Wireframe",         ""       )
 DefNode(ShaderNode,     SH_NODE_WAVELENGTH,         0,                      "WAVELENGTH",         Wavelength,       "Wavelength",        ""       )
+DefNode(ShaderNode,     SH_NODE_GAUSSIAN_SPECTRUM,  0,                      "GAUSSIAN_SPECTRUM",  GaussianSpectrum, "Gaussian Spectrum", ""       )
 DefNode(ShaderNode,     SH_NODE_BLACKBODY,          0,                      "BLACKBODY",          Blackbody,        "Blackbody",         ""       )
 DefNode(ShaderNode,     SH_NODE_BLACKBODY_SPECTRAL, 0,                      "BLACKBODY_SPECTRAL", BlackbodySpectral,"Spectral Blackbody",""       )
 DefNode(ShaderNode,     SH_NODE_BUMP,               def_sh_bump,            "BUMP",               Bump,             "Bump",              ""       )

@@ -170,6 +170,7 @@ set(SRC
   shader/nodes/node_shader_emission.c
   shader/nodes/node_shader_fresnel.c
   shader/nodes/node_shader_gamma.c
+  shader/nodes/node_shader_gaussian_spectrum.c
   shader/nodes/node_shader_geometry.c
   shader/nodes/node_shader_hair_info.c
   shader/nodes/node_shader_holdout.c

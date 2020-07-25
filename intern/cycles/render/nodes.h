@@ -1321,6 +1321,18 @@ class WavelengthNode : public ShaderNode {
   float wavelength;
 };
 
+class GaussianSpectrumNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(GaussianSpectrumNode)
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+
+  float wavelength;
+  float width;
+};
+
 class BlackbodyNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(BlackbodyNode)

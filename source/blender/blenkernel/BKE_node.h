@@ -1035,6 +1035,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_SPECTRUM_MATH 709
 #define SH_NODE_BLACKBODY_SPECTRAL 710
 #define SH_NODE_TEX_SKY_SPECTRAL 711
+#define SH_NODE_GAUSSIAN_SPECTRUM 712
 
 /* custom defines options for Material node */
 // #define SH_NODE_MAT_DIFF 1
