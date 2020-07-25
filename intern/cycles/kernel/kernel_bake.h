@@ -331,10 +331,10 @@ ccl_device void kernel_bake_evaluate(
       }
 
       if (type == SHADER_EVAL_NORMAL) {
-        float3 N = sd.N;
-        if (sd.flag & SD_HAS_BUMP) {
-          N = shader_bsdf_average_normal(kg, &sd);
-        }
+        // float3 N = sd.N;
+        // if (sd.flag & SD_HAS_BUMP) {
+        //   N = shader_bsdf_average_normal(kg, &sd);
+        // }
 
         /* TODO: Fixme! */
         /* encoding: normal = (2 * color) - 1 */
