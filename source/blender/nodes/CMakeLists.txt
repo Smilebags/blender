@@ -282,6 +282,7 @@ set(SRC
   intern/node_common.c
   intern/node_exec.c
   intern/node_socket.cc
+  intern/node_tree_dependencies.cc
   intern/node_tree_multi_function.cc
   intern/node_tree_ref.cc
   intern/node_util.c
@@ -296,6 +297,7 @@ set(SRC
   NOD_composite.h
   NOD_derived_node_tree.hh
   NOD_function.h
+  NOD_node_tree_dependencies.hh
   NOD_node_tree_multi_function.hh
   NOD_node_tree_ref.hh
   NOD_shader.h
