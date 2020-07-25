@@ -772,9 +772,24 @@ void node_socket_color_get(
   BLI_assert(RNA_struct_is_a(node_ptr->type, &RNA_Node));
   RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
 
-  sock->typeinfo->draw_color(C, &ptr, node_ptr, r_color);
-
+  /* Hack to use different color for spectral sockets without adding them to Blender. */
   bNode *node = node_ptr->data;
+  if ((node->typeinfo->nclass == NODE_CLASS_SHADER || ELEM(node->typeinfo->type,
+                                                           SH_NODE_SPECTRUM_MATH,
+                                                           SH_NODE_CURVE_SPECTRUM,
+                                                           SH_NODE_TEX_SKY_SPECTRAL,
+                                                           SH_NODE_BLACKBODY_SPECTRAL,
+                                                           SH_NODE_GAUSSIAN_SPECTRUM)) &&
+      sock->type == SOCK_RGBA) {
+    r_color[0] = 0.78f;
+    r_color[1] = 0.16f;
+    r_color[2] = 0.16f;
+    r_color[3] = 1.0f;
+  }
+  else {
+    sock->typeinfo->draw_color(C, &ptr, node_ptr, r_color);
+  }
+
   if (node->flag & NODE_MUTED) {
     r_color[3] *= 0.25f;
   }
