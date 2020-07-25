@@ -23,11 +23,14 @@ ccl_static_constant float rayleigh_scale = 8e3f;        // Rayleigh scale height
 ccl_static_constant float mie_scale = 1.2e3f;           // Mie scale height (m)
 ccl_static_constant float mie_coeff = 2e-5f;            // Mie scattering coefficient
 ccl_static_constant float mie_G = 0.76f;                // aerosols anisotropy
-ccl_static_constant float sqr_G = mie_G * mie_G;        // squared aerosols anisotropy
+ccl_static_constant float sqr_G = 0.76f * 0.76f;        // squared aerosols anisotropy
 ccl_static_constant float earth_radius = 6360e3f;       // radius of Earth (m)
 ccl_static_constant float atmosphere_radius = 6420e3f;  // radius of atmosphere (m)
 ccl_static_constant int steps = 32;                     // segments per primary ray
 ccl_static_constant int steps_light = 16;               // segments per sun connection ray
+
+/* Does not compile with CUDA. */
+// ccl_static_constant float sqr_G = mie_G * mie_G;        // squared aerosols anisotropy
 
 #define SKY_LUT_WAVELENGTH_MIN 380
 #define SKY_LUT_WAVELENGTH_MAX 780
