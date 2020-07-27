@@ -4,9 +4,9 @@ scene = bpy.context.scene
 mapping = scene.render.camera_response_function_curve
 
 def apply_lut_to_curves(mapping, lut):
+    # Viewport might constantly refresh if clipping is not disabled
+    mapping.use_clip = False
     mapping.extend = 'HORIZONTAL'
-
-    print(len(mapping.curves))
 
     channels = [mapping.curves[i].points for i in range(0, 3)]
 
