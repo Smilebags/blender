@@ -856,6 +856,11 @@ typedef struct NodeTexSky {
   char _pad[7];
 } NodeTexSky;
 
+typedef struct NodeGaussianSpectrum {
+  char normalize;
+  char _pad[7];
+} NodeGaussianSpectrum;
+
 typedef struct NodeTexImage {
   NodeTexBase base;
   ImageUser iuser;

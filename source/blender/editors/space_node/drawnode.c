@@ -878,6 +878,13 @@ static void node_shader_buts_sky_nishita(uiLayout *layout, bContext *UNUSED(C), 
   uiItemR(col, ptr, "ozone_density", DEFAULT_FLAGS, NULL, ICON_NONE);
 }
 
+static void node_shader_buts_gaussian_spectrum(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "normalize", DEFAULT_FLAGS, NULL, 0);
+}
+
 static void node_shader_buts_tex_sky(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "sky_type", DEFAULT_FLAGS, "", ICON_NONE);
@@ -1281,6 +1288,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_MATH:
       ntype->draw_buttons = node_buts_math;
+      break;
+    case SH_NODE_GAUSSIAN_SPECTRUM:
+      ntype->draw_buttons = node_shader_buts_gaussian_spectrum;
       break;
     case SH_NODE_SPECTRUM_MATH:
       ntype->draw_buttons = node_shader_buts_spectrum_math;

@@ -1331,6 +1331,7 @@ class GaussianSpectrumNode : public ShaderNode {
 
   float wavelength;
   float width;
+  bool normalize;
 };
 
 class BlackbodyNode : public ShaderNode {

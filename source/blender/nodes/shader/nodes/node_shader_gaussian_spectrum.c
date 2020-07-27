@@ -31,6 +31,13 @@ static bNodeSocketTemplate sh_node_gaussian_spectrum_out[] = {
     {-1, ""},
 };
 
+static void node_shader_init_gaussian_spectrum(bNodeTree *UNUSED(ntree), bNode *node)
+{
+  NodeGaussianSpectrum *data = MEM_callocN(sizeof(NodeGaussianSpectrum), "NodeGaussianSpectrum");
+  data->normalize = true;
+  node->storage = data;
+}
+
 /* node type definition */
 void register_node_type_sh_gaussian_spectrum(void)
 {
@@ -40,8 +47,9 @@ void register_node_type_sh_gaussian_spectrum(void)
       &ntype, SH_NODE_GAUSSIAN_SPECTRUM, "Gaussian Spectrum", NODE_CLASS_CONVERTOR, 0);
   node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
   node_type_socket_templates(&ntype, sh_node_gaussian_spectrum_in, sh_node_gaussian_spectrum_out);
-  node_type_init(&ntype, NULL);
-  node_type_storage(&ntype, "", NULL, NULL);
+  node_type_init(&ntype, node_shader_init_gaussian_spectrum);
+  node_type_storage(
+      &ntype, "NodeGaussianSpectrum", node_free_standard_storage, node_copy_standard_storage);
 
   nodeRegisterType(&ntype);
 }

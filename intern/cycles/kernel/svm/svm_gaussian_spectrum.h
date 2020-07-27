@@ -47,6 +47,22 @@ ccl_device void svm_node_gaussian_spectrum(KernelGlobals *kg,
   float wavelength = stack_load_float(stack, wavelength_in);
   float width = stack_load_float(stack, width_in);
 
+  SpectralColor spectrum = exp(-sqr(state->wavelengths - wavelength) / (2 * sqr(width)));
+
+  stack_store_spectral(stack, spectrum_out, spectrum);
+}
+
+ccl_device void svm_node_gaussian_spectrum_normalized(KernelGlobals *kg,
+                                                      PathState *state,
+                                                      float *stack,
+                                                      uint wavelength_in,
+                                                      uint width_in,
+                                                      uint spectrum_out)
+{
+  /* Input */
+  float wavelength = stack_load_float(stack, wavelength_in);
+  float width = stack_load_float(stack, width_in);
+
   SpectralColor spectrum = exp(-sqr(state->wavelengths - wavelength) / (2 * sqr(width))) /
                            (width * M_SQRT_1_2PI_F);
 

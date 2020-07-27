@@ -612,7 +612,10 @@ static ShaderNode *add_node(Scene *scene,
     node = new WavelengthNode();
   }
   else if (b_node.is_a(&RNA_ShaderNodeGaussianSpectrum)) {
-    node = new GaussianSpectrumNode();
+    BL::ShaderNodeGaussianSpectrum b_gaussian_spectrum(b_node);
+    GaussianSpectrumNode *gaussian_spectrum = new GaussianSpectrumNode();
+    gaussian_spectrum->normalize = b_gaussian_spectrum.normalize();
+    node = gaussian_spectrum;
   }
   else if (b_node.is_a(&RNA_ShaderNodeBlackbody)) {
     node = new BlackbodyNode();

@@ -5762,7 +5762,7 @@ void GaussianSpectrumNode::compile(SVMCompiler &compiler)
   ShaderInput *width_in = input("Width");
   ShaderOutput *spectrum_out = output("Spectrum");
 
-  compiler.add_node(NODE_GAUSSIAN_SPECTRUM,
+  compiler.add_node(normalize ? NODE_GAUSSIAN_SPECTRUM_NORMALIZED : NODE_GAUSSIAN_SPECTRUM,
                     compiler.stack_assign(wavelength_in),
                     compiler.stack_assign(width_in),
                     compiler.stack_assign(spectrum_out));

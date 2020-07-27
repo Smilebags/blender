@@ -540,6 +540,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
       case NODE_GAUSSIAN_SPECTRUM:
         svm_node_gaussian_spectrum(kg, state, stack, node.y, node.z, node.w);
         break;
+      case NODE_GAUSSIAN_SPECTRUM_NORMALIZED:
+        svm_node_gaussian_spectrum_normalized(kg, state, stack, node.y, node.z, node.w);
+        break;
       case NODE_BLACKBODY:
         svm_node_blackbody(kg, sd, stack, node.y, node.z);
         break;
