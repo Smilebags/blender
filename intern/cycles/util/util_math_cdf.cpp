@@ -52,7 +52,7 @@ void util_cdf_invert(const int resolution,
   }
   else {
     for (int i = 0; i < resolution; i++) {
-      float x = from + range * (float)i * inv_resolution;
+      float x = i * inv_resolution;
       int index = upper_bound(cdf.begin(), cdf.end(), x) - cdf.begin();
       float t;
       if (index < cdf.size() - 1) {
@@ -62,7 +62,7 @@ void util_cdf_invert(const int resolution,
         t = 0.0f;
         index = resolution;
       }
-      inv_cdf[i] = (index + t) * inv_resolution;
+      inv_cdf[i] = lerp(from, to, (index + t) * inv_resolution);
     }
   }
 }
