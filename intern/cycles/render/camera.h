@@ -89,6 +89,7 @@ class Camera : public Node {
   /* Spectral rendering */
   array<float> camera_response_function_curve;
   size_t camera_response_function_table_offset;
+  size_t wavelength_importance_cdf_offset;
 
   /* depth of field */
   float focaldistance;

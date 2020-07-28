@@ -157,6 +157,7 @@ Camera::Camera() : Node(node_type)
 {
   shutter_table_offset = TABLE_OFFSET_INVALID;
   camera_response_function_table_offset = TABLE_OFFSET_INVALID;
+  wavelength_importance_cdf_offset = TABLE_OFFSET_INVALID;
 
   width = 1024;
   height = 512;
@@ -469,6 +470,7 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
   if (!need_device_update)
     return;
 
+  /* Camera response function. */
   scene->lookup_tables->remove_table(&camera_response_function_table_offset);
   vector<float> camera_response_function_table(camera_response_function_curve.size());
 
@@ -480,6 +482,51 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
       dscene, camera_response_function_table);
   kernel_camera.camera_response_function_table_offset = (int)camera_response_function_table_offset;
 
+  /* Wavelength importance sampling. */
+  scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
+
+  const static int wavelength_cdf_resolution = 1024;
+  vector<float> wavelength_importance_cdf;
+  util_cdf_inverted(
+      wavelength_cdf_resolution,
+      MIN_WAVELENGTH,
+      MAX_WAVELENGTH,
+      [&camera_response_function_table](float x) {
+        /* TODO: Deduplicate code. */
+        const static float start = MIN_WAVELENGTH;
+        const static float end = MAX_WAVELENGTH;
+        const static int size = RAMP_TABLE_SIZE;
+        const static float step = (end - start) / (size - 1);
+
+        if (UNLIKELY(x <= start)) {
+          return camera_response_function_table[0];
+        }
+        if (UNLIKELY(x >= end)) {
+          return camera_response_function_table[size - 1];
+        }
+
+        float lookup_pos = (x - start) / step;
+        int lower_bound = floor_to_int(lookup_pos);
+        int upper_bound = min(lower_bound + 1, size - 1);
+        float progress = lookup_pos - int(lookup_pos);
+
+        float lower_value = camera_response_function_table[lower_bound * 3 + 0] +
+                            camera_response_function_table[lower_bound * 3 + 1] +
+                            camera_response_function_table[lower_bound * 3 + 2];
+        float upper_value = camera_response_function_table[upper_bound * 3 + 0] +
+                            camera_response_function_table[upper_bound * 3 + 1] +
+                            camera_response_function_table[upper_bound * 3 + 2];
+
+        return mix(lower_value, upper_value, progress);
+      },
+      false,
+      wavelength_importance_cdf);
+
+  wavelength_importance_cdf_offset = scene->lookup_tables->add_table(dscene,
+                                                                     wavelength_importance_cdf);
+  kernel_camera.wavelength_importance_cdf_offset = (int)wavelength_importance_cdf_offset;
+
+  /* Shutter curve. */
   scene->lookup_tables->remove_table(&shutter_table_offset);
   if (kernel_camera.shuttertime != -1.0f) {
     vector<float> shutter_table;
@@ -548,6 +595,7 @@ void Camera::device_free(Device * /*device*/, DeviceScene *dscene, Scene *scene)
 {
   scene->lookup_tables->remove_table(&shutter_table_offset);
   scene->lookup_tables->remove_table(&camera_response_function_table_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
   dscene->camera_motion.free();
 }
 

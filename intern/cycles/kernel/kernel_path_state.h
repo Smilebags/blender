@@ -86,24 +86,18 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  int wavelength_cdf_resolution = 1024;
-  vector<float> wavelength_importance_cdf;
-
-  util_cdf_inverted(
-      wavelength_cdf_resolution,
-      MIN_WAVELENGTH,
-      MAX_WAVELENGTH,
-      [&kg](float x) { return reduce_add_f(wavelength_to_xyz(kg, x)); },
-      false,
-      wavelength_importance_cdf);
+  /* TODO: deduplicate */
+  const static int wavelength_cdf_resolution = 1024;
 
   float initial_offset = fmodf(path_state_rng_1D(kg, state, PRNG_WAVELENGTH),
                                1.0f / CHANNELS_PER_RAY);
   FOR_EACH_CHANNEL(i)
   {
-    float current_channel_offset = initial_offset + i / CHANNELS_PER_RAY;
-    float biased_wavelength = my_lookup_table_read(
-        kg, wavelength_importance_cdf, current_channel_offset, wavelength_cdf_resolution - 1);
+    float current_channel_offset = initial_offset + (float)i / CHANNELS_PER_RAY;
+    float biased_wavelength = lookup_table_read(kg,
+                                                current_channel_offset,
+                                                kernel_data.cam.wavelength_importance_cdf_offset,
+                                                wavelength_cdf_resolution);
     state->wavelengths[i] = biased_wavelength;
   }
 }
