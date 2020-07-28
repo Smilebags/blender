@@ -14,7 +14,26 @@
  * limitations under the License.
  */
 
+#include "util/util_math_cdf.h"
+
 CCL_NAMESPACE_BEGIN
+
+
+ccl_device float my_lookup_table_read(KernelGlobals *kg, vector<float> &cdf, float x, int size)
+{
+  x = saturate(x) * (size - 1);
+
+  int index = min(float_to_int(x), size - 1);
+  int nindex = min(index + 1, size - 1);
+  float t = x - index;
+
+  float data0 = cdf[index];
+  if (t == 0.0f)
+    return data0;
+
+  float data1 = cdf[nindex];
+  return (1.0f - t) * data0 + t * data1;
+}
 
 ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        ShaderData *stack_sd,
@@ -68,14 +87,39 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  float wavelength_offset = fmod(path_state_rng_1D(kg, state, PRNG_WAVELENGTH),
-                                 1.0f / CHANNELS_PER_RAY);
+  int wavelength_cdf_resolution = 1024;
+  vector<float> wavelength_importance_cdf;
 
-  FOR_EACH_CHANNEL(i)
-  {
-    state->wavelengths[i] = lerp(
-        MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength_offset + (1.0f * i / CHANNELS_PER_RAY));
-  }
+  util_cdf_inverted(
+    wavelength_cdf_resolution,
+    MIN_WAVELENGTH,
+    MAX_WAVELENGTH,
+    [&kg](float x) {
+      float3 xyz = wavelength_to_xyz(kg, x);
+      return xyz.x + xyz.y + xyz.z;
+    },
+    false,
+    wavelength_importance_cdf
+  );
+
+float initial_offset = path_state_rng_1D(kg, state, PRNG_WAVELENGTH);
+FOR_EACH_CHANNEL(i)
+{
+  float float_i = 1.0f * i;
+  float current_channel_offset = fmod(
+    initial_offset + (float_i / CHANNELS_PER_RAY),
+    1.0f
+  );
+  // float position_in_cdf = current_channel_offset * wavelength_cdf_resolution;
+  // int cdf_index = int(position_in_cdf);
+  // float bias = fmod(position_in_cdf, 1.0f);
+  // float low_wavelength = wavelength_importance_cdf[cdf_index];
+  // float high_wavelength = wavelength_importance_cdf[cdf_index + 1];
+  // float biased_progress = lerp(low_wavelength, high_wavelength, bias);
+  float biased_progress = my_lookup_table_read(kg, wavelength_importance_cdf, current_channel_offset, wavelength_cdf_resolution - 1);
+  state->wavelengths[i] = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, biased_progress);
+  // state->wavelengths[i] = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, current_channel_offset);
+}
 }
 
 ccl_device_inline void path_state_next(KernelGlobals *kg,

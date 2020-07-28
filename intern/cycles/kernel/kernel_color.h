@@ -627,7 +627,10 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
   float3 xyz_sum = make_float3(0.0f);
   FOR_EACH_CHANNEL(i)
   {
-    xyz_sum += wavelength_to_xyz(kg, wavelengths[i]) * intensities[i];
+    float3 wavelength_xyz = wavelength_to_xyz(kg, wavelengths[i]);
+    // xyz_sum += wavelength_xyz * intensities[i];
+    float wavelength_xyz_sum = wavelength_xyz.x + wavelength_xyz.y + wavelength_xyz.z;
+    xyz_sum += wavelength_xyz * (intensities[i] / wavelength_xyz_sum);
   }
 
   xyz_sum *= 3.0f / CHANNELS_PER_RAY;
