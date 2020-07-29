@@ -472,10 +472,12 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
 
   /* Camera response function. */
   scene->lookup_tables->remove_table(&camera_response_function_table_offset);
-  vector<float> camera_response_function_table(camera_response_function_curve.size());
+  vector<float> camera_response_function_table(camera_response_function_curve.size() * 3);
 
   for (int i = 0; i < camera_response_function_curve.size(); i++) {
-    camera_response_function_table[i] = camera_response_function_curve[i];
+    camera_response_function_table[3 * i + 0] = camera_response_function_curve[i].x;
+    camera_response_function_table[3 * i + 1] = camera_response_function_curve[i].y;
+    camera_response_function_table[3 * i + 2] = camera_response_function_curve[i].z;
   }
 
   camera_response_function_table_offset = scene->lookup_tables->add_table(

@@ -86,7 +86,7 @@ struct BlenderCamera {
 
   int motion_steps;
 
-  array<float> camera_response_function_curve;
+  array<float3> camera_response_function_curve;
 };
 
 static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_render)
