@@ -1198,6 +1198,7 @@ typedef struct KernelCamera {
   /* Spectral rendering */
   int camera_response_function_table_offset;
   int wavelength_importance_cdf_offset;
+  int wavelength_importance_offset;
 } KernelCamera;
 static_assert_align(KernelCamera, 16);
 

@@ -628,8 +628,14 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
   FOR_EACH_CHANNEL(i)
   {
     RGBColor wavelength_xyz = wavelength_to_xyz(kg, wavelengths[i]);
-    float wavelength_xyz_sum = reduce_add_f(wavelength_xyz);
-    xyz_sum += wavelength_xyz * intensities[i] / wavelength_xyz_sum;
+
+    float wavelength_importance = lookup_table_read(
+        kg,
+        inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelengths[i]),
+        kernel_data.cam.wavelength_importance_offset,
+        RAMP_TABLE_SIZE);
+
+    xyz_sum += wavelength_xyz * intensities[i] / wavelength_importance;
   }
 
   xyz_sum *= 3.0f / CHANNELS_PER_RAY;

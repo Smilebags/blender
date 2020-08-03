@@ -81,8 +81,13 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(rolling_shutter_duration, "Rolling Shutter Duration", 0.1f);
 
   SOCKET_FLOAT_ARRAY(shutter_curve, "Shutter Curve", array<float>());
+
+  SOCKET_COLOR_ARRAY(
+      camera_response_function_curve, "Camera Response Function Curve", array<float3>());
   SOCKET_FLOAT_ARRAY(
-      camera_response_function_curve, "Camera Response Function Curve", array<float>());
+      wavelength_importance_curve, "Wavelength Importance Sampling Curve", array<float>());
+  SOCKET_BOOLEAN(
+      use_custom_wavelength_importance, "Use Custom Wavelength Importance Sampling", false);
 
   SOCKET_FLOAT(aperturesize, "Aperture Size", 0.0f);
   SOCKET_FLOAT(focaldistance, "Focal Distance", 10.0f);
@@ -158,6 +163,7 @@ Camera::Camera() : Node(node_type)
   shutter_table_offset = TABLE_OFFSET_INVALID;
   camera_response_function_table_offset = TABLE_OFFSET_INVALID;
   wavelength_importance_cdf_offset = TABLE_OFFSET_INVALID;
+  wavelength_importance_offset = TABLE_OFFSET_INVALID;
 
   width = 1024;
   height = 512;
@@ -486,25 +492,43 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
 
   /* Wavelength importance sampling. */
   scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_offset);
 
-  const static int wavelength_cdf_resolution = 1024;
+  /* TODO: Deduplicate. */
+  const static int wavelength_importance_resolution = RAMP_TABLE_SIZE;
+
+  vector<float> wavelength_importance(wavelength_importance_resolution);
+  if (use_custom_wavelength_importance) {
+    for (int i = 0; i < wavelength_importance_resolution; i++) {
+      wavelength_importance[i] = wavelength_importance_curve[i];
+    }
+  }
+  else {
+    for (int i = 0; i < wavelength_importance_resolution; i++) {
+      wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]);
+    }
+  }
+
+  wavelength_importance_offset = scene->lookup_tables->add_table(dscene, wavelength_importance);
+  kernel_camera.wavelength_importance_offset = (int)wavelength_importance_offset;
+
   vector<float> wavelength_importance_cdf;
   util_cdf_inverted(
-      wavelength_cdf_resolution,
+      wavelength_importance_resolution,
       MIN_WAVELENGTH,
       MAX_WAVELENGTH,
-      [&camera_response_function_table](float x) {
+      [&wavelength_importance](float x) {
         /* TODO: Deduplicate code. */
         const static float start = MIN_WAVELENGTH;
         const static float end = MAX_WAVELENGTH;
-        const static int size = RAMP_TABLE_SIZE;
+        const static int size = wavelength_importance_resolution;
         const static float step = (end - start) / (size - 1);
 
         if (UNLIKELY(x <= start)) {
-          return camera_response_function_table[0];
+          return wavelength_importance[0];
         }
         if (UNLIKELY(x >= end)) {
-          return camera_response_function_table[size - 1];
+          return wavelength_importance[size - 1];
         }
 
         float lookup_pos = (x - start) / step;
@@ -512,12 +536,8 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
         int upper_bound = min(lower_bound + 1, size - 1);
         float progress = lookup_pos - int(lookup_pos);
 
-        float lower_value = camera_response_function_table[lower_bound * 3 + 0] +
-                            camera_response_function_table[lower_bound * 3 + 1] +
-                            camera_response_function_table[lower_bound * 3 + 2];
-        float upper_value = camera_response_function_table[upper_bound * 3 + 0] +
-                            camera_response_function_table[upper_bound * 3 + 1] +
-                            camera_response_function_table[upper_bound * 3 + 2];
+        float lower_value = wavelength_importance[lower_bound];
+        float upper_value = wavelength_importance[upper_bound];
 
         return mix(lower_value, upper_value, progress);
       },
@@ -598,6 +618,7 @@ void Camera::device_free(Device * /*device*/, DeviceScene *dscene, Scene *scene)
   scene->lookup_tables->remove_table(&shutter_table_offset);
   scene->lookup_tables->remove_table(&camera_response_function_table_offset);
   scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_offset);
   dscene->camera_motion.free();
 }
 

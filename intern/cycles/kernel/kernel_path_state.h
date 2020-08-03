@@ -71,7 +71,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
 #endif
 
   /* TODO: deduplicate */
-  const static int wavelength_cdf_resolution = 1024;
+  const static int wavelength_cdf_resolution = RAMP_TABLE_SIZE;
 
   float initial_offset = fmodf(path_state_rng_1D(kg, state, PRNG_WAVELENGTH),
                                1.0f / CHANNELS_PER_RAY);

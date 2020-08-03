@@ -87,6 +87,8 @@ struct BlenderCamera {
   int motion_steps;
 
   array<float3> camera_response_function_curve;
+  array<float> wavelength_importance_curve;
+  bool use_custom_wavelength_importance;
 };
 
 static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_render)
@@ -488,6 +490,8 @@ static void blender_camera_sync(Camera *cam,
 
   cam->shutter_curve = bcam->shutter_curve;
   cam->camera_response_function_curve = bcam->camera_response_function_curve;
+  cam->wavelength_importance_curve = bcam->wavelength_importance_curve;
+  cam->use_custom_wavelength_importance = bcam->use_custom_wavelength_importance;
 
   /* border */
   cam->border = bcam->border;
@@ -519,6 +523,12 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
 
   BL::CurveMapping b_shutter_curve(b_render.motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam.shutter_curve, RAMP_TABLE_SIZE);
+
+  bcam.use_custom_wavelength_importance = b_render.use_custom_wavelength_importance();
+
+  BL::CurveMapping b_wavelength_importance_curve(b_render.wavelength_importance_curve());
+  curvemapping_wavelength_importance_to_array(
+      b_wavelength_importance_curve, bcam.wavelength_importance_curve, RAMP_TABLE_SIZE);
 
   BL::CurveMapping b_camera_response_function_curve(b_render.camera_response_function_curve());
   curvemapping_crf_to_array(
@@ -659,6 +669,12 @@ static void blender_camera_from_view(BlenderCamera *bcam,
 
   BL::CurveMapping b_shutter_curve(b_scene.render().motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam->shutter_curve, RAMP_TABLE_SIZE);
+
+  bcam->use_custom_wavelength_importance = b_scene.render().use_custom_wavelength_importance();
+
+  BL::CurveMapping b_wavelength_importance_curve(b_scene.render().wavelength_importance_curve());
+  curvemapping_wavelength_importance_to_array(
+      b_wavelength_importance_curve, bcam->wavelength_importance_curve, RAMP_TABLE_SIZE);
 
   BL::CurveMapping b_camera_response_function_curve(
       b_scene.render().camera_response_function_curve());

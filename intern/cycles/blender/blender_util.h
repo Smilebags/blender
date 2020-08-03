@@ -163,6 +163,21 @@ static inline void curvemapping_to_array(BL::CurveMapping &cumap, array<float> &
   }
 }
 
+static inline void curvemapping_wavelength_importance_to_array(BL::CurveMapping &cumap,
+                                                               array<float> &data,
+                                                               int size)
+{
+  cumap.update();
+
+  BL::CurveMap curve = cumap.curves[0];
+
+  data.resize(size);
+  for (int i = 0; i < size; i++) {
+    float t = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, inverse_lerp(0, size - 1, i));
+    data[i] = fabsf(cumap.evaluate(curve, t));
+  }
+}
+
 static inline void curvemapping_crf_to_array(BL::CurveMapping &cumap,
                                              array<float3> &data,
                                              int size)

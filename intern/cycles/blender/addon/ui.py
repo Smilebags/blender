@@ -607,11 +607,32 @@ class CYCLES_RENDER_PT_spectral_rendering_crf(CyclesButtonsPanel, Panel):
 
         scene = context.scene
         rd = scene.render
-        # layout.active = rd.use_motion_blur
 
         col = layout.column()
 
         col.template_curve_mapping(rd, "camera_response_function_curve", type='VECTOR')
+
+class CYCLES_RENDER_PT_spectral_rendering_wavelength_importance(CyclesButtonsPanel, Panel):
+    bl_label = "Custom Wavelength Importance"
+    bl_parent_id = "CYCLES_RENDER_PT_spectral_rendering"
+
+    def draw_header(self, context):
+        rd = context.scene.render
+
+        self.layout.prop(rd, "use_custom_wavelength_importance", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        rd = scene.render
+        layout.active = rd.use_custom_wavelength_importance
+
+        col = layout.column()
+
+        col.template_curve_mapping(rd, "wavelength_importance_curve")
 
 
 class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):
@@ -2329,6 +2350,7 @@ classes = (
     CYCLES_RENDER_PT_motion_blur_curve,
     CYCLES_RENDER_PT_spectral_rendering,
     CYCLES_RENDER_PT_spectral_rendering_crf,
+    CYCLES_RENDER_PT_spectral_rendering_wavelength_importance,
     CYCLES_RENDER_PT_film,
     CYCLES_RENDER_PT_film_pixel_filter,
     CYCLES_RENDER_PT_film_transparency,
