@@ -18,22 +18,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float my_lookup_table_read(KernelGlobals *kg, vector<float> &cdf, float x, int size)
-{
-  x = saturate(x) * (size - 1);
-
-  int index = min(float_to_int(x), size - 1);
-  int nindex = min(index + 1, size - 1);
-  float t = x - index;
-
-  float data0 = cdf[index];
-  if (t == 0.0f)
-    return data0;
-
-  float data1 = cdf[nindex];
-  return (1.0f - t) * data0 + t * data1;
-}
-
 ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        ShaderData *stack_sd,
                                        ccl_addr_space PathState *state,
