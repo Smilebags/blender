@@ -119,6 +119,7 @@ static void scene_init_data(ID *id)
   SceneRenderView *srv;
   CurveMapping *mblur_shutter_curve;
   CurveMapping *camera_response_function_curve;
+  CurveMapping *wavelength_importance_curve;
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(scene, id));
 
@@ -139,6 +140,14 @@ static void scene_init_data(ID *id)
   BKE_curvemapping_initialize(camera_response_function_curve);
   BKE_curvemap_reset(camera_response_function_curve->cm,
                      &camera_response_function_curve->clipr,
+                     CURVE_PRESET_MAX,
+                     CURVEMAP_SLOPE_POS_NEG);
+
+  wavelength_importance_curve = &scene->r.wavelength_importance_curve;
+  BKE_curvemapping_set_defaults(wavelength_importance_curve, 1, 380.0f, 0.0f, 730.0f, 1.0f);
+  BKE_curvemapping_initialize(wavelength_importance_curve);
+  BKE_curvemap_reset(wavelength_importance_curve->cm,
+                     &wavelength_importance_curve->clipr,
                      CURVE_PRESET_MAX,
                      CURVEMAP_SLOPE_POS_NEG);
 
@@ -300,6 +309,8 @@ static void scene_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
   BKE_curvemapping_copy_data(&scene_dst->r.mblur_shutter_curve, &scene_src->r.mblur_shutter_curve);
   BKE_curvemapping_copy_data(&scene_dst->r.camera_response_function_curve,
                              &scene_src->r.camera_response_function_curve);
+  BKE_curvemapping_copy_data(&scene_dst->r.wavelength_importance_curve,
+                             &scene_src->r.wavelength_importance_curve);
 
   /* tool settings */
   scene_dst->toolsettings = BKE_toolsettings_copy(scene_dst->toolsettings, flag_subdata);
@@ -399,6 +410,7 @@ static void scene_free_data(ID *id)
   BKE_previewimg_free(&scene->preview);
   BKE_curvemapping_free_data(&scene->r.mblur_shutter_curve);
   BKE_curvemapping_free_data(&scene->r.camera_response_function_curve);
+  BKE_curvemapping_free_data(&scene->r.wavelength_importance_curve);
 
   for (ViewLayer *view_layer = scene->view_layers.first, *view_layer_next; view_layer;
        view_layer = view_layer_next) {
@@ -794,6 +806,7 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     rv = sce_copy->r.views;
     BKE_curvemapping_free_data(&sce_copy->r.mblur_shutter_curve);
     BKE_curvemapping_free_data(&sce_copy->r.camera_response_function_curve);
+    BKE_curvemapping_free_data(&sce_copy->r.wavelength_importance_curve);
     sce_copy->r = sce->r;
     sce_copy->r.views = rv;
     sce_copy->unit = sce->unit;
@@ -827,6 +840,8 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     BKE_curvemapping_copy_data(&sce_copy->r.mblur_shutter_curve, &sce->r.mblur_shutter_curve);
     BKE_curvemapping_copy_data(&sce_copy->r.camera_response_function_curve,
                                &sce->r.camera_response_function_curve);
+    BKE_curvemapping_copy_data(&sce_copy->r.wavelength_importance_curve,
+                               &sce->r.wavelength_importance_curve);
 
     /* viewport display settings */
     sce_copy->display = sce->display;

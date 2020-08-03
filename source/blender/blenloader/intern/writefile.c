@@ -2727,6 +2727,7 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
   write_previews(writer, sce->preview);
   BKE_curvemapping_curves_blend_write(writer, &sce->r.mblur_shutter_curve);
   BKE_curvemapping_curves_blend_write(writer, &sce->r.camera_response_function_curve);
+  BKE_curvemapping_curves_blend_write(writer, &sce->r.wavelength_importance_curve);
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
     write_view_layer(writer, view_layer);

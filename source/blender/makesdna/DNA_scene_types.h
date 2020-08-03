@@ -778,6 +778,7 @@ typedef struct RenderData {
 
   /* Spectral Rendering */
   struct CurveMapping camera_response_function_curve;
+  struct CurveMapping wavelength_importance_curve;
 } RenderData;
 
 /* RenderData.quality_flag */
@@ -1825,9 +1826,9 @@ typedef struct Scene {
 #define R_NO_OVERWRITE (1 << 22)   /* skip existing files */
 #define R_TOUCH (1 << 23)          /* touch files before rendering */
 #define R_SIMPLIFY (1 << 24)
-#define R_EDGE_FRS (1 << 25)        /* R_EDGE reserved for Freestyle */
-#define R_PERSISTENT_DATA (1 << 26) /* keep data around for re-render */
-#define R_MODE_UNUSED_27 (1 << 27)  /* cleared */
+#define R_EDGE_FRS (1 << 25)                     /* R_EDGE reserved for Freestyle */
+#define R_PERSISTENT_DATA (1 << 26)              /* keep data around for re-render */
+#define R_CUSTOM_WAVELENGTH_IMPORTANCE (1 << 27) /* Custom Wavelength Importance */
 
 /** #RenderData.seq_flag */
 enum {

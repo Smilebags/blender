@@ -5950,6 +5950,18 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Camera Response Function Curve",
                            "Curve defining how spectrum is converted to the XYZ values");
 
+  prop = RNA_def_property(srna, "use_custom_wavelength_importance", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "mode", R_CUSTOM_WAVELENGTH_IMPORTANCE);
+  RNA_def_property_ui_text(
+      prop, "Custom Wavelength Importance", "Use custom wavelength importance curve for sampling");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "wavelength_importance_curve", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "wavelength_importance_curve");
+  RNA_def_property_struct_type(prop, "CurveMapping");
+  RNA_def_property_ui_text(
+      prop, "Wavelength Importance Curve", "Curve defining how wavelength values are sampled");
+
   /* Hairs */
   prop = RNA_def_property(srna, "hair_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, hair_shape_type_items);

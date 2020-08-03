@@ -945,5 +945,18 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         BKE_curvemapping_changed_all(curve_mapping);
       }
     }
+
+    /* Initialize Wavelength Sampling curve. */
+    if (!DNA_struct_elem_find(
+            fd->filesdna, "RenderData", "CurveMapping", "wavelength_importance_curve")) {
+      Scene *scene;
+      for (scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
+        CurveMapping *curve_mapping = &scene->r.wavelength_importance_curve;
+        BKE_curvemapping_set_defaults(curve_mapping, 1, 380.0f, 0.0f, 730.0f, 1.0f);
+        BKE_curvemapping_initialize(curve_mapping);
+        BKE_curvemap_reset(
+            curve_mapping->cm, &curve_mapping->clipr, CURVE_PRESET_MAX, CURVEMAP_SLOPE_POS_NEG);
+      }
+    }
   }
 }
