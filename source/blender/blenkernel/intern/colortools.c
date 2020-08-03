@@ -341,10 +341,10 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
       cuma->curve[3].y = 0;
       break;
     case CURVE_PRESET_MAX:
-      cuma->curve[0].x = 0;
-      cuma->curve[0].y = 1;
-      cuma->curve[1].x = 1;
-      cuma->curve[1].y = 1;
+      cuma->curve[0].x = clipr->xmin;
+      cuma->curve[0].y = clipr->ymax;
+      cuma->curve[1].x = clipr->xmax;
+      cuma->curve[1].y = clipr->ymax;
       break;
     case CURVE_PRESET_MID9: {
       int i;
