@@ -137,7 +137,7 @@ static void scene_init_data(ID *id)
 
   camera_response_function_curve = &scene->r.camera_response_function_curve;
   BKE_curvemapping_set_defaults(camera_response_function_curve, 3, 380.0f, 0.0f, 730.0f, 1.0f);
-  BKE_curvemapping_initialize(camera_response_function_curve);
+  BKE_curvemapping_init(camera_response_function_curve);
   BKE_curvemap_reset(camera_response_function_curve->cm,
                      &camera_response_function_curve->clipr,
                      CURVE_PRESET_MAX,
@@ -145,7 +145,7 @@ static void scene_init_data(ID *id)
 
   wavelength_importance_curve = &scene->r.wavelength_importance_curve;
   BKE_curvemapping_set_defaults(wavelength_importance_curve, 1, 380.0f, 0.0f, 730.0f, 1.0f);
-  BKE_curvemapping_initialize(wavelength_importance_curve);
+  BKE_curvemapping_init(wavelength_importance_curve);
   BKE_curvemap_reset(wavelength_importance_curve->cm,
                      &wavelength_importance_curve->clipr,
                      CURVE_PRESET_MAX,
