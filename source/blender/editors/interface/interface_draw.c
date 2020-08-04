@@ -1831,37 +1831,50 @@ void ui_draw_but_UNITVEC(uiBut *but, const uiWidgetColors *wcol, const rcti *rec
   immUnbindProgram();
 }
 
-static void ui_draw_but_curve_grid(
-    uint pos, const rcti *rect, float zoomx, float zoomy, float offsx, float offsy, float step)
+static void ui_draw_but_curve_grid(uint pos,
+                                   const rcti *rect,
+                                   float zoom_x,
+                                   float zoom_y,
+                                   float offset_x,
+                                   float offset_y,
+                                   float step)
 {
-  float dx = step * zoomx;
-  float fx = rect->xmin + zoomx * (-offsx);
-  if (fx > rect->xmin) {
-    fx -= dx * (floorf(fx - rect->xmin));
+  /* Account for 1px border. */
+  rcti corrected_rect = *rect;
+  corrected_rect.xmin++;
+  corrected_rect.xmax--;
+  corrected_rect.ymin++;
+  corrected_rect.ymax--;
+
+  float step_x = step * zoom_x;
+  float start_x = corrected_rect.xmin - zoom_x * offset_x;
+  if (start_x > corrected_rect.xmin) {
+    start_x -= step_x * (floorf(start_x - corrected_rect.xmin));
   }
 
-  float dy = step * zoomy;
-  float fy = rect->ymin + zoomy * (-offsy);
-  if (fy > rect->ymin) {
-    fy -= dy * (floorf(fy - rect->ymin));
+  float step_y = step * zoom_y;
+  float start_y = corrected_rect.ymin - zoom_y * offset_y;
+  if (start_y > corrected_rect.ymin) {
+    start_y -= step_y * (floorf(start_y - corrected_rect.ymin));
   }
 
-  float line_count = (floorf((rect->xmax - fx) / dx) + 1.0f + floorf((rect->ymax - fy) / dy) +
-                      1.0f);
+  int line_count_x = floorf((corrected_rect.xmax - start_x) / step_x) + 1;
+  int line_count_y = floorf((corrected_rect.ymax - start_y) / step_y) + 1;
 
-  immBegin(GPU_PRIM_LINES, (int)line_count * 2);
-  while (fx <= rect->xmax) {
-    immVertex2f(pos, fx, rect->ymin);
-    immVertex2f(pos, fx, rect->ymax);
-    fx += dx;
+  float end_x = start_x + step_x * line_count_x;
+  float end_y = start_y + step_y * line_count_y;
+
+  immBegin(GPU_PRIM_LINES, (line_count_x + line_count_y) * 2);
+  for (int i = 0; i < line_count_x; i++) {
+    float x = start_x + i * step_x;
+    immVertex2f(pos, x, corrected_rect.ymin);
+    immVertex2f(pos, x, corrected_rect.ymax);
   }
-  while (fy <= rect->ymax) {
-    immVertex2f(pos, rect->xmin, fy);
-    immVertex2f(pos, rect->xmax, fy);
-    fy += dy;
+  for (int i = 0; i < line_count_y; i++) {
+    float y = start_y + i * step_y;
+    immVertex2f(pos, corrected_rect.xmin, y);
+    immVertex2f(pos, corrected_rect.xmax, y);
   }
-  /* Note: Assertion fails with here when the view is moved farther below the center.
-   * Missing two points from the number given with immBegin. */
   immEnd();
 }
 
