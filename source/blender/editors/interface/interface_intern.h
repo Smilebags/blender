@@ -748,6 +748,7 @@ extern void ui_draw_dropshadow(
     const rctf *rct, float radius, float aspect, float alpha, int select);
 
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha);
+void ui_draw_gradient_spectrum(const rcti *rect, const float alpha);
 
 void ui_draw_but_TAB_outline(const rcti *rect,
                              float rad,

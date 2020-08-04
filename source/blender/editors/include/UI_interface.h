@@ -387,6 +387,8 @@ enum {
 
   UI_GRAD_V_ALT = 9,
   UI_GRAD_L_ALT = 10,
+
+  UI_GRAD_SPECTRUM = 20,
 };
 
 #define UI_PALETTE_COLOR 20

@@ -4311,12 +4311,33 @@ static void curvemap_buttons_layout(uiLayout *layout,
       UI_but_func_set(bt, curvemap_buttons_redraw, NULL, NULL);
     }
   }
+  else if (labeltype == 's') {
+    sub = uiLayoutRow(row, true);
+    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+
+    if (cumap->cm[2].curve) {
+      bt = uiDefButI(
+          block, UI_BTYPE_ROW, 0, "X", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, 0.0, 0.0, "");
+      UI_but_func_set(bt, curvemap_buttons_redraw, NULL, NULL);
+
+      bt = uiDefButI(
+          block, UI_BTYPE_ROW, 0, "Y", 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, 0.0, 0.0, "");
+      UI_but_func_set(bt, curvemap_buttons_redraw, NULL, NULL);
+
+      bt = uiDefButI(
+          block, UI_BTYPE_ROW, 0, "Z", 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, 0.0, 0.0, "");
+      UI_but_func_set(bt, curvemap_buttons_redraw, NULL, NULL);
+    }
+  }
   else {
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
   }
 
   if (labeltype == 'h') {
     bg = UI_GRAD_H;
+  }
+  if (labeltype == 's') {
+    bg = UI_GRAD_SPECTRUM;
   }
 
   /* operation buttons */

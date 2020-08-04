@@ -610,7 +610,7 @@ class CYCLES_RENDER_PT_spectral_rendering_crf(CyclesButtonsPanel, Panel):
 
         col = layout.column()
 
-        col.template_curve_mapping(rd, "camera_response_function_curve", type='VECTOR')
+        col.template_curve_mapping(rd, "camera_response_function_curve", type='SPECTRUM')
 
 class CYCLES_RENDER_PT_spectral_rendering_wavelength_importance(CyclesButtonsPanel, Panel):
     bl_label = "Custom Wavelength Importance"
@@ -632,7 +632,7 @@ class CYCLES_RENDER_PT_spectral_rendering_wavelength_importance(CyclesButtonsPan
 
         col = layout.column()
 
-        col.template_curve_mapping(rd, "wavelength_importance_curve")
+        col.template_curve_mapping(rd, "wavelength_importance_curve", type='SPECTRUM')
 
 
 class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):

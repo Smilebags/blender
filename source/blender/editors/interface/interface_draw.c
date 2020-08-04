@@ -1831,13 +1831,14 @@ void ui_draw_but_UNITVEC(uiBut *but, const uiWidgetColors *wcol, const rcti *rec
   immUnbindProgram();
 }
 
-static void ui_draw_but_curve_grid(uint pos,
-                                   const rcti *rect,
-                                   float zoom_x,
-                                   float zoom_y,
-                                   float offset_x,
-                                   float offset_y,
-                                   float step)
+static void ui_draw_but_curve_grid2(uint pos,
+                                    const rcti *rect,
+                                    float zoom_x,
+                                    float zoom_y,
+                                    float offset_x,
+                                    float offset_y,
+                                    float step_x,
+                                    float step_y)
 {
   /* Account for 1px border. */
   rcti draw_rect = {
@@ -1847,13 +1848,13 @@ static void ui_draw_but_curve_grid(uint pos,
       .ymax = rect->ymax - 1,
   };
 
-  float step_x = step * zoom_x;
+  step_x *= zoom_x;
   float start_x = draw_rect.xmin - zoom_x * offset_x;
   if (start_x > draw_rect.xmin) {
     start_x -= step_x * (floorf(start_x - draw_rect.xmin));
   }
 
-  float step_y = step * zoom_y;
+  step_y *= zoom_y;
   float start_y = draw_rect.ymin - zoom_y * offset_y;
   if (start_y > draw_rect.ymin) {
     start_y -= step_y * (floorf(start_y - draw_rect.ymin));
@@ -1874,6 +1875,17 @@ static void ui_draw_but_curve_grid(uint pos,
     immVertex2f(pos, draw_rect.xmax, y);
   }
   immEnd();
+}
+
+static void ui_draw_but_curve_grid(uint pos,
+                                   const rcti *rect,
+                                   float zoom_x,
+                                   float zoom_y,
+                                   float offset_x,
+                                   float offset_y,
+                                   float step)
+{
+  ui_draw_but_curve_grid2(pos, rect, zoom_x, zoom_y, offset_x, offset_y, step, step);
 }
 
 static void gl_shaded_color_get(const uchar color[3], int shade, uchar r_color[3])
@@ -1945,19 +1957,65 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
               BLI_rcti_size_x(&scissor_new),
               BLI_rcti_size_y(&scissor_new));
 
-  /* Do this first to not mess imm context */
-  if (but->a1 == UI_GRAD_H) {
-    /* magic trigger for curve backgrounds */
-    float col[3] = {0.0f, 0.0f, 0.0f}; /* dummy arg */
+  float color_backdrop[4] = {0, 0, 0, 1};
 
-    rcti grid = {
-        .xmin = rect->xmin + zoomx * (-offsx),
-        .xmax = grid.xmin + zoomx,
-        .ymin = rect->ymin + zoomy * (-offsy),
-        .ymax = grid.ymin + zoomy,
-    };
+  /* Draw the background. */
+  switch ((int)but->a1) {
+    case UI_GRAD_H: {
+      /* Magic trigger for curve backgrounds. */
+      float col[3] = {0.0f, 0.0f, 0.0f}; /* Dummy argument. */
 
-    ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f);
+      rcti grid = {
+          .xmin = rect->xmin + zoomx * (-offsx),
+          .xmax = grid.xmin + zoomx,
+          .ymin = rect->ymin + zoomy * (-offsy),
+          .ymax = grid.ymin + zoomy,
+      };
+
+      ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f);
+      break;
+    }
+
+    case UI_GRAD_SPECTRUM: {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+      ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 1);
+      immUniformColor3fv(color_backdrop);
+      immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+
+      immUnbindProgram();
+
+      ui_draw_gradient_spectrum(rect, 1.0f);
+      break;
+    }
+
+    default: {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+      if (cumap->flag & CUMA_DO_CLIP) {
+        gl_shaded_color_get_fl(wcol->inner, -20, color_backdrop);
+        immUniformColor3fv(color_backdrop);
+        immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+        immUniformColor3ubv(wcol->inner);
+        immRectf(pos,
+                 rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
+                 rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
+                 rect->xmin + zoomx * (cumap->clipr.xmax - offsx),
+                 rect->ymin + zoomy * (cumap->clipr.ymax - offsy));
+      }
+      else {
+        rgb_uchar_to_float(color_backdrop, wcol->inner);
+        immUniformColor3fv(color_backdrop);
+        immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+      }
+
+      immUnbindProgram();
+      break;
+    }
   }
 
   GPU_line_width(1.0f);
@@ -1966,69 +2024,59 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-  /* backdrop */
-  float color_backdrop[4] = {0, 0, 0, 1};
-
-  if (but->a1 == UI_GRAD_H) {
-    /* grid, hsv uses different grid */
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
-    immUniformColor4fv(color_backdrop);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
-    GPU_blend(false);
-  }
-  else {
-    if (cumap->flag & CUMA_DO_CLIP) {
-      gl_shaded_color_get_fl(wcol->inner, -20, color_backdrop);
-      immUniformColor3fv(color_backdrop);
-      immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-      immUniformColor3ubv(wcol->inner);
-      immRectf(pos,
-               rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
-               rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
-               rect->xmin + zoomx * (cumap->clipr.xmax - offsx),
-               rect->ymin + zoomy * (cumap->clipr.ymax - offsy));
-    }
-    else {
-      rgb_uchar_to_float(color_backdrop, wcol->inner);
-      immUniformColor3fv(color_backdrop);
-      immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+  /* Draw the grid. */
+  switch ((int)but->a1) {
+    case UI_GRAD_H: {
+      GPU_blend(true);
+      GPU_blend_set_func_separate(
+          GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+      ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
+      immUniformColor4fv(color_backdrop);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
+      GPU_blend(false);
+      break;
     }
 
-    /* grid, every 0.25 step */
-    gl_shaded_color(wcol->inner, -16);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
-    /* grid, every 1.0 step */
-    gl_shaded_color(wcol->inner, -24);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
-    /* axes */
-    gl_shaded_color(wcol->inner, -50);
-    immBegin(GPU_PRIM_LINES, 4);
-    immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
-    immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
-    immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymin);
-    immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
-    immEnd();
+    case UI_GRAD_SPECTRUM: {
+      GPU_blend(true);
+      GPU_blend_set_func_separate(
+          GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+
+      ARRAY_SET_ITEMS(color_backdrop, 1, 1, 1, 0.25f);
+      immUniformColor4fv(color_backdrop);
+      ui_draw_but_curve_grid2(pos, rect, zoomx, zoomy, offsx, offsy, 25.0f, 0.1f);
+
+      ARRAY_SET_ITEMS(color_backdrop, 1, 1, 1, 0.25f);
+      immUniformColor4fv(color_backdrop);
+      ui_draw_but_curve_grid2(pos, rect, zoomx, zoomy, offsx, offsy, 100.0f, 0.5f);
+
+      GPU_blend(false);
+      break;
+    }
+
+    default: {
+      /* Grid, every 0.25 step. */
+      gl_shaded_color(wcol->inner, -16);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
+      /* Grid, every 1.0 step. */
+      gl_shaded_color(wcol->inner, -24);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
+      /* Axes. */
+      gl_shaded_color(wcol->inner, -50);
+      immBegin(GPU_PRIM_LINES, 4);
+      immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
+      immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
+      immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymin);
+      immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
+      immEnd();
+      break;
+    }
   }
 
-  /* cfra option */
-  /* XXX 2.48 */
-#if 0
-  if (cumap->flag & CUMA_DRAW_CFRA) {
-    immUniformColor3ub(0x60, 0xc0, 0x40);
-    immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, rect->xmin + zoomx * (cumap->sample[0] - offsx), rect->ymin);
-    immVertex2f(pos, rect->xmin + zoomx * (cumap->sample[0] - offsx), rect->ymax);
-    immEnd();
-  }
-#endif
   /* sample option */
-
   if (cumap->flag & CUMA_DRAW_SAMPLE) {
     immBegin(GPU_PRIM_LINES, 2); /* will draw one of the following 3 lines */
-    if (but->a1 == UI_GRAD_H) {
+    if (but->a1 == UI_GRAD_H || but->a1 == UI_GRAD_SPECTRUM) {
       float tsample[3];
       float hsv[3];
       linearrgb_to_srgb_v3_v3(tsample, cumap->sample);

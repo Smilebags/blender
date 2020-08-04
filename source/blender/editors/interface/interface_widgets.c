@@ -29,6 +29,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_spectral_stuff.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -3115,6 +3116,61 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
       immAttr4f(col, col0[a + 1][0], col0[a + 1][1], col0[a + 1][2], alpha);
       immVertex2f(pos, sx1, sy + dy);
     }
+  }
+  immEnd();
+
+  immUnbindProgram();
+}
+
+void ui_draw_gradient_spectrum(const rcti *rect, const float alpha)
+{
+  const int steps = 64;
+  const float steps_inv = 1.0f / steps;
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
+
+  immBegin(GPU_PRIM_TRIS, (steps - 1) * 6);
+
+  for (int step = 0; step < steps - 1; step++) {
+    float wavelength1 = interpf(MAX_WAVELENGTH, MIN_WAVELENGTH, step * steps_inv);
+    float wavelength2 = interpf(MAX_WAVELENGTH, MIN_WAVELENGTH, (step + 1) * steps_inv);
+
+    float xyz1[3], linear1[3], color1[3];
+    wavelength_to_xyz(wavelength1, xyz1);
+    xyz_to_linear_srgb(xyz1, linear1);
+    linearrgb_to_srgb_v3_v3(color1, linear1);
+    mul_v3_fl(color1, 0.5f); /* Avoid clipping. */
+
+    float xyz2[3], linear2[3], color2[3];
+    wavelength_to_xyz(wavelength2, xyz2);
+    xyz_to_linear_srgb(xyz2, linear2);
+    linearrgb_to_srgb_v3_v3(color2, linear2);
+    mul_v3_fl(color2, 0.5f); /* Avoid clipping. */
+
+    /* TODO: Take offset into account. */
+    float x1 = interpf(rect->xmax, rect->xmin, step * steps_inv);
+    float x2 = interpf(rect->xmax, rect->xmin, (step + 1) * steps_inv);
+
+    immAttr4f(col, color1[0], color1[1], color1[2], alpha);
+    immVertex2f(pos, x1, rect->ymin);
+
+    immAttr4f(col, color2[0], color2[1], color2[2], alpha);
+    immVertex2f(pos, x2, rect->ymin);
+
+    immAttr4f(col, color2[0], color2[1], color2[2], alpha);
+    immVertex2f(pos, x2, rect->ymax);
+
+    immAttr4f(col, color1[0], color1[1], color1[2], alpha);
+    immVertex2f(pos, x1, rect->ymin);
+
+    immAttr4f(col, color2[0], color2[1], color2[2], alpha);
+    immVertex2f(pos, x2, rect->ymax);
+
+    immAttr4f(col, color1[0], color1[1], color1[2], alpha);
+    immVertex2f(pos, x1, rect->ymax);
   }
   immEnd();
 
