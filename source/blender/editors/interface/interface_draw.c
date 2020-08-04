@@ -1861,9 +1861,6 @@ static void ui_draw_but_curve_grid(uint pos,
   int line_count_x = floorf((corrected_rect.xmax - start_x) / step_x) + 1;
   int line_count_y = floorf((corrected_rect.ymax - start_y) / step_y) + 1;
 
-  float end_x = start_x + step_x * line_count_x;
-  float end_y = start_y + step_y * line_count_y;
-
   immBegin(GPU_PRIM_LINES, (line_count_x + line_count_y) * 2);
   for (int i = 0; i < line_count_x; i++) {
     float x = start_x + i * step_x;
