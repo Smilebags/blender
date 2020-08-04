@@ -311,10 +311,10 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
 
   switch (preset) {
     case CURVE_PRESET_LINE:
-      cuma->curve[0].x = clipr->xmin;
-      cuma->curve[0].y = clipr->ymax;
-      cuma->curve[1].x = clipr->xmax;
-      cuma->curve[1].y = clipr->ymin;
+      cuma->curve[0].x = 0;
+      cuma->curve[0].y = 0;
+      cuma->curve[1].x = 1;
+      cuma->curve[1].y = 1;
       if (slope == CURVEMAP_SLOPE_POS_NEG) {
         cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
         cuma->curve[1].flag |= CUMA_HANDLE_VECTOR;
@@ -341,10 +341,10 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
       cuma->curve[3].y = 0;
       break;
     case CURVE_PRESET_MAX:
-      cuma->curve[0].x = clipr->xmin;
-      cuma->curve[0].y = clipr->ymax;
-      cuma->curve[1].x = clipr->xmax;
-      cuma->curve[1].y = clipr->ymax;
+      cuma->curve[0].x = 0;
+      cuma->curve[0].y = 1;
+      cuma->curve[1].x = 1;
+      cuma->curve[1].y = 1;
       break;
     case CURVE_PRESET_MID9: {
       int i;
@@ -433,6 +433,12 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
     cuma->totpoint = num_points;
     MEM_freeN(cuma->curve);
     cuma->curve = new_points;
+  }
+
+  /* Map points to clip region. */
+  for (int i = 0; i < cuma->totpoint; i++) {
+    cuma->curve[i].x = interpf(clipr->xmax, clipr->xmin, cuma->curve[i].x);
+    cuma->curve[i].y = interpf(clipr->ymax, clipr->ymin, cuma->curve[i].y);
   }
 
   if (cuma->table) {
