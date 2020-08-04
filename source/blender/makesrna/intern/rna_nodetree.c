@@ -4561,7 +4561,7 @@ static void def_sh_gaussian_spectrum(StructRNA *srna)
   RNA_def_struct_sdna_from(srna, "NodeGaussianSpectrum", "storage");
 
   prop = RNA_def_property(srna, "normalize", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Normalize", "Normalize spectral energy");
+  RNA_def_property_ui_text(prop, "Normalize Energy", "Normalize spectral energy");
   RNA_def_property_boolean_sdna(prop, NULL, "normalize", 1);
   RNA_def_property_boolean_default(prop, true);
   RNA_def_property_update(prop, 0, "rna_Node_update");
