@@ -669,11 +669,9 @@ ccl_device void kernel_path_trace(
 
   kernel_path_trace_setup(kg, sample, x, y, &rng_hash, &ray);
 
-#  ifndef __KERNEL_OPTIX__
   if (ray.t == 0.0f) {
     return;
   }
-#  endif
 
   /* Initialize state. */
   SpectralColor throughput = make_spectral_color(1.0f);

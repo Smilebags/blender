@@ -537,7 +537,12 @@ ccl_device_inline float4 safe_divide_even(const float4 a, const float4 b)
   return reduce_add(safe_divide(a, b)) / 4.0f;
 }
 
-ccl_device_inline float4 ensure_finite(float4 v)
+ccl_device_inline bool isfinite_safe(float4 v)
+{
+  return isfinite_safe(v.x) && isfinite_safe(v.y) && isfinite_safe(v.z) && isfinite_safe(v.w);
+}
+
+ccl_device_inline float4 ensure_finite4(float4 v)
 {
   if (!isfinite_safe(v.x))
     v.x = 0.0f;
@@ -548,11 +553,6 @@ ccl_device_inline float4 ensure_finite(float4 v)
   if (!isfinite_safe(v.w))
     v.w = 0.0f;
   return v;
-}
-
-ccl_device_inline bool isfinite_safe(float4 v)
-{
-  return isfinite_safe(v.x) && isfinite_safe(v.y) && isfinite_safe(v.z) && isfinite_safe(v.w);
 }
 
 CCL_NAMESPACE_END

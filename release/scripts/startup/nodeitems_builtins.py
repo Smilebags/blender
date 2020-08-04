@@ -494,7 +494,7 @@ simulation_node_categories = [
         NodeItem("SimulationNodeParticleSimulation"),
     ]),
     SimulationNodeCategory("SIM_INPUTS", "Input", items=[
-        not_implemented_node("SimulationNodeTime"),
+        NodeItem("SimulationNodeTime"),
         NodeItem("SimulationNodeParticleAttribute"),
         NodeItem("FunctionNodeGroupInstanceID"),
         NodeItem("ShaderNodeValue"),
@@ -507,6 +507,7 @@ simulation_node_categories = [
     SimulationNodeCategory("SIM_EVENTS", "Events", items=[
         NodeItem("SimulationNodeParticleBirthEvent"),
         NodeItem("SimulationNodeParticleTimeStepEvent"),
+        NodeItem("SimulationNodeAgeReachedEvent"),
         not_implemented_node("SimulationNodeParticleMeshCollisionEvent"),
     ]),
     SimulationNodeCategory("SIM_FORCES", "Forces", items=[
@@ -515,6 +516,7 @@ simulation_node_categories = [
     SimulationNodeCategory("SIM_EXECUTE", "Execute", items=[
         NodeItem("SimulationNodeSetParticleAttribute"),
         NodeItem("SimulationNodeExecuteCondition"),
+        NodeItem("SimulationNodeKillParticle"),
         not_implemented_node("SimulationNodeMultiExecute"),
     ]),
     SimulationNodeCategory("SIM_NOISE", "Noise", items=[
@@ -544,6 +546,7 @@ simulation_node_categories = [
         NodeItem("FunctionNodeFloatCompare"),
         not_implemented_node("FunctionNodeSwitch"),
         NodeItem("FunctionNodeCombineStrings"),
+        NodeItem("FunctionNodeRandomFloat"),
     ]),
     SimulationNodeCategory("SIM_GROUP", "Group", items=node_group_items),
     SimulationNodeCategory("SIM_LAYOUT", "Layout", items=[

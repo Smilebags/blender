@@ -1886,14 +1886,14 @@ const char *RE_GetActiveRenderView(Render *re)
 }
 
 /* evaluating scene options for general Blender render */
-static int render_initialize_from_main(Render *re,
-                                       const RenderData *rd,
-                                       Main *bmain,
-                                       Scene *scene,
-                                       ViewLayer *single_layer,
-                                       Object *camera_override,
-                                       int anim,
-                                       int anim_init)
+static int render_init_from_main(Render *re,
+                                 const RenderData *rd,
+                                 Main *bmain,
+                                 Scene *scene,
+                                 ViewLayer *single_layer,
+                                 Object *camera_override,
+                                 int anim,
+                                 int anim_init)
 {
   int winx, winy;
   rcti disprect;
@@ -2011,8 +2011,7 @@ void RE_RenderFrame(Render *re,
 
   scene->r.cfra = frame;
 
-  if (render_initialize_from_main(
-          re, &scene->r, bmain, scene, single_layer, camera_override, 0, 0)) {
+  if (render_init_from_main(re, &scene->r, bmain, scene, single_layer, camera_override, 0, 0)) {
     const RenderData rd = scene->r;
     MEM_reset_peak_memory();
 
@@ -2065,7 +2064,7 @@ void RE_RenderFrame(Render *re,
 void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render)
 {
   re->result_ok = 0;
-  if (render_initialize_from_main(re, &scene->r, bmain, scene, NULL, NULL, 0, 0)) {
+  if (render_init_from_main(re, &scene->r, bmain, scene, NULL, NULL, 0, 0)) {
     if (render) {
       do_render_3d(re);
     }
@@ -2429,7 +2428,7 @@ void RE_RenderAnim(Render *re,
                                   (rd.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   /* do not fully call for each frame, it initializes & pops output window */
-  if (!render_initialize_from_main(re, &rd, bmain, scene, single_layer, camera_override, 0, 1)) {
+  if (!render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, 0, 1)) {
     return;
   }
 
@@ -2508,7 +2507,7 @@ void RE_RenderAnim(Render *re,
       render_update_depsgraph(re);
 
       /* only border now, todo: camera lens. (ton) */
-      render_initialize_from_main(re, &rd, bmain, scene, single_layer, camera_override, 1, 0);
+      render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, 1, 0);
 
       if (nfra != scene->r.cfra) {
         /* Skip this frame, but could update for physics and particles system. */
