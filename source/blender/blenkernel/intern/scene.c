@@ -92,6 +92,7 @@
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
+#include "BKE_spectral_stuff.h"
 #include "BKE_unit.h"
 #include "BKE_workspace.h"
 #include "BKE_world.h"
@@ -136,7 +137,7 @@ static void scene_init_data(ID *id)
                      CURVEMAP_SLOPE_POS_NEG);
 
   camera_response_function_curve = &scene->r.camera_response_function_curve;
-  BKE_curvemapping_set_defaults(camera_response_function_curve, 3, 380.0f, 0.0f, 730.0f, 1.0f);
+  BKE_curvemapping_set_defaults_spectrum(camera_response_function_curve, 3);
   BKE_curvemapping_init(camera_response_function_curve);
   BKE_curvemap_reset(camera_response_function_curve->cm,
                      &camera_response_function_curve->clipr,
@@ -144,7 +145,7 @@ static void scene_init_data(ID *id)
                      CURVEMAP_SLOPE_POS_NEG);
 
   wavelength_importance_curve = &scene->r.wavelength_importance_curve;
-  BKE_curvemapping_set_defaults(wavelength_importance_curve, 1, 380.0f, 0.0f, 730.0f, 1.0f);
+  BKE_curvemapping_set_defaults_spectrum(wavelength_importance_curve, 1);
   BKE_curvemapping_init(wavelength_importance_curve);
   BKE_curvemap_reset(wavelength_importance_curve->cm,
                      &wavelength_importance_curve->clipr,

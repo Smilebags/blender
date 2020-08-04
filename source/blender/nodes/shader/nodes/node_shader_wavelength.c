@@ -19,9 +19,11 @@
 
 #include "../node_shader_util.h"
 
+#include "BKE_spectral_stuff.h"
+
 /* **************** Wavelength ******************** */
 static bNodeSocketTemplate sh_node_wavelength_in[] = {
-    {SOCK_FLOAT, N_("Wavelength"), 500.0f, 0.0f, 0.0f, 0.0f, 380.0f, 780.0f},
+    {SOCK_FLOAT, N_("Wavelength"), 500.0f, 0.0f, 0.0f, 0.0f, MIN_WAVELENGTH, MAX_WAVELENGTH},
     {-1, ""},
 };
 

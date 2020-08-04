@@ -19,9 +19,11 @@
 
 #include "../node_shader_util.h"
 
+#include "BKE_spectral_stuff.h"
+
 /* **************** Gaussian Spectrum ******************** */
 static bNodeSocketTemplate sh_node_gaussian_spectrum_in[] = {
-    {SOCK_FLOAT, N_("Wavelength"), 500.0f, 0.0f, 0.0f, 0.0f, 380.0f, 780.0f},
+    {SOCK_FLOAT, N_("Wavelength"), 500.0f, 0.0f, 0.0f, 0.0f, MIN_WAVELENGTH, MAX_WAVELENGTH},
     {SOCK_FLOAT, N_("Width"), 5.0f, 0.0f, 0.0f, 0.0f, 0.01f, 100.0f},
     {-1, ""},
 };
