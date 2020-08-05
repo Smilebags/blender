@@ -60,9 +60,13 @@ void wavelength_to_xyz(const float wavelength, float *r_xyz)
 
 void wavelength_to_xyz_from_crf(CurveMapping *cumap, const float wavelength, float *r_xyz)
 {
-  float wavelengths[3] = {wavelength, wavelength, wavelength};
-
-  BKE_curvemapping_evaluate3F(cumap, r_xyz, wavelengths);
+  if (cumap && cumap->cm[0].table && cumap->cm[1].table && cumap->cm[2].table) {
+    float wavelengths[3] = {wavelength, wavelength, wavelength};
+    BKE_curvemapping_evaluate3F(cumap, r_xyz, wavelengths);
+  }
+  else {
+    r_xyz[0] = r_xyz[1] = r_xyz[2] = 0.0f;
+  }
 }
 
 void xyz_to_linear_srgb(const float *xyz, float *r_srgb)
@@ -95,11 +99,6 @@ void BKE_curvemapping_init_cie1931(CurveMapping *cumap)
       curve_map->curve[j].x = wavelength;
       curve_map->curve[j].y = xyz[i];
       curve_map->curve[j].flag |= CUMA_HANDLE_VECTOR;
-    }
-
-    if (curve_map->table) {
-      MEM_freeN(curve_map->table);
-      curve_map->table = NULL;
     }
   }
 
