@@ -58,6 +58,13 @@ void wavelength_to_xyz(const float wavelength, float *r_xyz)
   r_xyz[2] = lerp(lower_value[2], upper_value[2], progress);
 }
 
+void wavelength_to_xyz_from_crf(CurveMapping *cumap, const float wavelength, float *r_xyz)
+{
+  float wavelengths[3] = {wavelength, wavelength, wavelength};
+
+  BKE_curvemapping_evaluate3F(cumap, r_xyz, wavelengths);
+}
+
 void xyz_to_linear_srgb(const float *xyz, float *r_srgb)
 {
   const static float xyz_d65_to_srgb_linear_matrix[3][3] = {{3.2406255f, -1.537208f, -0.4986286f},

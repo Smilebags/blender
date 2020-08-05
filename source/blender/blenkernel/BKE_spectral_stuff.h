@@ -497,6 +497,7 @@ const static float wavelength_xyz_lookup[][3] = {
     {0.000001251141f, 0.000000451810f, 0.000000000000f}};
 
 void wavelength_to_xyz(const float wavelength, float *r_xyz);
+void wavelength_to_xyz_from_crf(CurveMapping *cumap, const float wavelength, float *r_xyz);
 void xyz_to_linear_srgb(const float *xyz, float *r_srgb);
 
 void BKE_curvemapping_init_cie1931(CurveMapping *cumap);

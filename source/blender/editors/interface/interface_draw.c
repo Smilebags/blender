@@ -40,6 +40,7 @@
 
 #include "BKE_colorband.h"
 #include "BKE_colortools.h"
+#include "BKE_context.h"
 #include "BKE_curveprofile.h"
 #include "BKE_node.h"
 #include "BKE_tracking.h"
@@ -1909,7 +1910,8 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
-void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
+void ui_draw_but_CURVE(
+    const bContext *C, ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
   CurveMapping *cumap;
 
@@ -1987,7 +1989,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
       immUnbindProgram();
 
-      ui_draw_gradient_spectrum(rect, 1.0f);
+      ui_draw_gradient_spectrum(C, rect, 1.0f);
       break;
     }
 

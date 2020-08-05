@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_spectral_stuff.h"
@@ -3122,10 +3123,13 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
   immUnbindProgram();
 }
 
-void ui_draw_gradient_spectrum(const rcti *rect, const float alpha)
+void ui_draw_gradient_spectrum(const bContext *C, const rcti *rect, const float alpha)
 {
   const int steps = 64;
   const float steps_inv = 1.0f / steps;
+
+  Scene *scene = CTX_data_scene(C);
+  CurveMapping *crf_cumap = &scene->r.camera_response_function_curve;
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -3139,13 +3143,13 @@ void ui_draw_gradient_spectrum(const rcti *rect, const float alpha)
     float wavelength2 = interpf(MAX_WAVELENGTH, MIN_WAVELENGTH, (step + 1) * steps_inv);
 
     float xyz1[3], linear1[3], color1[3];
-    wavelength_to_xyz(wavelength1, xyz1);
+    wavelength_to_xyz_from_crf(crf_cumap, wavelength1, xyz1);
     xyz_to_linear_srgb(xyz1, linear1);
     linearrgb_to_srgb_v3_v3(color1, linear1);
     mul_v3_fl(color1, 0.5f); /* Avoid clipping. */
 
     float xyz2[3], linear2[3], color2[3];
-    wavelength_to_xyz(wavelength2, xyz2);
+    wavelength_to_xyz_from_crf(crf_cumap, wavelength2, xyz2);
     xyz_to_linear_srgb(xyz2, linear2);
     linearrgb_to_srgb_v3_v3(color2, linear2);
     mul_v3_fl(color2, 0.5f); /* Avoid clipping. */
@@ -4767,7 +4771,7 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
         /* do not draw right to edge of rect */
         rect->xmin += (0.2f * UI_UNIT_X);
         rect->xmax -= (0.2f * UI_UNIT_X);
-        ui_draw_but_CURVE(region, but, &tui->wcol_regular, rect);
+        ui_draw_but_CURVE(C, region, but, &tui->wcol_regular, rect);
         break;
 
       case UI_BTYPE_CURVEPROFILE:
