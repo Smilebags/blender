@@ -615,6 +615,7 @@ class CYCLES_RENDER_PT_spectral_rendering_crf(CyclesButtonsPanel, Panel):
 class CYCLES_RENDER_PT_spectral_rendering_wavelength_importance(CyclesButtonsPanel, Panel):
     bl_label = "Custom Wavelength Importance"
     bl_parent_id = "CYCLES_RENDER_PT_spectral_rendering"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         rd = context.scene.render
