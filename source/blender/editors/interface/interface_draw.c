@@ -2184,6 +2184,7 @@ void ui_draw_but_CURVE(
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
+  rgb_uchar_to_float(color_backdrop, wcol->inner);
   UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
   UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
   if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
