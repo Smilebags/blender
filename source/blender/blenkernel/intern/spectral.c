@@ -80,7 +80,7 @@ void xyz_to_linear_srgb(const float *xyz, float *r_srgb)
 
 void BKE_curvemapping_init_cie1931(CurveMapping *cumap)
 {
-  const float curve_size = 50;
+  const float curve_size = 80;
 
   for (int i = 0; i < 3; i++) {
     CurveMap *curve_map = &cumap->cm[i];
