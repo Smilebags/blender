@@ -2143,7 +2143,15 @@ void ui_draw_but_CURVE(
   GPU_blend(true);
 
   /* Curve filled. */
-  immUniformColor3ubvAlpha(wcol->item, 128);
+  switch ((int)but->a1) {
+    case UI_GRAD_SPECTRUM:
+      uint8_t white[3] = {0xFF, 0xFF, 0xFF};
+      immUniformColor3ubvAlpha(white, 128);
+      break;
+    default:
+      immUniformColor3ubvAlpha(wcol->item, 128);
+      break;
+  }
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
   immVertex2f(pos, line_range.xmin, rect->ymin);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -2159,7 +2167,16 @@ void ui_draw_but_CURVE(
 
   /* Curve line. */
   GPU_line_width(1.0f);
-  immUniformColor3ubvAlpha(wcol->item, 255);
+  /* Curve filled. */
+  switch ((int)but->a1) {
+    case UI_GRAD_SPECTRUM:
+      uint8_t white[3] = {0xFF, 0xFF, 0xFF};
+      immUniformColor3ubvAlpha(white, 255);
+      break;
+    default:
+      immUniformColor3ubvAlpha(wcol->item, 255);
+      break;
+  }
   GPU_line_smooth(true);
   immBegin(GPU_PRIM_LINE_STRIP, (CM_TABLE + 1) + 2);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -2184,15 +2201,27 @@ void ui_draw_but_CURVE(
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
-  rgb_uchar_to_float(color_backdrop, wcol->inner);
-  UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
-  UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
-  if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
-    interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
-  }
-  if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
-    /* Ensure brightest text color is used for selection. */
-    swap_v3_v3(color_vert, color_vert_select);
+
+  switch ((int)but->a1) {
+    case UI_GRAD_SPECTRUM:
+      uint8_t unselected[3] = {0xFF, 0xFF, 0xFF};
+      uint8_t selected[3] = {0xFF, 0xA0, 0x28};
+      rgb_uchar_to_float(color_vert, unselected);
+      rgb_uchar_to_float(color_vert_select, selected);
+      break;
+
+    default:
+      rgb_uchar_to_float(color_backdrop, wcol->inner);
+      UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
+      UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
+      if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
+        interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
+      }
+      if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
+        /* Ensure brightest text color is used for selection. */
+        swap_v3_v3(color_vert, color_vert_select);
+      }
+      break;
   }
 
   cmp = cuma->curve;
