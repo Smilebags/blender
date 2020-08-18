@@ -33,9 +33,9 @@
 #include "GPU_texture.h"
 
 #include "gpu_attr_binding_private.h"
-#include "gpu_context_private.h"
+#include "gpu_context_private.hh"
 #include "gpu_primitive_private.h"
-#include "gpu_shader_private.h"
+#include "gpu_shader_private.hh"
 #include "gpu_vertex_format_private.h"
 
 #include <stdlib.h>
@@ -145,10 +145,7 @@ GPUVertFormat *immVertexFormat(void)
 
 void immBindShader(GPUShader *shader)
 {
-#if TRUST_NO_ONE
-  assert(imm.bound_program == NULL);
-  assert(glIsProgram(shader->program));
-#endif
+  BLI_assert(imm.bound_program == NULL);
 
   imm.bound_program = shader;
   imm.shader_interface = shader->interface;
@@ -159,8 +156,8 @@ void immBindShader(GPUShader *shader)
 
   GPU_shader_bind(shader);
   get_attr_locations(&imm.vertex_format, &imm.attr_binding, imm.shader_interface);
-  GPU_matrix_bind(imm.shader_interface);
-  GPU_shader_set_srgb_uniform(imm.shader_interface);
+  GPU_matrix_bind(shader);
+  GPU_shader_set_srgb_uniform(shader);
 }
 
 void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
@@ -171,12 +168,8 @@ void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
 
 void immUnbindProgram(void)
 {
-#if TRUST_NO_ONE
-  assert(imm.bound_program != NULL);
-#endif
-#if PROGRAM_NO_OPTI
-  glUseProgram(0);
-#endif
+  BLI_assert(imm.bound_program != NULL);
+  GPU_shader_unbind();
   imm.bound_program = NULL;
 }
 
@@ -217,6 +210,8 @@ static bool vertex_count_makes_sense_for_primitive(uint vertex_len, GPUPrimType 
 
 void immBegin(GPUPrimType prim_type, uint vertex_len)
 {
+  GPU_context_active_get()->state_manager->apply_state();
+
 #if TRUST_NO_ONE
   assert(initialized);
   assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we haven't already begun */
@@ -321,7 +316,7 @@ GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
   imm.vertex_data = verts->data;
 
   imm.batch = GPU_batch_create_ex(prim_type, verts, NULL, GPU_BATCH_OWNS_VBO);
-  imm.batch->phase = GPU_BATCH_BUILDING;
+  imm.batch->flag |= GPU_BATCH_BUILDING;
 
   return imm.batch;
 }
@@ -379,7 +374,7 @@ static void immDrawSetup(void)
   }
 
   if (GPU_matrix_dirty_get()) {
-    GPU_matrix_bind(imm.shader_interface);
+    GPU_matrix_bind(imm.bound_program);
   }
 }
 
@@ -423,7 +418,7 @@ void immEnd(void)
       /* TODO: resize only if vertex count is much smaller */
     }
     GPU_batch_set_shader(imm.batch, imm.bound_program);
-    imm.batch->phase = GPU_BATCH_READY_TO_DRAW;
+    imm.batch->flag &= ~GPU_BATCH_BUILDING;
     imm.batch = NULL; /* don't free, batch belongs to caller */
   }
   else {
@@ -928,6 +923,14 @@ void immUniformThemeColor(int color_id)
 {
   float color[4];
   UI_GetThemeColor4fv(color_id, color);
+  immUniformColor4fv(color);
+}
+
+void immUniformThemeColorAlpha(int color_id, float a)
+{
+  float color[4];
+  UI_GetThemeColor3fv(color_id, color);
+  color[3] = a;
   immUniformColor4fv(color);
 }
 

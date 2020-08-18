@@ -388,7 +388,7 @@ void transform_constraint_snap_axis_to_face(const TransInfo *t,
  * Return true if the 2x axis are both aligned when projected into the view.
  * In this case, we can't usefully project the cursor onto the plane.
  */
-static bool isPlaneProjectionViewAligned(const TransInfo *t, float plane[4])
+static bool isPlaneProjectionViewAligned(const TransInfo *t, const float plane[4])
 {
   const float eps = 0.001f;
   float view_to_plane[3];
@@ -884,7 +884,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 
     float viewport[4];
     GPU_viewport_size_get_f(viewport);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     immUniform2fv("viewportSize", &viewport[2]);
     immUniform1f("lineWidth", 3.0f * U.pixelsize);

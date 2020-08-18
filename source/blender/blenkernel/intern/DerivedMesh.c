@@ -669,7 +669,7 @@ static float (*get_editbmesh_orco_verts(BMEditMesh *em))[3]
   /* these may not really be the orco's, but it's only for preview.
    * could be solver better once, but isn't simple */
 
-  orco = MEM_malloc_arrayN(em->bm->totvert, sizeof(float) * 3, "BMEditMesh Orco");
+  orco = MEM_malloc_arrayN(em->bm->totvert, sizeof(float[3]), "BMEditMesh Orco");
 
   BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
     copy_v3_v3(orco[i], eve->co);
@@ -772,7 +772,7 @@ static void add_orco_mesh(Object *ob, BMEditMesh *em, Mesh *mesh, Mesh *mesh_orc
       layerorco = CustomData_get_layer(&mesh->vdata, layer);
     }
 
-    memcpy(layerorco, orco, sizeof(float) * 3 * totvert);
+    memcpy(layerorco, orco, sizeof(float[3]) * totvert);
     if (free) {
       MEM_freeN(orco);
     }
@@ -909,8 +909,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
 
   /* Sculpt can skip certain modifiers. */
-  MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
-  const bool has_multires = (mmd && mmd->sculptlvl != 0);
+  const bool has_multires = BKE_sculpt_multires_active(scene, ob) != NULL;
   bool multires_applied = false;
   const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt && !use_render;
   const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm) && !use_render;
@@ -1371,7 +1370,7 @@ float (*editbmesh_vert_coords_alloc(BMEditMesh *em, int *r_vert_len))[3]
 
   *r_vert_len = em->bm->totvert;
 
-  cos = MEM_malloc_arrayN(em->bm->totvert, 3 * sizeof(float), "vertexcos");
+  cos = MEM_malloc_arrayN(em->bm->totvert, sizeof(float[3]), "vertexcos");
 
   BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
     copy_v3_v3(cos[i], eve->co);
@@ -1810,6 +1809,12 @@ static void mesh_build_data(struct Depsgraph *depsgraph,
 
   BKE_object_boundbox_calc_from_mesh(ob, mesh_eval);
 
+  /* Make sure that drivers can target shapekey properties.
+   * Note that this causes a potential inconsistency, as the shapekey may have a
+   * different topology than the evaluated mesh. */
+  BLI_assert(mesh->key == NULL || DEG_is_evaluated_id(&mesh->key->id));
+  mesh_eval->key = mesh->key;
+
   if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
     if (DEG_is_active(depsgraph)) {
       BKE_sculpt_update_object_after_eval(depsgraph, ob);
@@ -1985,7 +1990,7 @@ Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph,
   return ob->runtime.mesh_deform_eval;
 }
 
-Mesh *mesh_create_eval_final_render(Depsgraph *depsgraph,
+Mesh *mesh_create_eval_final(Depsgraph *depsgraph,
                                     Scene *scene,
                                     Object *ob,
                                     const CustomData_MeshMasks *dataMask)
@@ -2006,26 +2011,6 @@ Mesh *mesh_create_eval_final_index_render(Depsgraph *depsgraph,
   Mesh *final;
 
   mesh_calc_modifiers(depsgraph, scene, ob, 1, false, dataMask, index, false, false, NULL, &final);
-
-  return final;
-}
-
-Mesh *mesh_create_eval_final_view(Depsgraph *depsgraph,
-                                  Scene *scene,
-                                  Object *ob,
-                                  const CustomData_MeshMasks *dataMask)
-{
-  Mesh *final;
-
-  /* XXX hack
-   * psys modifier updates particle state when called during dupli-list generation,
-   * which can lead to wrong transforms. This disables particle system modifier execution.
-   */
-  ob->transflag |= OB_NO_PSYS_UPDATE;
-
-  mesh_calc_modifiers(depsgraph, scene, ob, 1, false, dataMask, -1, false, false, NULL, &final);
-
-  ob->transflag &= ~OB_NO_PSYS_UPDATE;
 
   return final;
 }
@@ -2354,32 +2339,6 @@ void DM_debug_print(DerivedMesh *dm)
   puts(str);
   fflush(stdout);
   MEM_freeN(str);
-}
-
-void DM_debug_print_cdlayers(CustomData *data)
-{
-  int i;
-  const CustomDataLayer *layer;
-
-  printf("{\n");
-
-  for (i = 0, layer = data->layers; i < data->totlayer; i++, layer++) {
-
-    const char *name = CustomData_layertype_name(layer->type);
-    const int size = CustomData_sizeof(layer->type);
-    const char *structname;
-    int structnum;
-    CustomData_file_write_info(layer->type, &structname, &structnum);
-    printf("        dict(name='%s', struct='%s', type=%d, ptr='%p', elem=%d, length=%d),\n",
-           name,
-           structname,
-           layer->type,
-           (const void *)layer->data,
-           size,
-           (int)(MEM_allocN_len(layer->data) / size));
-  }
-
-  printf("}\n");
 }
 
 bool DM_is_valid(DerivedMesh *dm)

@@ -93,9 +93,7 @@ static void region_draw_emboss(const ARegion *region, const rcti *scirct, int si
   rect.ymax = scirct->ymax - region->winrct.ymin;
 
   /* set transp line */
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   float color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
   UI_GetThemeColor3fv(TH_EDITOR_OUTLINE, color);
@@ -134,8 +132,7 @@ static void region_draw_emboss(const ARegion *region, const rcti *scirct, int si
   immEnd();
   immUnbindProgram();
 
-  GPU_blend(false);
-  GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void ED_region_pixelspace(ARegion *region)
@@ -248,7 +245,7 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   /* NOTE(fclem): There is something strange going on with Mesa and GPU_SHADER_2D_UNIFORM_COLOR
    * that causes a crash on some GPUs (see T76113). Using 3D variant avoid the issue. */
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -266,12 +263,12 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
   immEnd();
 
   immUnbindProgram();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *az)
 {
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* add code to draw region hidden as 'too small' */
   switch (az->edge) {
@@ -291,7 +288,7 @@ static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *a
 
   /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
   float alpha = WM_region_use_viewport(area, region) ? 0.6f : 0.4f;
-  float color[4] = {0.05f, 0.05f, 0.05f, alpha};
+  const float color[4] = {0.05f, 0.05f, 0.05f, alpha};
   UI_draw_roundbox_aa(
       true, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, color);
 
@@ -312,9 +309,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
   }
 
   GPU_line_width(1.0f);
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   GPU_matrix_push();
   GPU_matrix_translate_2f(-region->winrct.xmin, -region->winrct.ymin);
@@ -349,7 +344,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
 
   GPU_matrix_pop();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void region_draw_status_text(ScrArea *area, ARegion *region)
@@ -378,8 +373,7 @@ static void region_draw_status_text(ScrArea *area, ARegion *region)
     const float y1 = pad;
     const float y2 = region->winy - pad;
 
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     float color[4] = {0.0f, 0.0f, 0.0f, 0.5f};
     UI_GetThemeColor3fv(TH_BACK, color);
@@ -548,7 +542,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
 
   /* for debugging unneeded area redraws and partial redraw */
   if (G.debug_value == 888) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -559,7 +553,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
              region->drawrct.xmax - region->winrct.xmin,
              region->drawrct.ymax - region->winrct.ymin);
     immUnbindProgram();
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   memset(&region->drawrct, 0, sizeof(region->drawrct));
@@ -2053,6 +2047,241 @@ void ED_area_data_swap(ScrArea *area_dst, ScrArea *area_src)
   SWAP(ListBase, area_dst->regionbase, area_src->regionbase);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Region Alignment Syncing for Space Switching
+ * \{ */
+
+/**
+ * Store the alignment & other info per region type
+ * (use as a region-type aligned array).
+ *
+ * \note Currently this is only done for headers,
+ * we might want to do this with the tool-bar in the future too.
+ */
+struct RegionTypeAlignInfo {
+  struct {
+    /**
+     * Values match #ARegion.alignment without flags (see #RGN_ALIGN_ENUM_FROM_MASK).
+     * store all so we can sync alignment without adding extra checks.
+     */
+    short alignment;
+    /**
+     * Needed for detecting which header displays the space-type switcher.
+     */
+    bool hidden;
+  } by_type[RGN_TYPE_LEN];
+};
+
+static void region_align_info_from_area(ScrArea *area, struct RegionTypeAlignInfo *r_align_info)
+{
+  for (int index = 0; index < RGN_TYPE_LEN; index++) {
+    r_align_info->by_type[index].alignment = -1;
+    /* Default to true, when it doesn't exist - it's effectively hidden. */
+    r_align_info->by_type[index].hidden = true;
+  }
+
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    const int index = region->regiontype;
+    if ((uint)index < RGN_TYPE_LEN) {
+      r_align_info->by_type[index].alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
+      r_align_info->by_type[index].hidden = (region->flag & RGN_FLAG_HIDDEN) != 0;
+    }
+  }
+}
+
+/**
+ * Keeping alignment between headers keep the space-type selector button in the same place.
+ * This is complicated by the editor-type selector being placed on the header
+ * closest to the screen edge which changes based on hidden state.
+ *
+ * The tool-header is used when visible, otherwise the header is used.
+ */
+static short region_alignment_from_header_and_tool_header_state(
+    const struct RegionTypeAlignInfo *region_align_info, const short fallback)
+{
+  const short header_alignment = region_align_info->by_type[RGN_TYPE_HEADER].alignment;
+  const short tool_header_alignment = region_align_info->by_type[RGN_TYPE_TOOL_HEADER].alignment;
+
+  const bool header_hidden = region_align_info->by_type[RGN_TYPE_HEADER].hidden;
+  const bool tool_header_hidden = region_align_info->by_type[RGN_TYPE_TOOL_HEADER].hidden;
+
+  if ((tool_header_alignment != -1) &&
+      /* If tool-header is hidden, use header alignment. */
+      ((tool_header_hidden == false) ||
+       /* Don't prioritize the tool-header if both are hidden (behave as if both are visible).
+        * Without this, switching to a space with headers hidden will flip the alignment
+        * upon switching to a space with visible headers. */
+       (header_hidden && tool_header_hidden))) {
+    return tool_header_alignment;
+  }
+  if (header_alignment != -1) {
+    return header_alignment;
+  }
+  return fallback;
+}
+
+/**
+ * Notes on header alignment syncing.
+ *
+ * This is as involved as it is because:
+ *
+ * - There are currently 3 kinds of headers.
+ * - All headers can independently visible & flipped to another side
+ *   (except for the tool-header that depends on the header visibility).
+ * - We don't want the space-switching button to flip when switching spaces.
+ *   From the user perspective it feels like a bug to move the button you click on
+ *   to the opposite side of the area.
+ * - The space-switcher may be on either the header or the tool-header
+ *   depending on the tool-header visibility.
+ *
+ * How this works:
+ *
+ * - When headers match on both spaces, we copy the alignment
+ *   from the previous regions to the next regions when syncing.
+ * - Otherwise detect the _primary_ header (the one that shows the space type)
+ *   and use this to set alignment for the headers in the destination area.
+ * - Header & tool-header/footer may be on opposite sides, this is preserved when syncing.
+ */
+static void region_align_info_to_area_for_headers(
+    const struct RegionTypeAlignInfo *region_align_info_src,
+    const struct RegionTypeAlignInfo *region_align_info_dst,
+    ARegion *region_by_type[RGN_TYPE_LEN])
+{
+  /* Abbreviate access. */
+  const short header_alignment_src = region_align_info_src->by_type[RGN_TYPE_HEADER].alignment;
+  const short tool_header_alignment_src =
+      region_align_info_src->by_type[RGN_TYPE_TOOL_HEADER].alignment;
+
+  const bool tool_header_hidden_src = region_align_info_src->by_type[RGN_TYPE_TOOL_HEADER].hidden;
+
+  const short primary_header_alignment_src = region_alignment_from_header_and_tool_header_state(
+      region_align_info_src, -1);
+
+  /* Neither alignments are usable, don't sync. */
+  if (primary_header_alignment_src == -1) {
+    return;
+  }
+
+  const short header_alignment_dst = region_align_info_dst->by_type[RGN_TYPE_HEADER].alignment;
+  const short tool_header_alignment_dst =
+      region_align_info_dst->by_type[RGN_TYPE_TOOL_HEADER].alignment;
+  const short footer_alignment_dst = region_align_info_dst->by_type[RGN_TYPE_FOOTER].alignment;
+
+  const bool tool_header_hidden_dst = region_align_info_dst->by_type[RGN_TYPE_TOOL_HEADER].hidden;
+
+  /* New synchronized alignments to set (or ignore when left as -1). */
+  short header_alignment_sync = -1;
+  short tool_header_alignment_sync = -1;
+  short footer_alignment_sync = -1;
+
+  /* Both source/destination areas have same region configurations regarding headers.
+   * Simply copy the values. */
+  if (((header_alignment_src != -1) == (header_alignment_dst != -1)) &&
+      ((tool_header_alignment_src != -1) == (tool_header_alignment_dst != -1)) &&
+      (tool_header_hidden_src == tool_header_hidden_dst)) {
+    if (header_alignment_dst != -1) {
+      header_alignment_sync = header_alignment_src;
+    }
+    if (tool_header_alignment_dst != -1) {
+      tool_header_alignment_sync = tool_header_alignment_src;
+    }
+  }
+  else {
+    /* Not an exact match, check the space selector isn't moving. */
+    const short primary_header_alignment_dst = region_alignment_from_header_and_tool_header_state(
+        region_align_info_dst, -1);
+
+    if (primary_header_alignment_src != primary_header_alignment_dst) {
+      if ((header_alignment_dst != -1) && (tool_header_alignment_dst != -1)) {
+        if (header_alignment_dst == tool_header_alignment_dst) {
+          /* Apply to both. */
+          tool_header_alignment_sync = primary_header_alignment_src;
+          header_alignment_sync = primary_header_alignment_src;
+        }
+        else {
+          /* Keep on opposite sides. */
+          tool_header_alignment_sync = primary_header_alignment_src;
+          header_alignment_sync = (tool_header_alignment_sync == RGN_ALIGN_BOTTOM) ?
+                                      RGN_ALIGN_TOP :
+                                      RGN_ALIGN_BOTTOM;
+        }
+      }
+      else {
+        /* Apply what we can to regions that exist. */
+        if (header_alignment_dst != -1) {
+          header_alignment_sync = primary_header_alignment_src;
+        }
+        if (tool_header_alignment_dst != -1) {
+          tool_header_alignment_sync = primary_header_alignment_src;
+        }
+      }
+    }
+  }
+
+  if (footer_alignment_dst != -1) {
+    if ((header_alignment_dst != -1) && (header_alignment_dst == footer_alignment_dst)) {
+      /* Apply to both. */
+      footer_alignment_sync = primary_header_alignment_src;
+    }
+    else {
+      /* Keep on opposite sides. */
+      footer_alignment_sync = (primary_header_alignment_src == RGN_ALIGN_BOTTOM) ?
+                                  RGN_ALIGN_TOP :
+                                  RGN_ALIGN_BOTTOM;
+    }
+  }
+
+  /* Finally apply synchronized flags. */
+  if (header_alignment_sync != -1) {
+    ARegion *region = region_by_type[RGN_TYPE_HEADER];
+    if (region != NULL) {
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(header_alignment_sync) |
+                          RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
+    }
+  }
+
+  if (tool_header_alignment_sync != -1) {
+    ARegion *region = region_by_type[RGN_TYPE_TOOL_HEADER];
+    if (region != NULL) {
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(tool_header_alignment_sync) |
+                          RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
+    }
+  }
+
+  if (footer_alignment_sync != -1) {
+    ARegion *region = region_by_type[RGN_TYPE_FOOTER];
+    if (region != NULL) {
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(footer_alignment_sync) |
+                          RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
+    }
+  }
+}
+
+static void region_align_info_to_area(
+    ScrArea *area, const struct RegionTypeAlignInfo region_align_info_src[RGN_TYPE_LEN])
+{
+  ARegion *region_by_type[RGN_TYPE_LEN] = {NULL};
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    const int index = region->regiontype;
+    if ((uint)index < RGN_TYPE_LEN) {
+      region_by_type[index] = region;
+    }
+  }
+
+  struct RegionTypeAlignInfo region_align_info_dst;
+  region_align_info_from_area(area, &region_align_info_dst);
+
+  if ((region_by_type[RGN_TYPE_HEADER] != NULL) ||
+      (region_by_type[RGN_TYPE_TOOL_HEADER] != NULL)) {
+    region_align_info_to_area_for_headers(
+        region_align_info_src, &region_align_info_dst, region_by_type);
+  }
+
+  /* Note that we could support other region types. */
+}
+
+/** \} */
+
 /* *********** Space switching code *********** */
 
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
@@ -2104,9 +2333,13 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
      * the space type defaults to in this case instead
      * (needed for preferences to have space-type on bottom).
      */
-    int header_alignment = ED_area_header_alignment_or_fallback(area, -1);
-    const bool sync_header_alignment = ((header_alignment != -1) &&
-                                        ((slold->link_flag & SPACE_FLAG_TYPE_TEMPORARY) == 0));
+
+    bool sync_header_alignment = false;
+    struct RegionTypeAlignInfo region_align_info[RGN_TYPE_LEN];
+    if ((slold != NULL) && (slold->link_flag & SPACE_FLAG_TYPE_TEMPORARY) == 0) {
+      region_align_info_from_area(area, region_align_info);
+      sync_header_alignment = true;
+    }
 
     /* in some cases (opening temp space) we don't want to
      * call area exit callback, so we temporarily unset it */
@@ -2180,28 +2413,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
     /* Sync header alignment. */
     if (sync_header_alignment) {
-      /* Spaces with footer. */
-      if (st->spaceid == SPACE_TEXT) {
-        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-          if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-            region->alignment = header_alignment;
-          }
-          if (region->regiontype == RGN_TYPE_FOOTER) {
-            int footer_alignment = (header_alignment == RGN_ALIGN_BOTTOM) ? RGN_ALIGN_TOP :
-                                                                            RGN_ALIGN_BOTTOM;
-            region->alignment = footer_alignment;
-            break;
-          }
-        }
-      }
-      else {
-        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-          if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-            region->alignment = header_alignment;
-            break;
-          }
-        }
-      }
+      region_align_info_to_area(area, region_align_info);
     }
 
     ED_area_init(CTX_wm_manager(C), win, area);
@@ -2658,29 +2870,35 @@ void ED_region_panels_layout_ex(const bContext *C,
   if (has_instanced_panel) {
     LISTBASE_FOREACH (Panel *, panel, &region->panels) {
       if (panel->type == NULL) {
-        continue; /* Some panels don't have a type.. */
+        continue; /* Some panels don't have a type. */
       }
-      if (panel->type->flag & PNL_INSTANCED) {
-        if (panel && UI_panel_is_dragging(panel)) {
-          /* Prevent View2d.tot rectangle size changes while dragging panels. */
-          update_tot_size = false;
-        }
+      if (!(panel->type->flag & PNL_INSTANCED)) {
+        continue;
+      }
+      if (use_category_tabs && panel->type->category[0] &&
+          !STREQ(category, panel->type->category)) {
+        continue;
+      }
 
-        /* Use a unique identifier for instanced panels, otherwise an old block for a different
-         * panel of the same type might be found. */
-        char unique_panel_str[8];
-        UI_list_panel_unique_str(panel, unique_panel_str);
-        ed_panel_draw(C,
-                      area,
-                      region,
-                      &region->panels,
-                      panel->type,
-                      panel,
-                      (panel->type->flag & PNL_DRAW_BOX) ? w_box_panel : w,
-                      em,
-                      vertical,
-                      unique_panel_str);
+      if (panel && UI_panel_is_dragging(panel)) {
+        /* Prevent View2d.tot rectangle size changes while dragging panels. */
+        update_tot_size = false;
       }
+
+      /* Use a unique identifier for instanced panels, otherwise an old block for a different
+       * panel of the same type might be found. */
+      char unique_panel_str[8];
+      UI_list_panel_unique_str(panel, unique_panel_str);
+      ed_panel_draw(C,
+                    area,
+                    region,
+                    &region->panels,
+                    panel->type,
+                    panel,
+                    (panel->type->flag & PNL_DRAW_BOX) ? w_box_panel : w,
+                    em,
+                    vertical,
+                    unique_panel_str);
     }
   }
 
@@ -2941,41 +3159,9 @@ int ED_area_headersize(void)
   return U.widget_unit + (int)(UI_DPI_FAC * HEADER_PADDING_Y);
 }
 
-int ED_area_header_alignment_or_fallback(const ScrArea *area, int fallback)
-{
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == RGN_TYPE_HEADER) {
-      return region->alignment;
-    }
-  }
-  return fallback;
-}
-
-int ED_area_header_alignment(const ScrArea *area)
-{
-  return ED_area_header_alignment_or_fallback(
-      area, (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP);
-}
-
 int ED_area_footersize(void)
 {
   return ED_area_headersize();
-}
-
-int ED_area_footer_alignment_or_fallback(const ScrArea *area, int fallback)
-{
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == RGN_TYPE_FOOTER) {
-      return region->alignment;
-    }
-  }
-  return fallback;
-}
-
-int ED_area_footer_alignment(const ScrArea *area)
-{
-  return ED_area_footer_alignment_or_fallback(
-      area, (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM);
 }
 
 /**
@@ -3078,19 +3264,17 @@ void ED_region_info_draw_multiline(ARegion *region,
   rect.ymin = rect.ymax - header_height * num_lines;
 
   /* setup scissor */
-  GPU_scissor_get_i(scissor);
+  GPU_scissor_get(scissor);
   GPU_scissor(rect.xmin, rect.ymin, BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
   immUniformColor4fv(fill_color);
   immRecti(pos, rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
   immUnbindProgram();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* text */
   UI_FontThemeColor(fontid, TH_TEXT_HI);

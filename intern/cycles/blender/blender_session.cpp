@@ -59,6 +59,7 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                BL::BlendData &b_data,
                                bool preview_osl)
     : session(NULL),
+      scene(NULL),
       sync(NULL),
       b_engine(b_engine),
       b_userpref(b_userpref),
@@ -88,6 +89,7 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                int width,
                                int height)
     : session(NULL),
+      scene(NULL),
       sync(NULL),
       b_engine(b_engine),
       b_userpref(b_userpref),
@@ -643,7 +645,7 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
 
   /* Passes are identified by name, so in order to return the combined pass we need to set the
    * name. */
-  Pass::add(PASS_COMBINED, scene->film->passes, "Combined");
+  Pass::add(PASS_COMBINED, scene->passes, "Combined");
 
   session->read_bake_tile_cb = function_bind(&BlenderSession::read_render_tile, this, _1);
   session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
@@ -676,7 +678,7 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
     BufferParams buffer_params;
     buffer_params.width = bake_width;
     buffer_params.height = bake_height;
-    buffer_params.passes = scene->film->passes;
+    buffer_params.passes = scene->passes;
 
     /* Update session. */
     session->tile_manager.set_samples(session_params.samples);
@@ -970,7 +972,8 @@ void BlenderSession::update_status_progress()
     remaining_time = (1.0 - (double)progress) * (render_time / (double)progress);
 
   if (background) {
-    scene_status += " | " + scene->name;
+    if (scene)
+      scene_status += " | " + scene->name;
     if (b_rlay_name != "")
       scene_status += ", " + b_rlay_name;
 

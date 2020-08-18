@@ -33,10 +33,11 @@
  * Selections like "selected only" or "no hair systems" are left to concrete subclasses.
  */
 
-#ifndef __ABSTRACT_HIERARCHY_ITERATOR_H__
-#define __ABSTRACT_HIERARCHY_ITERATOR_H__
+#pragma once
 
 #include "IO_dupli_persistent_id.hh"
+
+#include "DEG_depsgraph.h"
 
 #include <map>
 #include <set>
@@ -112,6 +113,8 @@ struct HierarchyContext {
   bool is_instance() const;
   void mark_as_instance_of(const std::string &reference_export_path);
   void mark_as_not_instanced();
+
+  bool is_object_visible(const enum eEvaluationMode evaluation_mode) const;
 };
 
 /* Abstract writer for objects. Create concrete subclasses to write to USD, Alembic, etc.
@@ -355,5 +358,3 @@ class AbstractHierarchyIterator {
 
 }  // namespace io
 }  // namespace blender
-
-#endif /* __ABSTRACT_HIERARCHY_ITERATOR_H__ */

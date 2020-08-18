@@ -23,6 +23,7 @@ set(INC
   ../blenkernel
   ../blenlib
   ../blentranslation
+  ../depsgraph
   ../makesdna
   ../../../intern/atomic
   ../../../intern/eigen
@@ -153,10 +154,10 @@ set(SRC
   tools/bmesh_path.h
   tools/bmesh_path_region.c
   tools/bmesh_path_region.h
-  tools/bmesh_path_uv.c
-  tools/bmesh_path_uv.h
   tools/bmesh_path_region_uv.c
   tools/bmesh_path_region_uv.h
+  tools/bmesh_path_uv.c
+  tools/bmesh_path_uv.h
   tools/bmesh_region_match.c
   tools/bmesh_region_match.h
   tools/bmesh_separate.c
@@ -204,3 +205,16 @@ if(WITH_FREESTYLE)
 endif()
 
 blender_add_lib(bf_bmesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/bmesh_core_test.cc
+  )
+  set(TEST_INC
+  )
+  set(TEST_LIB
+    bf_bmesh
+  )
+  include(GTestTesting)
+  blender_add_test_lib(bf_bmesh_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

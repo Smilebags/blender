@@ -21,8 +21,7 @@
  * \ingroup editorui
  */
 
-#ifndef __UI_INTERFACE_H__
-#define __UI_INTERFACE_H__
+#pragma once
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
@@ -58,6 +57,7 @@ struct bNodeSocket;
 struct bNodeTree;
 struct bScreen;
 struct rcti;
+struct uiButSearch;
 struct uiFontStyle;
 struct uiList;
 struct uiStyle;
@@ -372,12 +372,13 @@ typedef enum {
   UI_BTYPE_SEPR_SPACER = 56 << 9,
   /** Resize handle (resize uilist). */
   UI_BTYPE_GRIP = 57 << 9,
+  UI_BTYPE_DECORATOR = 58 << 9,
 } eButType;
 
 #define BUTTYPE (63 << 9)
 
 /** Gradient types, for color picker #UI_BTYPE_HSVCUBE etc. */
-enum {
+typedef enum eButGradientType {
   UI_GRAD_SV = 0,
   UI_GRAD_HV = 1,
   UI_GRAD_HS = 2,
@@ -389,9 +390,7 @@ enum {
   UI_GRAD_L_ALT = 10,
 
   UI_GRAD_SPECTRUM = 20,
-};
-
-#define UI_PALETTE_COLOR 20
+} eButGradientType;
 
 /* Drawing
  *
@@ -503,7 +502,7 @@ typedef int (*uiButCompleteFunc)(struct bContext *C, char *str, void *arg);
 /* Search types. */
 typedef struct ARegion *(*uiButSearchCreateFn)(struct bContext *C,
                                                struct ARegion *butregion,
-                                               uiBut *but);
+                                               struct uiButSearch *search_but);
 typedef void (*uiButSearchUpdateFn)(const struct bContext *C,
                                     void *arg,
                                     const char *str,
@@ -540,7 +539,7 @@ typedef bool (*uiMenuStepFunc)(struct bContext *C, int direction, void *arg1);
 bool UI_but_has_tooltip_label(const uiBut *but);
 bool UI_but_is_tool(const uiBut *but);
 bool UI_but_is_utf8(const uiBut *but);
-#define UI_but_is_decorator(but) ((but)->func == ui_but_anim_decorate_cb)
+#define UI_but_is_decorator(but) ((but)->type == UI_BTYPE_DECORATOR)
 
 bool UI_block_is_empty_ex(const uiBlock *block, const bool skip_title);
 bool UI_block_is_empty(const uiBlock *block);
@@ -1718,7 +1717,7 @@ struct Panel *UI_panel_add_instanced(struct ScrArea *area,
                                      char *panel_idname,
                                      int list_index,
                                      struct PointerRNA *custom_data);
-void UI_panels_free_instanced(struct bContext *C, struct ARegion *region);
+void UI_panels_free_instanced(const struct bContext *C, struct ARegion *region);
 
 #define LIST_PANEL_UNIQUE_STR_LEN 4
 void UI_list_panel_unique_str(struct Panel *panel, char *r_name);
@@ -1932,8 +1931,6 @@ uiLayout *uiLayoutGridFlow(uiLayout *layout,
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout,
                           struct uiList *ui_list,
-                          struct PointerRNA *ptr,
-                          struct PropertyRNA *prop,
                           struct PointerRNA *actptr,
                           struct PropertyRNA *actprop);
 uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
@@ -2579,5 +2576,3 @@ void UI_interface_tag_script_reload(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __UI_INTERFACE_H__ */

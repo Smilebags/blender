@@ -792,9 +792,8 @@ DrawDataList *DRW_drawdatalist_from_id(ID *id)
     IdDdtTemplate *idt = (IdDdtTemplate *)id;
     return &idt->drawdata;
   }
-  else {
-    return NULL;
-  }
+
+  return NULL;
 }
 
 DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type)
@@ -1596,8 +1595,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
     GPU_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
     GPU_clear(GPU_COLOR_BIT);
     /* Premult Alpha over black background. */
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   GPU_matrix_identity_set();
@@ -1607,9 +1605,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
 
   if (draw_background) {
     /* Reset default. */
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* Free temporary viewport. */
@@ -1658,7 +1654,6 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RenderEngineType *engine_type = engine->type;
-  RenderData *r = &scene->r;
   Render *render = engine->re;
 
   DRW_render_context_enable(render);
@@ -1680,7 +1675,7 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
   drw_context_state_init();
 
   DST.viewport = GPU_viewport_create();
-  const int size[2] = {(r->size * r->xsch) / 100, (r->size * r->ysch) / 100};
+  const int size[2] = {engine->resolution_x, engine->resolution_y};
   GPU_viewport_size_set(DST.viewport, size);
 
   drw_viewport_var_init();
@@ -1760,8 +1755,6 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
     BLI_rcti_init(&render_rect, 0, size[0], 0, size[1]);
   }
 
-  /* Set the default Blender draw state */
-  GPU_state_init();
   /* Reset state before drawing */
   DRW_state_reset();
 
@@ -1954,6 +1947,14 @@ void DRW_render_instance_buffer_finish(void)
   drw_resource_buffer_finish(DST.vmempool);
 }
 
+/* WARNING: Changing frame might free the ViewLayerEngineData */
+void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
+{
+  RE_engine_frame_set(engine, frame, subframe);
+  DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
+  DST.draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
+}
+
 /**
  * object mode select-loop, see: ED_view3d_draw_select_loop (legacy drawing).
  */
@@ -2024,7 +2025,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
     }
   }
 
-  int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
+  const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
   struct GPUViewport *viewport = GPU_viewport_create();
   GPU_viewport_size_set(viewport, viewport_size);
 
@@ -2469,7 +2470,7 @@ void DRW_draw_depth_object(
                                                           GPU_SHADER_CFG_DEFAULT;
       GPU_batch_program_set_builtin_with_config(batch, GPU_SHADER_3D_DEPTH_ONLY, sh_cfg);
       if (world_clip_planes != NULL) {
-        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes[0]);
+        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes);
       }
 
       GPU_batch_draw(batch);
@@ -2719,6 +2720,12 @@ void DRW_render_context_enable(Render *render)
     WM_init_opengl();
   }
 
+  if (GPU_use_main_context_workaround()) {
+    GPU_context_main_lock();
+    DRW_opengl_context_enable();
+    return;
+  }
+
   void *re_gl_context = RE_gl_context_get(render);
 
   /* Changing Context */
@@ -2736,6 +2743,12 @@ void DRW_render_context_enable(Render *render)
 
 void DRW_render_context_disable(Render *render)
 {
+  if (GPU_use_main_context_workaround()) {
+    DRW_opengl_context_disable();
+    GPU_context_main_unlock();
+    return;
+  }
+
   void *re_gl_context = RE_gl_context_get(render);
 
   if (re_gl_context != NULL) {
@@ -2770,8 +2783,6 @@ void DRW_opengl_context_create(void)
   if (!G.background) {
     immActivate();
   }
-  /* Set default Blender OpenGL state */
-  GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
@@ -2806,7 +2817,6 @@ void DRW_opengl_context_enable_ex(bool restore)
       if (!G.background) {
         immActivate();
       }
-      BLF_batch_reset();
     }
   }
 }
@@ -2870,13 +2880,11 @@ void DRW_gpu_render_context_enable(void *re_gpu_context)
   BLI_assert(!BLI_thread_is_main());
 
   GPU_context_active_set(re_gpu_context);
-  DRW_shape_cache_reset(); /* XXX fix that too. */
 }
 
 /* Needs to be called BEFORE DRW_opengl_render_context_disable() */
 void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
 {
-  DRW_shape_cache_reset(); /* XXX fix that too. */
   GPU_context_active_set(NULL);
 }
 

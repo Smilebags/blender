@@ -292,7 +292,7 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
     const ID_Type id_type = GS(id_for_copy->name);
     if (id_type == ID_OB) {
       const Object *object = reinterpret_cast<const Object *>(id_for_copy);
-      BKE_pose_check_uuids_unique_and_report(object->pose);
+      BKE_object_check_uuids_unique_and_report(object);
     }
   }
 
@@ -348,7 +348,7 @@ ViewLayer *get_original_view_layer(const Depsgraph *depsgraph, const IDNode *id_
   if (id_node->linked_state == DEG_ID_LINKED_DIRECTLY) {
     return depsgraph->view_layer;
   }
-  else if (id_node->linked_state == DEG_ID_LINKED_VIA_SET) {
+  if (id_node->linked_state == DEG_ID_LINKED_VIA_SET) {
     Scene *scene_orig = reinterpret_cast<Scene *>(id_node->id_orig);
     return BKE_view_layer_default_render(scene_orig);
   }
@@ -382,7 +382,7 @@ void scene_remove_unused_view_layers(const Depsgraph *depsgraph,
     }
     return;
   }
-  else if (id_node->linked_state == DEG_ID_LINKED_INDIRECTLY) {
+  if (id_node->linked_state == DEG_ID_LINKED_INDIRECTLY) {
     /* Indirectly linked scenes means it's not an input scene and not a set scene, and is pulled
      * via some driver. Such scenes should not have view layers after copy. */
     view_layer_input = nullptr;

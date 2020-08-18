@@ -385,7 +385,7 @@ mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 option(WITH_CYCLES_DEVICE_CUDA              "Enable Cycles CUDA compute support" ON)
 option(WITH_CYCLES_DEVICE_OPTIX             "Enable Cycles OptiX support" OFF)
 option(WITH_CYCLES_DEVICE_OPENCL            "Enable Cycles OpenCL compute support" ON)
-option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" OFF)
+option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" ON)
 mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
 mark_as_advanced(WITH_CYCLES_DEVICE_OPENCL)
 mark_as_advanced(WITH_CYCLES_NETWORK)
@@ -429,6 +429,10 @@ option(WITH_TBB   "Enable features depending on TBB (OpenVDB, OpenImageDenoise, 
 if(WIN32)
   option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ON)
 endif()
+
+# This should be turned off when Blender enter beta/rc/release
+option(WITH_EXPERIMENTAL_FEATURES "Enable experimental features (still need to enable them in the user preferences)" OFF)
+mark_as_advanced(WITH_EXPERIMENTAL_FEATURES)
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)

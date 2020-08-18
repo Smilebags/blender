@@ -21,8 +21,7 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_MATERIAL_H__
-#define __GPU_MATERIAL_H__
+#pragma once
 
 #include "DNA_customdata_types.h" /* for CustomDataType */
 #include "DNA_listBase.h"
@@ -112,15 +111,6 @@ typedef enum eGPUMatFlag {
   GPU_MATFLAG_SSS = (1 << 3),
   GPU_MATFLAG_BARYCENTRIC = (1 << 4),
 } eGPUMatFlag;
-
-typedef enum eGPUBlendMode {
-  GPU_BLEND_SOLID = 0,
-  GPU_BLEND_ADD = 1,
-  GPU_BLEND_ALPHA = 2,
-  GPU_BLEND_CLIP = 4,
-  GPU_BLEND_ALPHA_SORT = 8,
-  GPU_BLEND_ALPHA_TO_COVERAGE = 16,
-} eGPUBlendMode;
 
 typedef struct GPUNodeStack {
   eGPUType type;
@@ -264,5 +254,3 @@ ListBase GPU_material_volume_grids(GPUMaterial *material);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /*__GPU_MATERIAL_H__*/

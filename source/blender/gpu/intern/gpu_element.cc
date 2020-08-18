@@ -28,7 +28,7 @@
 #include "GPU_element.h"
 #include "GPU_glew.h"
 
-#include "gpu_context_private.h"
+#include "gpu_context_private.hh"
 
 #include <stdlib.h>
 
@@ -280,7 +280,7 @@ static uint index_range(const uint values[], uint value_len, uint *min_out, uint
     if (value == RESTART_INDEX) {
       continue;
     }
-    else if (value < min_value) {
+    if (value < min_value) {
       min_value = value;
     }
     else if (value > max_value) {
@@ -292,11 +292,10 @@ static uint index_range(const uint values[], uint value_len, uint *min_out, uint
     *max_out = 0;
     return 0;
   }
-  else {
-    *min_out = min_value;
-    *max_out = max_value;
-    return max_value - min_value;
-  }
+
+  *min_out = min_value;
+  *max_out = max_value;
+  return max_value - min_value;
 }
 
 static void squeeze_indices_short(GPUIndexBufBuilder *builder,
@@ -326,6 +325,11 @@ static void squeeze_indices_short(GPUIndexBufBuilder *builder,
 }
 
 #endif /* GPU_TRACK_INDEX_RANGE */
+
+GPUIndexBuf *GPU_indexbuf_calloc(void)
+{
+  return (GPUIndexBuf *)MEM_callocN(sizeof(GPUIndexBuf), __func__);
+}
 
 GPUIndexBuf *GPU_indexbuf_build(GPUIndexBufBuilder *builder)
 {

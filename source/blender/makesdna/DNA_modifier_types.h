@@ -18,11 +18,11 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_MODIFIER_TYPES_H__
-#define __DNA_MODIFIER_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_session_uuid_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -125,6 +125,11 @@ typedef struct ModifierData {
 
   /* Pointer to a ModifierData in the original domain. */
   struct ModifierData *orig_modifier_data;
+
+  /* Runtime field which contains unique identifier of the modifier. */
+  SessionUUID session_uuid;
+
+  /* Runtime field which contains runtime data which is specific to a modifier type. */
   void *runtime;
 } ModifierData;
 
@@ -1028,6 +1033,7 @@ typedef enum {
   eMultiresModifierFlag_PlainUv_DEPRECATED = (1 << 1),
   eMultiresModifierFlag_UseCrease = (1 << 2),
   eMultiresModifierFlag_UseCustomNormals = (1 << 3),
+  eMultiresModifierFlag_UseSculptBaseMesh = (1 << 4),
 } MultiresModifierFlag;
 
 /* DEPRECATED, only used for versioning. */
@@ -2190,5 +2196,3 @@ typedef struct SimulationModifierData {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DNA_MODIFIER_TYPES_H__ */

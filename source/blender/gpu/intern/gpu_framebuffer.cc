@@ -33,7 +33,7 @@
 #include "GPU_shader.h"
 #include "GPU_texture.h"
 
-#include "gpu_context_private.h"
+#include "gpu_context_private.hh"
 #include "gpu_private.h"
 
 typedef enum {
@@ -127,9 +127,8 @@ static GPUTexture *framebuffer_get_depth_tex(GPUFrameBuffer *fb)
   if (fb->attachments[GPU_FB_DEPTH_ATTACHMENT].tex) {
     return fb->attachments[GPU_FB_DEPTH_ATTACHMENT].tex;
   }
-  else {
-    return fb->attachments[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
-  }
+
+  return fb->attachments[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
 }
 
 static GPUTexture *framebuffer_get_color_tex(GPUFrameBuffer *fb, int slot)
@@ -190,9 +189,8 @@ GPUFrameBuffer *GPU_framebuffer_active_get(void)
   if (ctx) {
     return gpu_context_active_framebuffer_get(ctx);
   }
-  else {
-    return 0;
-  }
+
+  return 0;
 }
 
 static void gpu_framebuffer_current_set(GPUFrameBuffer *fb)
@@ -261,7 +259,7 @@ static void gpu_framebuffer_texture_attach_ex(
   if ((attachment->tex == tex) && (attachment->mip == mip) && (attachment->layer == layer)) {
     return; /* Exact same texture already bound here. */
   }
-  else if (attachment->tex != NULL) {
+  if (attachment->tex != NULL) {
     GPU_framebuffer_texture_detach(fb, attachment->tex);
   }
 
@@ -414,7 +412,7 @@ static void gpu_framebuffer_update_attachments(GPUFrameBuffer *fb)
     if (GPU_FB_ATTACHEMENT_IS_DIRTY(fb->dirty_flag, type) == false) {
       continue;
     }
-    else if (fb->attachments[type].tex != NULL) {
+    if (fb->attachments[type].tex != NULL) {
       gpu_framebuffer_attachment_attach(&fb->attachments[type], type);
 
       fb->multisample = (GPU_texture_samples(fb->attachments[type].tex) > 0);
@@ -554,7 +552,19 @@ void GPU_framebuffer_bind(GPUFrameBuffer *fb)
   }
 #endif
 
-  glViewport(0, 0, fb->width, fb->height);
+  GPU_viewport(0, 0, fb->width, fb->height);
+}
+
+/* Workaround for binding a srgb framebuffer without doing the srgb transform. */
+void GPU_framebuffer_bind_no_srgb(GPUFrameBuffer *fb)
+{
+  GPU_framebuffer_bind(fb);
+
+  glDisable(GL_FRAMEBUFFER_SRGB);
+
+  GPUTexture *first_target = fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex;
+  const bool is_srgb_target = (first_target && (GPU_texture_format(first_target) == GPU_SRGB8_A8));
+  GPU_shader_set_framebuffer_srgb_target(!is_srgb_target);
 }
 
 void GPU_framebuffer_restore(void)
@@ -601,7 +611,7 @@ void GPU_framebuffer_viewport_set(GPUFrameBuffer *fb, int x, int y, int w, int h
 {
   CHECK_FRAMEBUFFER_IS_BOUND(fb);
 
-  glViewport(x, y, w, h);
+  GPU_viewport(x, y, w, h);
 }
 
 void GPU_framebuffer_clear(GPUFrameBuffer *fb,
@@ -611,6 +621,8 @@ void GPU_framebuffer_clear(GPUFrameBuffer *fb,
                            uint clear_stencil)
 {
   CHECK_FRAMEBUFFER_IS_BOUND(fb);
+
+  GPU_context_active_get()->state_manager->apply_state();
 
   if (buffers & GPU_COLOR_BIT) {
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -776,6 +788,8 @@ void GPU_framebuffer_blit(GPUFrameBuffer *fb_read,
 
   GLbitfield mask = convert_buffer_bits_to_gl(blit_buffers);
 
+  GPU_context_active_get()->state_manager->apply_state();
+
   glBlitFramebuffer(0,
                     0,
                     fb_read->width,
@@ -852,7 +866,7 @@ void GPU_framebuffer_recursive_downsample(GPUFrameBuffer *fb,
 
     BLI_assert(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-    glViewport(0, 0, current_dim[0], current_dim[1]);
+    GPU_viewport(0, 0, current_dim[0], current_dim[1]);
     callback(userData, i);
 
     if (current_dim[0] == 1 && current_dim[1] == 1) {
@@ -891,6 +905,13 @@ struct GPUOffScreen {
 
   GPUTexture *color;
   GPUTexture *depth;
+
+  /** Saved state of the previously bound framebuffer. */
+  /* TODO(fclem) This is quite hacky and a proper fix would be to
+   * put these states directly inside the GPUFrambuffer.
+   * But we don't have a GPUFramebuffer for the default framebuffer yet. */
+  int saved_viewport[4];
+  int saved_scissor[4];
 };
 
 /* Returns the correct framebuffer for the current context. */
@@ -954,21 +975,19 @@ GPUOffScreen *GPU_offscreen_create(
     return NULL;
   }
 
-  gpuPushAttr(GPU_VIEWPORT_BIT);
+  int viewport[4];
+  GPU_viewport_size_get_i(viewport);
 
   GPUFrameBuffer *fb = gpu_offscreen_fb_get(ofs);
 
   /* check validity at the very end! */
   if (!GPU_framebuffer_check_valid(fb, err_out)) {
     GPU_offscreen_free(ofs);
-    gpuPopAttr();
+    GPU_viewport(UNPACK4(viewport));
     return NULL;
   }
-
   GPU_framebuffer_restore();
-
-  gpuPopAttr();
-
+  GPU_viewport(UNPACK4(viewport));
   return ofs;
 }
 
@@ -992,7 +1011,9 @@ void GPU_offscreen_free(GPUOffScreen *ofs)
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 {
   if (save) {
-    gpuPushAttr((eGPUAttrMask)(GPU_SCISSOR_BIT | GPU_VIEWPORT_BIT));
+    GPU_scissor_get(ofs->saved_scissor);
+    GPU_viewport_size_get_i(ofs->saved_viewport);
+
     GPUFrameBuffer *fb = GPU_framebuffer_active_get();
     gpuPushFrameBuffer(fb);
   }
@@ -1003,12 +1024,13 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
   GPU_shader_set_framebuffer_srgb_target(false);
 }
 
-void GPU_offscreen_unbind(GPUOffScreen *UNUSED(ofs), bool restore)
+void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore)
 {
   GPUFrameBuffer *fb = NULL;
 
   if (restore) {
-    gpuPopAttr();
+    GPU_scissor(UNPACK4(ofs->saved_scissor));
+    GPU_viewport(UNPACK4(ofs->saved_viewport));
     fb = gpuPopFrameBuffer();
   }
 
@@ -1024,6 +1046,8 @@ void GPU_offscreen_draw_to_screen(GPUOffScreen *ofs, int x, int y)
 {
   const int w = GPU_texture_width(ofs->color);
   const int h = GPU_texture_height(ofs->color);
+
+  GPU_context_active_get()->state_manager->apply_state();
 
   GPUFrameBuffer *ofs_fb = gpu_offscreen_fb_get(ofs);
 
@@ -1089,6 +1113,7 @@ void GPU_clear_depth(float depth)
 
 void GPU_clear(eGPUFrameBufferBits flags)
 {
+  GPU_context_active_get()->state_manager->apply_state();
   glClear(convert_buffer_bits_to_gl(flags));
 }
 

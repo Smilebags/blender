@@ -138,7 +138,7 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   const float *viewport_size = DRW_viewport_size_get();
-  int size_fs[2] = {(int)viewport_size[0], (int)viewport_size[1]};
+  const int size_fs[2] = {(int)viewport_size[0], (int)viewport_size[1]};
 
   /* Shaders */
   if (!e_data.downsample_sh) {
@@ -147,6 +147,7 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
 
   if (!stl->effects) {
     stl->effects = MEM_callocN(sizeof(EEVEE_EffectsInfo), "EEVEE_EffectsInfo");
+    stl->effects->taa_render_sample = 1;
   }
 
   effects = stl->effects;

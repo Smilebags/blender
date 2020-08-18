@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BLO_READFILE_H__
-#define __BLO_READFILE_H__
+#pragma once
 
 #include "BLI_sys_types.h"
 
@@ -187,6 +186,9 @@ void BLO_update_defaults_workspace(struct WorkSpace *workspace, const char *app_
 /* Version patch user preferences. */
 void BLO_version_defaults_userpref_blend(struct Main *mainvar, struct UserDef *userdef);
 
+/* Disable unwanted experimental feature settings on startup. */
+void BLO_sanitize_experimental_features_userpref_blend(struct UserDef *userdef);
+
 struct BlendThumbnail *BLO_thumbnail_from_file(const char *filepath);
 
 /* datafiles (generated theme) */
@@ -196,5 +198,3 @@ extern const struct UserDef U_default;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLO_READFILE_H__ */

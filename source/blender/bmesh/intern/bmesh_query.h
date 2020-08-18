@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BMESH_QUERY_H__
-#define __BMESH_QUERY_H__
+#pragma once
 
 /** \file
  * \ingroup bmesh
@@ -244,6 +243,9 @@ bool BM_face_is_any_vert_flag_test(const BMFace *f, const char hflag) ATTR_WARN_
 bool BM_face_is_any_edge_flag_test(const BMFace *f, const char hflag) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
 
+bool BM_edge_is_any_face_len_test(const BMEdge *e, const int len) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL();
+
 bool BM_face_is_normal_valid(const BMFace *f) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 double BM_mesh_calc_volume(BMesh *bm, bool is_signed) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -273,5 +275,3 @@ int BM_mesh_calc_edge_groups_as_arrays(BMesh *bm,
 float bmesh_subd_falloff_calc(const int falloff, float val) ATTR_WARN_UNUSED_RESULT;
 
 #include "bmesh_query_inline.h"
-
-#endif /* __BMESH_QUERY_H__ */

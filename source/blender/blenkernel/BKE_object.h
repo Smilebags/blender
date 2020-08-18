@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BKE_OBJECT_H__
-#define __BKE_OBJECT_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -410,8 +409,8 @@ struct Mesh *BKE_object_to_mesh(struct Depsgraph *depsgraph,
 
 void BKE_object_to_mesh_clear(struct Object *object);
 
+void BKE_object_check_uuids_unique_and_report(const struct Object *object);
+
 #ifdef __cplusplus
 }
-#endif
-
 #endif

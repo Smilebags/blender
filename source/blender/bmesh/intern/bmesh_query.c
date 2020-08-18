@@ -179,13 +179,12 @@ BMLoop *BM_loop_other_vert_loop_by_edge(BMLoop *l, BMEdge *e)
   if (l->e == e) {
     return l->next;
   }
-  else if (l->prev->e == e) {
+  if (l->prev->e == e) {
     return l->prev;
   }
-  else {
-    BLI_assert(0);
-    return NULL;
-  }
+
+  BLI_assert(0);
+  return NULL;
 }
 
 /**
@@ -2509,6 +2508,22 @@ bool BM_face_is_any_edge_flag_test(const BMFace *f, const char hflag)
       return true;
     }
   } while ((l_iter = l_iter->next) != l_first);
+  return false;
+}
+
+bool BM_edge_is_any_face_len_test(const BMEdge *e, const int len)
+{
+  if (e->l) {
+    BMLoop *l_iter, *l_first;
+
+    l_iter = l_first = e->l;
+    do {
+      if (l_iter->f->len == len) {
+        return true;
+      }
+    } while ((l_iter = l_iter->radial_next) != l_first);
+  }
+
   return false;
 }
 

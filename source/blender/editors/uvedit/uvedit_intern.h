@@ -21,8 +21,7 @@
  * \ingroup eduv
  */
 
-#ifndef __UVEDIT_INTERN_H__
-#define __UVEDIT_INTERN_H__
+#pragma once
 
 struct BMFace;
 struct BMLoop;
@@ -34,7 +33,6 @@ struct wmOperatorType;
 
 /* geometric utilities */
 void uv_poly_copy_aspect(float uv_orig[][2], float uv[][2], float aspx, float aspy, int len);
-void uv_poly_center(struct BMFace *f, float r_cent[2], const int cd_loop_uv_offset);
 
 /* find nearest */
 
@@ -147,5 +145,3 @@ void UV_OT_select_circle(struct wmOperatorType *ot);
 void UV_OT_select_more(struct wmOperatorType *ot);
 void UV_OT_select_less(struct wmOperatorType *ot);
 void UV_OT_select_overlap(struct wmOperatorType *ot);
-
-#endif /* __UVEDIT_INTERN_H__ */

@@ -21,8 +21,7 @@
  * \ingroup editors
  */
 
-#ifndef __ED_SCREEN_H__
-#define __ED_SCREEN_H__
+#pragma once
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -188,11 +187,7 @@ void ED_area_newspace(struct bContext *C, ScrArea *area, int type, const bool sk
 void ED_area_prevspace(struct bContext *C, ScrArea *area);
 void ED_area_swapspace(struct bContext *C, ScrArea *sa1, ScrArea *sa2);
 int ED_area_headersize(void);
-int ED_area_header_alignment_or_fallback(const ScrArea *area, int fallback);
-int ED_area_header_alignment(const ScrArea *area);
 int ED_area_footersize(void);
-int ED_area_footer_alignment_or_fallback(const ScrArea *area, int fallback);
-int ED_area_footer_alignment(const ScrArea *area);
 int ED_area_global_size_y(const ScrArea *area);
 int ED_area_global_min_size_y(const ScrArea *area);
 int ED_area_global_max_size_y(const ScrArea *area);
@@ -287,6 +282,12 @@ bool ED_workspace_delete(struct WorkSpace *workspace,
                          struct bContext *C,
                          struct wmWindowManager *wm) ATTR_NONNULL();
 void ED_workspace_scene_data_sync(struct WorkSpaceInstanceHook *hook, Scene *scene) ATTR_NONNULL();
+struct WorkSpaceLayout *ED_workspace_screen_change_ensure_unused_layout(
+    struct Main *bmain,
+    struct WorkSpace *workspace,
+    struct WorkSpaceLayout *layout_new,
+    const struct WorkSpaceLayout *layout_fallback_base,
+    struct wmWindow *win) ATTR_NONNULL();
 struct WorkSpaceLayout *ED_workspace_layout_add(struct Main *bmain,
                                                 struct WorkSpace *workspace,
                                                 struct wmWindow *win,
@@ -477,5 +478,3 @@ enum {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __ED_SCREEN_H__ */

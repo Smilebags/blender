@@ -20,8 +20,7 @@
  * \ingroup draw
  */
 
-#ifndef __DRAW_COMMON_H__
-#define __DRAW_COMMON_H__
+#pragma once
 
 struct DRWPass;
 struct DRWShadingGroup;
@@ -151,8 +150,7 @@ typedef struct GlobalsUboStorage {
   float sizeObjectCenter, sizeLightCenter, sizeLightCircle, sizeLightCircleShadow;
   float sizeVertex, sizeEdge, sizeEdgeFix, sizeFaceDot;
   float sizeChecker;
-
-  float pad_globalsBlock;
+  float sizeVertexGpencil;
 } GlobalsUboStorage;
 /* Keep in sync with globalsBlock in shaders */
 BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
@@ -215,5 +213,3 @@ struct DRW_Global {
   struct GPUUniformBuffer *view_ubo;
 };
 extern struct DRW_Global G_draw;
-
-#endif /* __DRAW_COMMON_H__ */

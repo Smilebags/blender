@@ -385,19 +385,7 @@ class _draw_tool_settings_context_mode:
         if tool is None:
             return False
 
-        # is_paint = True
-        # FIXME: tools must use their own UI drawing!
-        if tool.idname in {
-                "builtin.line",
-                "builtin.box",
-                "builtin.circle",
-                "builtin.arc",
-                "builtin.curve",
-                "builtin.polyline",
-        }:
-            # is_paint = False
-            pass
-        elif tool.idname == "builtin.cutter":
+        if tool.idname == "builtin.cutter":
             row = layout.row(align=True)
             row.prop(context.tool_settings.gpencil_sculpt, "intersection_threshold")
             return False
@@ -411,47 +399,16 @@ class _draw_tool_settings_context_mode:
 
         gp_settings = brush.gpencil_settings
 
-        def draw_color_selector():
-            ma = gp_settings.material
-            row = layout.row(align=True)
-            if not gp_settings.use_material_pin:
-                ma = context.object.active_material
-            icon_id = 0
-            if ma:
-                icon_id = ma.id_data.preview.icon_id
-                txt_ma = ma.name
-                maxw = 25
-                if len(txt_ma) > maxw:
-                    txt_ma = txt_ma[:maxw - 5] + '..' + txt_ma[-3:]
-            else:
-                txt_ma = ""
-
-            sub = row.row()
-            sub.ui_units_x = 8
-            sub.popover(
-                panel="TOPBAR_PT_gpencil_materials",
-                text=txt_ma,
-                icon_value=icon_id,
-            )
-
-            row.prop(gp_settings, "use_material_pin", text="")
-
-            if brush.gpencil_tool in {'DRAW', 'FILL'}:
-                row.separator(factor=1.0)
-                subrow = row.row(align=True)
-                row.prop_enum(settings, "color_mode", 'MATERIAL', text="", icon='MATERIAL')
-                row.prop_enum(settings, "color_mode", 'VERTEXCOLOR', text="", icon='VPAINT_HLT')
-                sub_row = row.row(align=True)
-                sub_row.enabled = settings.color_mode == 'VERTEXCOLOR'
-                sub_row.prop_with_popover(brush, "color", text="", panel="TOPBAR_PT_gpencil_vertexcolor")
-
         row = layout.row(align=True)
         tool_settings = context.scene.tool_settings
         settings = tool_settings.gpencil_paint
         row.template_ID_preview(settings, "brush", rows=3, cols=8, hide_buttons=True)
 
         if context.object and brush.gpencil_tool in {'FILL', 'DRAW'}:
-            draw_color_selector()
+            from bl_ui.properties_paint_common import (
+                brush_basic__draw_color_selector,
+            )
+            brush_basic__draw_color_selector(context, layout, brush, gp_settings, None)
 
         if context.object and brush.gpencil_tool == 'TINT':
             row.separator(factor=0.4)
@@ -1551,7 +1508,7 @@ class VIEW3D_MT_edit_mesh_select_by_trait(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
+        layout.operator("mesh.select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_edit_mesh_select_more_less(Menu):
@@ -1813,7 +1770,7 @@ class VIEW3D_MT_select_edit_lattice(Menu):
 
         layout.separator()
 
-        layout.operator("lattice.select_ungrouped", text="Ungrouped Verts")
+        layout.operator("lattice.select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_select_edit_armature(Menu):
@@ -1940,7 +1897,7 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
 
         layout.separator()
 
-        layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
+        layout.operator("paint.vert_select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_angle_control(Menu):
@@ -3688,7 +3645,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
         row = layout.row()
 
         if is_vert_mode:
-            col = row.column()
+            col = row.column(align=True)
 
             col.label(text="Vertex Context Menu", icon='VERTEXSEL')
             col.separator()
@@ -3738,7 +3695,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
         if is_edge_mode:
             render = context.scene.render
 
-            col = row.column()
+            col = row.column(align=True)
             col.label(text="Edge Context Menu", icon='EDGESEL')
             col.separator()
 
@@ -3806,7 +3763,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.operator("mesh.delete", text="Delete Edges").type = 'EDGE'
 
         if is_face_mode:
-            col = row.column()
+            col = row.column(align=True)
 
             col.label(text="Face Context Menu", icon='FACESEL')
             col.separator()
@@ -4149,7 +4106,7 @@ class VIEW3D_MT_edit_mesh_normals_select_strength(Menu):
 
 
 class VIEW3D_MT_edit_mesh_normals_set_strength(Menu):
-    bl_label = "Select by Face Strength"
+    bl_label = "Set Face Strength"
 
     def draw(self, _context):
         layout = self.layout
@@ -4211,8 +4168,8 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_mesh_normals_select_strength", text="Select by Face Strength")
-        layout.menu("VIEW3D_MT_edit_mesh_normals_set_strength", text="Set Face Strength")
+        layout.menu("VIEW3D_MT_edit_mesh_normals_select_strength")
+        layout.menu("VIEW3D_MT_edit_mesh_normals_set_strength")
 
 
 class VIEW3D_MT_edit_mesh_shading(Menu):

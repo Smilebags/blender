@@ -438,7 +438,7 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 
   if (pop) {
     GPU_line_smooth(true);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
@@ -467,7 +467,7 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 
     immUnbindProgram();
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
   }
 }
@@ -1333,7 +1333,7 @@ void ED_imapaint_bucket_fill(struct bContext *C,
 
     ED_image_undo_push_begin(op->type->name, PAINT_MODE_TEXTURE_2D);
 
-    float mouse_init[2] = {mouse[0], mouse[1]};
+    const float mouse_init[2] = {mouse[0], mouse[1]};
     paint_2d_bucket_fill(C, color, NULL, mouse_init, NULL, NULL);
 
     ED_image_undo_push_end();

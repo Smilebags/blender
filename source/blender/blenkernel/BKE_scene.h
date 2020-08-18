@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_SCENE_H__
-#define __BKE_SCENE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -146,7 +145,7 @@ void BKE_scene_update_tag_audio_volume(struct Depsgraph *, struct Scene *scene);
 void BKE_scene_graph_update_tagged(struct Depsgraph *depsgraph, struct Main *bmain);
 void BKE_scene_graph_evaluated_ensure(struct Depsgraph *depsgraph, struct Main *bmain);
 
-void BKE_scene_graph_update_for_newframe(struct Depsgraph *depsgraph, struct Main *bmain);
+void BKE_scene_graph_update_for_newframe(struct Depsgraph *depsgraph);
 
 void BKE_scene_view_layer_graph_evaluated_ensure(struct Main *bmain,
                                                  struct Scene *scene,
@@ -259,6 +258,4 @@ void BKE_scene_eval_sequencer_sequences(struct Depsgraph *depsgraph, struct Scen
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

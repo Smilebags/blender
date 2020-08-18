@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_SCREEN_TYPES_H__
-#define __DNA_SCREEN_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -636,12 +635,20 @@ typedef enum eRegionType {
   RGN_TYPE_EXECUTE = 10,
   RGN_TYPE_FOOTER = 11,
   RGN_TYPE_TOOL_HEADER = 12,
+
+#define RGN_TYPE_LEN (RGN_TYPE_TOOL_HEADER + 1)
 } eRegionType;
+
 /* use for function args */
 #define RGN_TYPE_ANY -1
 
 /* Region supports panel tabs (categories). */
 #define RGN_TYPE_HAS_CATEGORY_MASK (1 << RGN_TYPE_UI)
+
+/* Check for any kind of header region. */
+#define RGN_TYPE_IS_HEADER_ANY(regiontype) \
+  (((1 << (regiontype)) & \
+    ((1 << RGN_TYPE_HEADER) | 1 << (RGN_TYPE_TOOL_HEADER) | (1 << RGN_TYPE_FOOTER))) != 0)
 
 /** #ARegion.alignment */
 enum {
@@ -662,6 +669,7 @@ enum {
 
 /** Mask out flags so we can check the alignment. */
 #define RGN_ALIGN_ENUM_FROM_MASK(align) ((align) & ((1 << 4) - 1))
+#define RGN_ALIGN_FLAG_FROM_MASK(align) ((align) & ~((1 << 4) - 1))
 
 /** #ARegion.flag */
 enum {
@@ -705,5 +713,3 @@ enum {
   /* Only editor overlays (currently gizmos only!) should be redrawn. */
   RGN_DRAW_EDITOR_OVERLAYS = 32,
 };
-
-#endif /* __DNA_SCREEN_TYPES_H__ */

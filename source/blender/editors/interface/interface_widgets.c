@@ -520,14 +520,14 @@ GPUBatch *ui_batch_roundbox_shadow_get(void)
 void UI_draw_anti_tria(
     float x1, float y1, float x2, float y2, float x3, float y3, const float color[4])
 {
-  float tri_arr[3][2] = {{x1, y1}, {x2, y2}, {x3, y3}};
+  const float tri_arr[3][2] = {{x1, y1}, {x2, y2}, {x3, y3}};
   float draw_color[4];
 
   copy_v4_v4(draw_color, color);
   /* Note: This won't give back the original color. */
   draw_color[3] *= 1.0f / WIDGET_AA_JITTER;
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -546,7 +546,7 @@ void UI_draw_anti_tria(
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* triangle 'icon' inside rect */
@@ -571,7 +571,7 @@ void UI_draw_anti_fan(float tri_array[][2], uint length, const float color[4])
   copy_v4_v4(draw_color, color);
   draw_color[3] *= 2.0f / WIDGET_AA_JITTER;
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -595,7 +595,7 @@ void UI_draw_anti_fan(float tri_array[][2], uint length, const float color[4])
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void widget_init(uiWidgetBase *wtb)
@@ -1172,7 +1172,7 @@ void UI_widgetbase_draw_cache_flush(void)
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float *)g_widget_base_batch.params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1181,14 +1181,9 @@ void UI_widgetbase_draw_cache_flush(void)
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float *)g_widget_base_batch.params);
+                                (float(*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
-    GPU_matrix_bind(batch->interface);
-    GPU_shader_set_srgb_uniform(batch->interface);
-    GPU_batch_bind(batch);
-    GPU_batch_draw_advanced(batch, 0, 0, 0, g_widget_base_batch.count);
-
-    GPU_batch_program_use_end(batch);
+    GPU_batch_draw_instanced(batch, g_widget_base_batch.count);
   }
   g_widget_base_batch.count = 0;
 }
@@ -1204,11 +1199,11 @@ void UI_widgetbase_draw_cache_end(void)
   BLI_assert(g_widget_base_batch.enabled == true);
   g_widget_base_batch.enabled = false;
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   UI_widgetbase_draw_cache_flush();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* Disable cached/instanced drawing and enforce single widget drawing pipeline.
@@ -1254,7 +1249,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     GPUBatch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float *)&wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1314,9 +1309,9 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     widgetbase_set_uniform_colors_ubv(
         wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, show_alpha_checkers);
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     draw_widgetbase_batch(wtb);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -1370,9 +1365,9 @@ static void widget_draw_icon(
   float aspect, height;
 
   if (but->flag & UI_BUT_ICON_PREVIEW) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     widget_draw_preview(icon, alpha, rect);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     return;
   }
 
@@ -1402,13 +1397,13 @@ static void widget_draw_icon(
       alpha *= but->a2;
     }
   }
-  else if (ELEM(but->type, UI_BTYPE_BUT)) {
-    if (but->flag & UI_BUT_DISABLED) {
+  else if (ELEM(but->type, UI_BTYPE_BUT, UI_BTYPE_DECORATOR)) {
+    if (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
       alpha *= 0.5f;
     }
   }
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   if (icon && icon != ICON_BLANK1) {
     float ofs = 1.0f / aspect;
@@ -1461,7 +1456,7 @@ static void widget_draw_icon(
     }
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void widget_draw_submenu_tria(const uiBut *but,
@@ -1482,9 +1477,9 @@ static void widget_draw_submenu_tria(const uiBut *but,
   BLI_rctf_init(&tria_rect, xs, xs + tria_width, ys, ys + tria_height);
   BLI_rctf_scale(&tria_rect, 0.4f);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   UI_widgetbase_draw_cache_flush();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   ui_draw_anti_tria_rect(&tria_rect, 'h', col);
 }
 
@@ -2029,9 +2024,9 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
       if (drawstr[0] != 0) {
         /* We are drawing on top of widget bases. Flush cache. */
-        GPU_blend(true);
+        GPU_blend(GPU_BLEND_ALPHA);
         UI_widgetbase_draw_cache_flush();
-        GPU_blend(false);
+        GPU_blend(GPU_BLEND_NONE);
 
         if (but->selsta >= but->ofs) {
           selsta_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->selsta - but->ofs);
@@ -2076,9 +2071,9 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         t = 0;
       }
       /* We are drawing on top of widget bases. Flush cache. */
-      GPU_blend(true);
+      GPU_blend(GPU_BLEND_ALPHA);
       UI_widgetbase_draw_cache_flush();
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
 
       uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
@@ -2273,9 +2268,9 @@ static void widget_draw_node_link_socket(const uiWidgetColors *wcol,
     rgba_uchar_to_float(col, but->col);
     col[3] *= alpha;
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     UI_widgetbase_draw_cache_flush();
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
 
     ED_node_socket_draw(but->custom_data, rect, col, scale);
   }
@@ -2334,9 +2329,9 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 
     /* draw icon in rect above the space reserved for the label */
     rect->ymin += text_size;
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     widget_draw_preview(icon, alpha, rect);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
 
     /* offset rect to draw label in */
     rect->ymin -= text_size;
@@ -2405,7 +2400,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     }
     else if (but->flag & UI_BUT_DRAG_MULTI) {
       bool text_is_edited = ui_but_drag_multi_edit_get(but) != NULL;
-      if (text_is_edited) {
+      if (text_is_edited || (but->drawflag & UI_BUT_TEXT_LEFT)) {
         rect->xmin += text_padding;
       }
     }
@@ -2570,7 +2565,7 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag)
   }
 
   if (state & UI_BUT_REDALERT) {
-    uchar red[4] = {255, 0, 0};
+    const uchar red[4] = {255, 0, 0};
     if (wt->draw) {
       color_blend_v3_v3(wt->wcol.inner, red, 0.4f);
     }
@@ -2587,7 +2582,7 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag)
   }
 
   if (state & UI_BUT_NODE_ACTIVE) {
-    uchar blue[4] = {86, 128, 194};
+    const uchar blue[4] = {86, 128, 194};
     color_blend_v3_v3(wt->wcol.inner, blue, 0.3f);
   }
 }
@@ -2791,16 +2786,14 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
     rect->ymax += 0.1f * U.widget_unit;
   }
 
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit);
 
   round_box_edges(&wtb, roundboxalign, rect, wcol->roundness * U.widget_unit);
   wtb.draw_emboss = false;
   widgetbase_draw(&wtb, wcol);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void ui_hsv_cursor(float x, float y)
@@ -2812,11 +2805,11 @@ static void ui_hsv_cursor(float x, float y)
   immUniformColor3f(1.0f, 1.0f, 1.0f);
   imm_draw_circle_fill_2d(pos, x, y, 3.0f * U.pixelsize, 8);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
   immUniformColor3f(0.0f, 0.0f, 0.0f);
   imm_draw_circle_wire_2d(pos, x, y, 3.0f * U.pixelsize, 12);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 
   immUnbindProgram();
@@ -2944,7 +2937,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
 
   immUniformColor3ubv(wcol->outline);
@@ -2952,7 +2945,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 
   /* cursor */
@@ -2973,7 +2966,10 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
  * \{ */
 
 /* draws in resolution of 48x4 colors */
-void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha)
+void ui_draw_gradient(const rcti *rect,
+                      const float hsv[3],
+                      const eButGradientType type,
+                      const float alpha)
 {
   /* allows for 4 steps (red->yellow) */
   const int steps = 48;
@@ -3090,6 +3086,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
         copy_v3_v3(col1[1], col1[2]);
         copy_v3_v3(col1[3], col1[2]);
         break;
+      default:
+        break;
     }
 
     /* rect */
@@ -3182,11 +3180,11 @@ void ui_draw_gradient_spectrum(const bContext *C, const rcti *rect, const float 
 }
 
 void ui_hsvcube_pos_from_vals(
-    const uiBut *but, const rcti *rect, const float *hsv, float *r_xp, float *r_yp)
+    const uiButHSVCube *hsv_but, const rcti *rect, const float *hsv, float *r_xp, float *r_yp)
 {
   float x = 0.0f, y = 0.0f;
 
-  switch ((int)but->a1) {
+  switch (hsv_but->gradient_type) {
     case UI_GRAD_SV:
       x = hsv[1];
       y = hsv[2];
@@ -3219,7 +3217,7 @@ void ui_hsvcube_pos_from_vals(
     case UI_GRAD_V_ALT:
       x = 0.5f;
       /* exception only for value strip - use the range set in but->min/max */
-      y = (hsv[2] - but->softmin) / (but->softmax - but->softmin);
+      y = (hsv[2] - hsv_but->but.softmin) / (hsv_but->but.softmax - hsv_but->but.softmin);
       break;
   }
 
@@ -3230,6 +3228,7 @@ void ui_hsvcube_pos_from_vals(
 
 static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 {
+  const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
   float rgb[3];
   float x = 0.0f, y = 0.0f;
   ColorPicker *cpicker = but->custom_data;
@@ -3243,9 +3242,9 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
   ui_scene_linear_to_color_picker_space(but, rgb);
   rgb_to_hsv_compat_v(rgb, hsv_n);
 
-  ui_draw_gradient(rect, hsv_n, but->a1, 1.0f);
+  ui_draw_gradient(rect, hsv_n, hsv_but->gradient_type, 1.0f);
 
-  ui_hsvcube_pos_from_vals(but, rect, hsv_n, &x, &y);
+  ui_hsvcube_pos_from_vals(hsv_but, rect, hsv_n, &x, &y);
   CLAMP(x, rect->xmin + 3.0f, rect->xmax - 3.0f);
   CLAMP(y, rect->ymin + 3.0f, rect->ymax - 3.0f);
 
@@ -3262,6 +3261,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 /* vertical 'value' slider, using new widget code */
 static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 {
+  const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
   bTheme *btheme = UI_GetTheme();
   uiWidgetColors *wcol = &btheme->tui.wcol_numslider;
   uiWidgetBase wtb;
@@ -3272,7 +3272,7 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
   ui_but_v3_get(but, rgb);
   ui_scene_linear_to_color_picker_space(but, rgb);
 
-  if (but->a1 == UI_GRAD_L_ALT) {
+  if (hsv_but->gradient_type == UI_GRAD_L_ALT) {
     rgb_to_hsl_v(rgb, hsv);
   }
   else {
@@ -3281,7 +3281,7 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
   v = hsv[2];
 
   /* map v from property range to [0,1] */
-  if (but->a1 == UI_GRAD_V_ALT) {
+  if (hsv_but->gradient_type == UI_GRAD_V_ALT) {
     float min = but->softmin, max = but->softmax;
     v = (v - min) / (max - min);
   }
@@ -3302,9 +3302,9 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
                   }));
 
   /* We are drawing on top of widget bases. Flush cache. */
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   UI_widgetbase_draw_cache_flush();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* cursor */
   x = rect->xmin + 0.5f * BLI_rcti_size_x(rect);
@@ -3328,7 +3328,7 @@ static void ui_draw_separator(const rcti *rect, const uiWidgetColors *wcol)
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   immUniformColor4ubv(col);
   GPU_line_width(1.0f);
 
@@ -3337,7 +3337,7 @@ static void ui_draw_separator(const rcti *rect, const uiWidgetColors *wcol)
   immVertex2f(pos, rect->xmax, y);
   immEnd();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   immUnbindProgram();
 }
@@ -3669,6 +3669,7 @@ static void widget_scroll(
 static void widget_progressbar(
     uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
+  uiButProgressbar *but_progressbar = (uiButProgressbar *)but;
   uiWidgetBase wtb, wtb_bar;
   rcti rect_prog = *rect, rect_bar = *rect;
 
@@ -3676,7 +3677,7 @@ static void widget_progressbar(
   widget_init(&wtb_bar);
 
   /* round corners */
-  float value = but->a1;
+  float value = but_progressbar->progress;
   float offs = wcol->roundness * BLI_rcti_size_y(&rect_prog);
   float w = value * BLI_rcti_size_x(&rect_prog);
 
@@ -3828,6 +3829,8 @@ static void widget_numslider(
 static void widget_swatch(
     uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
+  BLI_assert(but->type == UI_BTYPE_COLOR);
+  uiButColor *color_but = (uiButColor *)but;
   uiWidgetBase wtb;
   float rad, col[4];
 
@@ -3882,8 +3885,8 @@ static void widget_swatch(
   }
 
   widgetbase_draw_ex(&wtb, wcol, show_alpha_checkers);
-  if (but->a1 == UI_PALETTE_COLOR &&
-      ((Palette *)but->rnapoin.owner_id)->active_color == (int)but->a2) {
+  if (color_but->is_pallete_color &&
+      ((Palette *)but->rnapoin.owner_id)->active_color == color_but->palette_color_index) {
     float width = rect->xmax - rect->xmin;
     float height = rect->ymax - rect->ymin;
     /* find color luminance and change it slightly */
@@ -3892,9 +3895,9 @@ static void widget_swatch(
     bw += (bw < 0.5f) ? 0.5f : -0.5f;
 
     /* We are drawing on top of widget bases. Flush cache. */
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     UI_widgetbase_draw_cache_flush();
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -4131,7 +4134,7 @@ static void widget_state_label(uiWidgetType *wt, int state, int drawflag)
   }
 
   if (state & UI_BUT_REDALERT) {
-    uchar red[4] = {255, 0, 0};
+    const uchar red[4] = {255, 0, 0};
     color_blend_v3_v3(wt->wcol.text, red, 0.4f);
   }
 }
@@ -4256,9 +4259,9 @@ static void widget_tab(uiWidgetColors *wcol, rcti *rect, int state, int roundbox
   widgetbase_draw(&wtb, wcol);
 
   /* We are drawing on top of widget bases. Flush cache. */
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   UI_widgetbase_draw_cache_flush();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
 #ifdef USE_TAB_SHADED_HIGHLIGHT
   /* draw outline (3d look) */
@@ -4612,6 +4615,7 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
         break;
 
       case UI_BTYPE_BUT:
+      case UI_BTYPE_DECORATOR:
 #ifdef USE_UI_TOOLBAR_HACK
         if ((but->icon != ICON_NONE) && UI_but_is_tool(but)) {
           wt = widget_type(UI_WTYPE_TOOLBAR_ITEM);
@@ -4726,8 +4730,10 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
         widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
         break;
 
-      case UI_BTYPE_HSVCUBE:
-        if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
+      case UI_BTYPE_HSVCUBE: {
+        const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
+
+        if (ELEM(hsv_but->gradient_type, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
           /* vertical V slider, uses new widget draw now */
           ui_draw_but_HSV_v(but, rect);
         }
@@ -4735,6 +4741,7 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
           ui_draw_but_HSVCUBE(but, rect);
         }
         break;
+      }
 
       case UI_BTYPE_HSVCIRCLE:
         ui_draw_but_HSVCIRCLE(but, &tui->wcol_regular, rect);
@@ -4869,12 +4876,12 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
     }
 
     if (disabled) {
-      GPU_blend(true);
+      GPU_blend(GPU_BLEND_ALPHA);
     }
 
     wt->text(fstyle, &wt->wcol, but, rect);
     if (disabled) {
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
     }
   }
 }
@@ -4957,7 +4964,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
                                              rect->xmax - unit_size) :
                                      BLI_rcti_cent_x(rect);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* Extracted from 'widget_menu_back', keep separate to avoid menu changes breaking popovers */
   {
@@ -4981,7 +4988,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
     const int sign = is_down ? 1 : -1;
     float y = is_down ? rect->ymax : rect->ymin;
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     immBegin(GPU_PRIM_TRIS, 3);
     immUniformColor4ub(UNPACK3(wcol->outline), 166);
     immVertex2f(pos, cent_x - unit_half, y);
@@ -4991,7 +4998,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
 
     y = y - sign * round(U.pixelsize * 1.41);
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     immBegin(GPU_PRIM_TRIS, 3);
     immUniformColor4ub(0, 0, 0, 0);
     immVertex2f(pos, cent_x - unit_half, y);
@@ -4999,7 +5006,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
     immVertex2f(pos, cent_x, y + sign * unit_half);
     immEnd();
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     immBegin(GPU_PRIM_TRIS, 3);
     immUniformColor4ubv(wcol->inner);
     immVertex2f(pos, cent_x - unit_half, y);
@@ -5010,7 +5017,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
     immUnbindProgram();
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void ui_draw_popover_back(struct ARegion *region,
@@ -5111,7 +5118,7 @@ void ui_draw_pie_center(uiBlock *block)
   GPU_matrix_push();
   GPU_matrix_translate_2f(cx, cy);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   if (btheme->tui.wcol_pie_menu.shaded) {
     uchar col1[4], col2[4];
     shadecolors4(col1,
@@ -5194,7 +5201,7 @@ void ui_draw_pie_center(uiBlock *block)
                      false);
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_matrix_pop();
 }
 
@@ -5215,11 +5222,9 @@ static void ui_draw_widget_back_color(uiWidgetTypeEnum type,
   uiWidgetType *wt = widget_type(type);
 
   if (use_shadow) {
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
     widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   rcti rect_copy = *rect;
@@ -5342,10 +5347,10 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     height = ICON_SIZE_FROM_BUTRECT(rect);
     aspect = ICON_DEFAULT_HEIGHT / height;
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     /* XXX scale weak get from fstyle? */
     UI_icon_draw_ex(xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* part text right aligned */
@@ -5381,9 +5386,9 @@ void ui_draw_preview_item(
 
   /* draw icon in rect above the space reserved for the label */
   rect->ymin += text_size;
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   widget_draw_preview(iconid, 1.0f, rect);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   BLF_width_and_height(
       fstyle->uifont_id, name, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);

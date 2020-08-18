@@ -1128,9 +1128,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(region), v
     int i, snapped_verts_count, other_verts_count;
     float fcol[4];
 
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertBuf *vert = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(vert, kcd->totlinehit);
@@ -1147,16 +1145,13 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(region), v
 
     GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_POINTS, vert, NULL, GPU_BATCH_OWNS_VBO);
     GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
-    GPU_batch_bind(batch);
 
     /* draw any snapped verts first */
     rgba_uchar_to_float(fcol, kcd->colors.point_a);
     GPU_batch_uniform_4fv(batch, "color", fcol);
-    GPU_matrix_bind(batch->interface);
-    GPU_shader_set_srgb_uniform(batch->interface);
     GPU_point_size(11);
     if (snapped_verts_count > 0) {
-      GPU_batch_draw_advanced(batch, 0, snapped_verts_count, 0, 0);
+      GPU_batch_draw_range(batch, 0, snapped_verts_count);
     }
 
     /* now draw the rest */
@@ -1164,13 +1159,12 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(region), v
     GPU_batch_uniform_4fv(batch, "color", fcol);
     GPU_point_size(7);
     if (other_verts_count > 0) {
-      GPU_batch_draw_advanced(batch, snapped_verts_count, other_verts_count, 0, 0);
+      GPU_batch_draw_range(batch, snapped_verts_count, other_verts_count);
     }
 
-    GPU_batch_program_use_end(batch);
     GPU_batch_discard(batch);
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   if (kcd->totkedge > 0) {
@@ -2632,7 +2626,7 @@ static void knifetool_update_mval(KnifeTool_OpData *kcd, const float mval[2])
 
 static void knifetool_update_mval_i(KnifeTool_OpData *kcd, const int mval_i[2])
 {
-  float mval[2] = {UNPACK2(mval_i)};
+  const float mval[2] = {UNPACK2(mval_i)};
   knifetool_update_mval(kcd, mval);
 }
 

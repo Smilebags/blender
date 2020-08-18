@@ -117,9 +117,8 @@ void BKE_lib_override_library_copy(ID *dst_id, const ID *src_id, const bool do_f
       BKE_lib_override_library_free(&dst_id->override_library, true);
       return;
     }
-    else {
-      BKE_lib_override_library_clear(dst_id->override_library, true);
-    }
+
+    BKE_lib_override_library_clear(dst_id->override_library, true);
   }
   else if (src_id->override_library == NULL) {
     /* Virtual overrides of embedded data does not require any extra work. */
@@ -1147,7 +1146,15 @@ void BKE_lib_override_library_main_operations_create(Main *bmain, const bool for
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (ID_IS_OVERRIDE_LIBRARY_REAL(id) &&
         (force_auto || (id->tag & LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH))) {
-      BLI_task_pool_push(task_pool, lib_override_library_operations_create_cb, id, false, NULL);
+      /* Only check overrides if we do have the real reference data available, and not some empty
+       * 'placeholder' for missing data (broken links). */
+      if ((id->override_library->reference->tag & LIB_TAG_MISSING) == 0) {
+        BLI_task_pool_push(task_pool, lib_override_library_operations_create_cb, id, false, NULL);
+      }
+      else {
+        BKE_lib_override_library_properties_tag(
+            id->override_library, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
+      }
     }
     id->tag &= ~LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH;
   }
@@ -1515,7 +1522,7 @@ void BKE_lib_override_library_main_update(Main *bmain)
  */
 
 /** Initialize an override storage. */
-OverrideLibraryStorage *BKE_lib_override_library_operations_store_initialize(void)
+OverrideLibraryStorage *BKE_lib_override_library_operations_store_init(void)
 {
   return BKE_main_new();
 }

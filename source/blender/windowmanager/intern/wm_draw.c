@@ -51,6 +51,7 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
+#include "GPU_context.h"
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_state.h"
@@ -206,7 +207,7 @@ static bool wm_draw_region_stereo_set(Main *bmain,
       if (region->regiontype == RGN_TYPE_PREVIEW) {
         return true;
       }
-      else if (region->regiontype == RGN_TYPE_WINDOW) {
+      if (region->regiontype == RGN_TYPE_WINDOW) {
         return (sseq->draw_flag & SEQ_DRAW_BACKDROP) != 0;
       }
     }
@@ -306,7 +307,9 @@ static void wm_region_test_xr_do_draw(const wmWindowManager *wm,
 
 static bool wm_region_use_viewport_by_type(short space_type, short region_type)
 {
-  return (ELEM(space_type, SPACE_VIEW3D, SPACE_IMAGE) && region_type == RGN_TYPE_WINDOW);
+  return (ELEM(space_type, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE) &&
+          region_type == RGN_TYPE_WINDOW) ||
+         ((space_type == SPACE_SEQ) && region_type == RGN_TYPE_PREVIEW);
 }
 
 bool WM_region_use_viewport(ScrArea *area, ARegion *region)
@@ -519,9 +522,7 @@ GPUTexture *wm_draw_region_texture(ARegion *region, int view)
   if (viewport) {
     return GPU_viewport_color_texture(viewport, view);
   }
-  else {
-    return GPU_offscreen_color_texture(region->draw_buffer->offscreen);
-  }
+  return GPU_offscreen_color_texture(region->draw_buffer->offscreen);
 }
 
 void wm_draw_region_blend(ARegion *region, int view, bool blend)
@@ -571,13 +572,12 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   }
 
   /* Not the same layout as rectf/recti. */
-  float rectt[4] = {rect_tex.xmin, rect_tex.ymin, rect_tex.xmax, rect_tex.ymax};
-  float rectg[4] = {rect_geo.xmin, rect_geo.ymin, rect_geo.xmax, rect_geo.ymax};
+  const float rectt[4] = {rect_tex.xmin, rect_tex.ymin, rect_tex.xmax, rect_tex.ymax};
+  const float rectg[4] = {rect_geo.xmin, rect_geo.ymin, rect_geo.xmax, rect_geo.ymax};
 
   if (blend) {
-    /* GL_ONE because regions drawn offscreen have premultiplied alpha. */
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    /* Regions drawn offscreen have premultiplied alpha. */
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   /* setup actual texture */
@@ -602,8 +602,7 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   GPU_texture_unbind(texture);
 
   if (blend) {
-    GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -998,6 +997,7 @@ void wm_draw_update(bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win;
 
+  GPU_context_main_lock();
   BKE_image_free_unused_gpu_textures();
 
   for (win = wm->windows.first; win; win = win->next) {
@@ -1035,6 +1035,8 @@ void wm_draw_update(bContext *C)
 
   /* Draw non-windows (surfaces) */
   wm_surfaces_iter(C, wm_draw_surface);
+
+  GPU_context_main_unlock();
 }
 
 void wm_draw_region_clear(wmWindow *win, ARegion *UNUSED(region))

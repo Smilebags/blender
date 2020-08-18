@@ -113,13 +113,6 @@ static void blf_batch_draw_exit(void)
   GPU_BATCH_DISCARD_SAFE(g_batch.batch);
 }
 
-void blf_batch_draw_vao_clear(void)
-{
-  if (g_batch.batch) {
-    GPU_batch_vao_cache_clear(g_batch.batch);
-  }
-}
-
 void blf_batch_draw_begin(FontBLF *font)
 {
   if (g_batch.batch == NULL) {
@@ -228,9 +221,7 @@ void blf_batch_draw(void)
     return;
   }
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
 #ifndef BLF_STANDALONE
   /* We need to flush widget base first to ensure correct ordering. */
@@ -246,7 +237,7 @@ void blf_batch_draw(void)
   GPU_batch_uniform_1i(g_batch.batch, "glyph", 0);
   GPU_batch_draw(g_batch.batch);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* restart to 1st vertex data pointers */
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);

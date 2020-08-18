@@ -472,7 +472,7 @@ static bool is_valid_target(NormalEditModifierData *enmd)
   if (enmd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
     return true;
   }
-  else if ((enmd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) && enmd->target) {
+  if ((enmd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) && enmd->target) {
     return true;
   }
   BKE_modifier_set_error((ModifierData *)enmd, "Invalid target settings");
@@ -636,6 +636,8 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
   /* Currently Modifier stack assumes there is no poly normal data passed around... */
   CustomData_free_layers(pdata, CD_NORMAL, num_polys);
   MEM_SAFE_FREE(loopnors);
+
+  result->runtime.is_original = false;
 
   return result;
 }

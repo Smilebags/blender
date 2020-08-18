@@ -452,7 +452,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
       if (kb->data) {
         MEM_freeN(kb->data);
       }
-      kb->data = MEM_callocN(sizeof(float) * 3 * totvert, "join_shapekey");
+      kb->data = MEM_callocN(sizeof(float[3]) * totvert, "join_shapekey");
       kb->totelem = totvert;
     }
   }
@@ -550,7 +550,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
               BKE_keyblock_copy_settings(kbn, kb);
 
               /* adjust settings to fit (allocate a new data-array) */
-              kbn->data = MEM_callocN(sizeof(float) * 3 * totvert, "joined_shapekey");
+              kbn->data = MEM_callocN(sizeof(float[3]) * totvert, "joined_shapekey");
               kbn->totelem = totvert;
             }
 
@@ -1063,7 +1063,7 @@ static float *editmesh_get_mirror_uv(
     BMFace *efa;
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-      uv_poly_center(efa, cent, cd_loop_uv_offset);
+      BM_face_uv_calc_center_median(efa, cd_loop_uv_offset, cent);
 
       if ((fabsf(cent[0] - cent_vec[0]) < 0.001f) && (fabsf(cent[1] - cent_vec[1]) < 0.001f)) {
         BMIter liter;
@@ -1154,7 +1154,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em, Mesh *me_eval)
   int a;
 
   mirrorverts = MEM_callocN(sizeof(int) * totvert, "MirrorVerts");
-  mirrorfaces = MEM_callocN(sizeof(int) * 2 * totface, "MirrorFaces");
+  mirrorfaces = MEM_callocN(sizeof(int[2]) * totface, "MirrorFaces");
 
   mvert = me_eval ? me_eval->mvert : me->mvert;
   mface = me_eval ? me_eval->mface : me->mface;

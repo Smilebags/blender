@@ -117,7 +117,9 @@ typedef struct PanelSort {
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, uiHandlePanelState state);
 static int compare_panel(const void *a1, const void *a2);
-static bool panel_type_context_poll(PanelType *panel_type, const char *context);
+static bool panel_type_context_poll(ARegion *region,
+                                    const PanelType *panel_type,
+                                    const char *context);
 
 static void panel_title_color_get(bool show_background, uchar color[4])
 {
@@ -321,7 +323,7 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
  * Remove the #uiBlock corresponding to a panel. The lookup is needed because panels don't store
  * a reference to their corresponding #uiBlock.
  */
-static void panel_free_block(ARegion *region, Panel *panel)
+static void panel_free_block(const bContext *C, ARegion *region, Panel *panel)
 {
   BLI_assert(panel->type);
 
@@ -334,7 +336,7 @@ static void panel_free_block(ARegion *region, Panel *panel)
   LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
     if (STREQ(block->name, block_name)) {
       BLI_remlink(&region->uiblocks, block);
-      UI_block_free(NULL, block);
+      UI_block_free(C, block);
       break; /* Only delete one block for this panel. */
     }
   }
@@ -347,15 +349,15 @@ static void panel_free_block(ARegion *region, Panel *panel)
  * \note The only panels that should need to be deleted at runtime are panels with the
  * #PNL_INSTANCED flag set.
  */
-static void panel_delete(ARegion *region, ListBase *panels, Panel *panel)
+static void panel_delete(const bContext *C, ARegion *region, ListBase *panels, Panel *panel)
 {
   /* Recursively delete children. */
   LISTBASE_FOREACH_MUTABLE (Panel *, child, &panel->children) {
-    panel_delete(region, &panel->children, child);
+    panel_delete(C, region, &panel->children, child);
   }
   BLI_freelistN(&panel->children);
 
-  panel_free_block(region, panel);
+  panel_free_block(C, region, panel);
 
   BLI_remlink(panels, panel);
   if (panel->activedata) {
@@ -370,7 +372,7 @@ static void panel_delete(ARegion *region, ListBase *panels, Panel *panel)
  * \note Can be called with NULL \a C, but it should be avoided because
  * handlers might not be removed.
  */
-void UI_panels_free_instanced(bContext *C, ARegion *region)
+void UI_panels_free_instanced(const bContext *C, ARegion *region)
 {
   /* Delete panels with the instanced flag. */
   LISTBASE_FOREACH_MUTABLE (Panel *, panel, &region->panels) {
@@ -386,7 +388,7 @@ void UI_panels_free_instanced(bContext *C, ARegion *region)
       }
 
       /* Free the panel and its sub-panels. */
-      panel_delete(region, &region->panels, panel);
+      panel_delete(C, region, &region->panels, panel);
     }
   }
 }
@@ -460,14 +462,17 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
     return;
   }
 
-  char *context = drag_panel->type->context;
+  char *context = NULL;
+  if (!UI_panel_category_is_visible(region)) {
+    context = drag_panel->type->context;
+  }
 
   /* Find how many instanced panels with this context string. */
   int list_panels_len = 0;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type) {
-      if (panel_type_context_poll(panel->type, context)) {
-        if (panel->type->flag & PNL_INSTANCED) {
+      if (panel->type->flag & PNL_INSTANCED) {
+        if (panel_type_context_poll(region, panel->type, context)) {
           list_panels_len++;
         }
       }
@@ -479,8 +484,8 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   PanelSort *sort_index = panel_sort;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type) {
-      if (panel_type_context_poll(panel->type, context)) {
-        if (panel->type->flag & PNL_INSTANCED) {
+      if (panel->type->flag & PNL_INSTANCED) {
+        if (panel_type_context_poll(region, panel->type, context)) {
           sort_index->panel = MEM_dupallocN(panel);
           sort_index->orig = panel;
           sort_index++;
@@ -657,11 +662,18 @@ static void panels_collapse_all(const bContext *C,
   set_panels_list_data_expand_flag(C, region);
 }
 
-static bool panel_type_context_poll(PanelType *panel_type, const char *context)
+static bool panel_type_context_poll(ARegion *region,
+                                    const PanelType *panel_type,
+                                    const char *context)
 {
+  if (UI_panel_category_is_visible(region)) {
+    return STREQ(panel_type->category, UI_panel_category_active_get(region, false));
+  }
+
   if (panel_type->context[0] && STREQ(panel_type->context, context)) {
     return true;
   }
+
   return false;
 }
 
@@ -988,7 +1000,7 @@ void ui_draw_aligned_panel(uiStyle *style,
     /* Mimick the border between aligned box widgets for the bottom of the header. */
     if (!(is_closed_x || is_closed_y)) {
       immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-      GPU_blend(true);
+      GPU_blend(GPU_BLEND_ALPHA);
 
       immUniformColor4ubv(box_wcol->outline);
       immRectf(pos, rect->xmin, headrect.ymin - U.pixelsize, rect->xmax, headrect.ymin);
@@ -1001,7 +1013,7 @@ void ui_draw_aligned_panel(uiStyle *style,
                rect->xmax,
                headrect.ymin - U.pixelsize - 1);
 
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
       immUnbindProgram();
     }
   }
@@ -1013,7 +1025,7 @@ void ui_draw_aligned_panel(uiStyle *style,
     float y = headrect.ymax;
 
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     /* draw with background color */
     immUniformThemeColor(TH_PANEL_HEADER);
@@ -1029,7 +1041,7 @@ void ui_draw_aligned_panel(uiStyle *style,
 
     immEnd();
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     immUnbindProgram();
   }
 
@@ -1043,7 +1055,7 @@ void ui_draw_aligned_panel(uiStyle *style,
     uchar col_title[4];
     panel_title_color_get(show_background, col_title);
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     UI_icon_draw_ex(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect),
                     headrect.ymin + (5.0f / block->aspect),
                     (panel->flag & PNL_PIN) ? ICON_PINNED : ICON_UNPINNED,
@@ -1052,7 +1064,7 @@ void ui_draw_aligned_panel(uiStyle *style,
                     0.0f,
                     col_title,
                     false);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* horizontal title */
@@ -1122,7 +1134,7 @@ void ui_draw_aligned_panel(uiStyle *style,
     }
 
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     /* Draw panel backdrop if it wasn't already been drawn by the single opaque round box earlier.
      * Note: Sub-panels blend with panels, so they can't be opaque. */
@@ -2354,7 +2366,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   /* draw the background */
   if (is_alpha) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     immUniformColor4ubv(theme_col_tab_bg);
   }
   else {
@@ -2371,7 +2383,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   }
 
   if (is_alpha) {
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   immUnbindProgram();
@@ -2391,7 +2403,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
     const bool is_active = STREQ(category_id, category_id_active);
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
 #ifdef USE_FLAT_INACTIVE
     if (is_active)
@@ -2467,7 +2479,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     /* main tab title */
     BLF_draw(fontid, category_id_draw, category_draw_len);
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
 
     /* tab blackline remaining (last tab) */
     pos = GPU_vertformat_attr_add(

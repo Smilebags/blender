@@ -281,9 +281,8 @@ RenderLayer *RE_GetRenderLayer(RenderResult *rr, const char *name)
   if (rr == NULL) {
     return NULL;
   }
-  else {
-    return BLI_findstring(&rr->layers, name, offsetof(RenderLayer, name));
-  }
+
+  return BLI_findstring(&rr->layers, name, offsetof(RenderLayer, name));
 }
 
 bool RE_HasSingleLayer(Render *re)
@@ -1662,9 +1661,8 @@ static bool check_valid_compositing_camera(Scene *scene, Object *camera_override
 
     return true;
   }
-  else {
-    return (camera_override != NULL || scene->camera != NULL);
-  }
+
+  return (camera_override != NULL || scene->camera != NULL);
 }
 
 static bool check_valid_camera_multiview(Scene *scene, Object *camera, ReportList *reports)
@@ -1762,7 +1760,7 @@ static bool node_tree_has_composite_output(bNodeTree *ntree)
     if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
       return true;
     }
-    else if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+    if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
       if (node->id) {
         if (node_tree_has_composite_output((bNodeTree *)node->id)) {
           return true;
@@ -1973,7 +1971,7 @@ void RE_SetReports(Render *re, ReportList *reports)
 static void render_update_depsgraph(Render *re)
 {
   Scene *scene = re->scene;
-  DEG_evaluate_on_framechange(re->main, re->pipeline_depsgraph, CFRA);
+  DEG_evaluate_on_framechange(re->pipeline_depsgraph, CFRA);
   BKE_scene_update_sound(re->pipeline_depsgraph, re->main);
 }
 
@@ -1986,7 +1984,7 @@ static void render_init_depsgraph(Render *re)
   DEG_debug_name_set(re->pipeline_depsgraph, "RENDER PIPELINE");
 
   /* Make sure there is a correct evaluated scene pointer. */
-  DEG_graph_build_for_render_pipeline(re->pipeline_depsgraph, re->main, scene, view_layer);
+  DEG_graph_build_for_render_pipeline(re->pipeline_depsgraph);
 
   /* Update immediately so we have proper evaluated scene. */
   render_update_depsgraph(re);
@@ -2513,9 +2511,8 @@ void RE_RenderAnim(Render *re,
         /* Skip this frame, but could update for physics and particles system. */
         continue;
       }
-      else {
-        nfra += tfra;
-      }
+
+      nfra += tfra;
 
       /* Touch/NoOverwrite options are only valid for image's */
       if (is_movie == false) {
@@ -2789,7 +2786,7 @@ void RE_layer_load_from_file(
         IMB_float_from_rect(ibuf);
       }
 
-      memcpy(rpass->rect, ibuf->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
+      memcpy(rpass->rect, ibuf->rect_float, sizeof(float[4]) * layer->rectx * layer->recty);
     }
     else {
       if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {
@@ -2804,7 +2801,7 @@ void RE_layer_load_from_file(
           IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
 
           memcpy(
-              rpass->rect, ibuf_clip->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
+              rpass->rect, ibuf_clip->rect_float, sizeof(float[4]) * layer->rectx * layer->recty);
           IMB_freeImBuf(ibuf_clip);
         }
         else {
@@ -2870,7 +2867,7 @@ RenderPass *RE_pass_find_by_name(volatile RenderLayer *rl, const char *name, con
       if (viewname == NULL || viewname[0] == '\0') {
         break;
       }
-      else if (STREQ(rp->view, viewname)) {
+      if (STREQ(rp->view, viewname)) {
         break;
       }
     }

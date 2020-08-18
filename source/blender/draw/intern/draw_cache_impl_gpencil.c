@@ -135,9 +135,8 @@ static GpencilBatchCache *gpencil_batch_cache_get(Object *ob, int cfra)
     gpencil_batch_cache_clear(cache);
     return gpencil_batch_cache_init(ob, cfra);
   }
-  else {
-    return cache;
-  }
+
+  return cache;
 }
 
 void DRW_gpencil_batch_cache_dirty_tag(bGPdata *gpd)
@@ -646,6 +645,7 @@ void DRW_cache_gpencil_sbuffer_clear(Object *ob)
 #define GP_EDIT_MULTIFRAME (1 << 2)
 #define GP_EDIT_STROKE_START (1 << 3)
 #define GP_EDIT_STROKE_END (1 << 4)
+#define GP_EDIT_POINT_DIMMED (1 << 5)
 
 typedef struct gpEditIterData {
   gpEditVert *verts;
@@ -661,6 +661,7 @@ static uint32_t gpencil_point_edit_flag(const bool layer_lock,
   SET_FLAG_FROM_TEST(sflag, (!layer_lock) && pt->flag & GP_SPOINT_SELECT, GP_EDIT_POINT_SELECTED);
   SET_FLAG_FROM_TEST(sflag, v == 0, GP_EDIT_STROKE_START);
   SET_FLAG_FROM_TEST(sflag, v == (v_len - 1), GP_EDIT_STROKE_END);
+  SET_FLAG_FROM_TEST(sflag, pt->runtime.pt_orig == NULL, GP_EDIT_POINT_DIMMED);
   return sflag;
 }
 

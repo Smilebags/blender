@@ -302,7 +302,7 @@ const EnumPropertyItem rna_enum_modifier_triangulate_quad_method_items[] = {
     {MOD_TRIANGULATE_QUAD_BEAUTY,
      "BEAUTY",
      0,
-     "Beauty ",
+     "Beauty",
      "Split the quads in nice triangles, slower method"},
     {MOD_TRIANGULATE_QUAD_FIXED,
      "FIXED",
@@ -723,7 +723,9 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
     case eModifierType_WeightedNormal:
       return &RNA_WeightedNormalModifier;
     case eModifierType_Simulation:
+#  ifdef WITH_PARTICLE_NODES
       return &RNA_SimulationModifier;
+#  endif
     /* Default */
     case eModifierType_Fluidsim: /* deprecated */
     case eModifierType_None:
@@ -1630,6 +1632,7 @@ static void rna_ParticleInstanceModifier_particle_system_set(PointerRNA *ptr,
   CLAMP_MIN(psmd->psys, 1);
 }
 
+#  ifdef WITH_PARTICLE_NODES
 static void rna_SimulationModifier_simulation_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   SimulationModifierData *smd = ptr->data;
@@ -1672,6 +1675,7 @@ static void rna_SimulationModifier_data_path_set(PointerRNA *ptr, const char *va
     smd->data_path = NULL;
   }
 }
+#  endif
 
 /**
  * Special set callback that just changes the first bit of the expansion flag.
@@ -2074,6 +2078,14 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flags", eMultiresModifierFlag_UseCustomNormals);
   RNA_def_property_ui_text(
       prop, "Use Custom Normals", "Interpolates existing custom normals to resulting mesh");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "use_sculpt_base_mesh", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", eMultiresModifierFlag_UseSculptBaseMesh);
+  RNA_def_property_ui_text(prop,
+                           "Sculpt Base Mesh",
+                           "Make Sculpt Mode tools deform the base mesh while previewing the "
+                           "displacement of higher subdivision levels");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_define_lib_overridable(false);
@@ -5539,7 +5551,8 @@ static void rna_def_modifier_remesh(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "octree_depth", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "depth");
-  RNA_def_property_range(prop, 1, 12);
+  RNA_def_property_range(prop, 1, 24);
+  RNA_def_property_ui_range(prop, 1, 12, 1, 3);
   RNA_def_property_ui_text(
       prop, "Octree Depth", "Resolution of the octree; higher values give finer details");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -5960,7 +5973,7 @@ static void rna_def_modifier_triangulate(BlenderRNA *brna)
 static void rna_def_modifier_meshcache(BlenderRNA *brna)
 {
   static const EnumPropertyItem prop_format_type_items[] = {
-      {MOD_MESHCACHE_TYPE_MDD, "MDD", 0, "MDD ", ""},
+      {MOD_MESHCACHE_TYPE_MDD, "MDD", 0, "MDD", ""},
       {MOD_MESHCACHE_TYPE_PC2, "PC2", 0, "PC2", ""},
       {0, NULL, 0, NULL, NULL},
   };
@@ -5981,7 +5994,7 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem prop_interpolation_type_items[] = {
-      {MOD_MESHCACHE_INTERP_NONE, "NONE", 0, "None ", ""},
+      {MOD_MESHCACHE_INTERP_NONE, "NONE", 0, "None", ""},
       {MOD_MESHCACHE_INTERP_LINEAR, "LINEAR", 0, "Linear", ""},
       /* for cardinal we'd need to read 4x cache's */
       // {MOD_MESHCACHE_INTERP_CARDINAL, "CARDINAL", 0, "Cardinal", ""},
@@ -6998,6 +7011,7 @@ static void rna_def_modifier_weightednormal(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
+#  ifdef WITH_PARTICLE_NODES
 static void rna_def_modifier_simulation(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -7026,6 +7040,7 @@ static void rna_def_modifier_simulation(BlenderRNA *brna)
 
   RNA_define_lib_overridable(false);
 }
+#  endif
 
 void RNA_def_modifier(BlenderRNA *brna)
 {
@@ -7155,7 +7170,9 @@ void RNA_def_modifier(BlenderRNA *brna)
   rna_def_modifier_meshseqcache(brna);
   rna_def_modifier_surfacedeform(brna);
   rna_def_modifier_weightednormal(brna);
+#  ifdef WITH_PARTICLE_NODES
   rna_def_modifier_simulation(brna);
+#  endif
 }
 
 #endif

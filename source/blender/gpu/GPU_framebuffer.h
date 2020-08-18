@@ -21,8 +21,7 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_FRAMEBUFFER_H__
-#define __GPU_FRAMEBUFFER_H__
+#pragma once
 
 #include "GPU_texture.h"
 
@@ -62,6 +61,7 @@ typedef struct GPUOffScreen GPUOffScreen;
 GPUFrameBuffer *GPU_framebuffer_create(void);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 void GPU_framebuffer_bind(GPUFrameBuffer *fb);
+void GPU_framebuffer_bind_no_srgb(GPUFrameBuffer *fb);
 void GPU_framebuffer_restore(void);
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
@@ -235,5 +235,3 @@ void GPU_backbuffer_bind(eGPUBackBuffer buffer);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_FRAMEBUFFER_H__ */
