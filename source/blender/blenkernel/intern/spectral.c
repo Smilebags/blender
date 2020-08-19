@@ -43,8 +43,7 @@ void wavelength_to_xyz(const float wavelength, float *r_xyz)
   const static int lut_end = 830;
   const static int lut_size = 830 - 360 + 1;
 
-  float position = lerp(
-      0.0f, lut_size - 1.0f, inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength));
+  float position = lerp(0.0f, lut_size - 1.0f, inverse_lerp(lut_start, lut_end, wavelength));
 
   int lower_bound = (int)position;
   int upper_bound = min_ii(lower_bound + 1, lut_size - 1);
