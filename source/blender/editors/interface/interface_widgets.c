@@ -30,7 +30,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_spectral_stuff.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -38,6 +38,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_spectral_stuff.h"
 
 #include "RNA_access.h"
 
@@ -1097,7 +1098,8 @@ static void widgetbase_outline(uiWidgetBase *wtb, uint pos)
   float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
   widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
 
-  widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
+  widget_draw_vertex_buffer(
+      pos, 0, GPU_PRIM_TRI_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
 }
 
 static void widgetbase_set_uniform_alpha_discard(uiWidgetBase *wtb,
@@ -2244,7 +2246,7 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
                                     float alpha)
 {
   /* inverse order, from right to left. */
-  for (uiButExtraOpIcon *op_icon = but->extra_op_icons.last; op_icon; op_icon = op_icon->prev) {
+  LISTBASE_FOREACH_BACKWARD (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
     rcti temp = *rect;
 
     temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
@@ -2759,7 +2761,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 
     widget_verts_to_triangle_strip(&wtb, totvert, triangle_strip);
 
-    widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, totvert * 2);
+    widget_draw_vertex_buffer(pos, 0, GPU_PRIM_TRI_STRIP, triangle_strip, NULL, totvert * 2);
   }
 
   immUnbindProgram();

@@ -385,7 +385,7 @@ mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 option(WITH_CYCLES_DEVICE_CUDA              "Enable Cycles CUDA compute support" ON)
 option(WITH_CYCLES_DEVICE_OPTIX             "Enable Cycles OptiX support" OFF)
 option(WITH_CYCLES_DEVICE_OPENCL            "Enable Cycles OpenCL compute support" ON)
-option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" ON)
+option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" OFF)
 mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
 mark_as_advanced(WITH_CYCLES_DEVICE_OPENCL)
 mark_as_advanced(WITH_CYCLES_NETWORK)
@@ -431,7 +431,7 @@ if(WIN32)
 endif()
 
 # This should be turned off when Blender enter beta/rc/release
-option(WITH_EXPERIMENTAL_FEATURES "Enable experimental features (still need to enable them in the user preferences)" OFF)
+option(WITH_EXPERIMENTAL_FEATURES "Enable experimental features (still need to enable them in the user preferences)" ON)
 mark_as_advanced(WITH_EXPERIMENTAL_FEATURES)
 
 # Unit testsing

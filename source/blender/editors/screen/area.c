@@ -302,8 +302,6 @@ static void area_azone_tag_update(ScrArea *area)
 
 static void region_draw_azones(ScrArea *area, ARegion *region)
 {
-  AZone *az;
-
   if (!area) {
     return;
   }
@@ -314,7 +312,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
   GPU_matrix_push();
   GPU_matrix_translate_2f(-region->winrct.xmin, -region->winrct.ymin);
 
-  for (az = area->actionzones.first; az; az = az->next) {
+  LISTBASE_FOREACH (AZone *, az, &area->actionzones) {
     /* test if action zone is over this region */
     rcti azrct;
     BLI_rcti_init(&azrct, az->x1, az->x2, az->y1, az->y2);
@@ -705,10 +703,8 @@ void ED_region_tag_redraw_partial(ARegion *region, const rcti *rct, bool rebuild
 
 void ED_area_tag_redraw(ScrArea *area)
 {
-  ARegion *region;
-
   if (area) {
-    for (region = area->regionbase.first; region; region = region->next) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       ED_region_tag_redraw(region);
     }
   }
@@ -716,10 +712,8 @@ void ED_area_tag_redraw(ScrArea *area)
 
 void ED_area_tag_redraw_no_rebuild(ScrArea *area)
 {
-  ARegion *region;
-
   if (area) {
-    for (region = area->regionbase.first; region; region = region->next) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       ED_region_tag_redraw_no_rebuild(region);
     }
   }
@@ -727,10 +721,8 @@ void ED_area_tag_redraw_no_rebuild(ScrArea *area)
 
 void ED_area_tag_redraw_regiontype(ScrArea *area, int regiontype)
 {
-  ARegion *region;
-
   if (area) {
-    for (region = area->regionbase.first; region; region = region->next) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       if (region->regiontype == regiontype) {
         ED_region_tag_redraw(region);
       }
@@ -750,14 +742,12 @@ void ED_area_tag_refresh(ScrArea *area)
 /* use NULL to disable it */
 void ED_area_status_text(ScrArea *area, const char *str)
 {
-  ARegion *region;
-
   /* happens when running transform operators in background mode */
   if (area == NULL) {
     return;
   }
 
-  for (region = area->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (region->regiontype == RGN_TYPE_HEADER) {
       if (str) {
         if (region->headerstr == NULL) {
@@ -942,7 +932,6 @@ static void region_azone_edge(AZone *az, ARegion *region)
 /* region already made zero sized, in shape of edge */
 static void region_azone_tab_plus(ScrArea *area, AZone *az, ARegion *region)
 {
-  AZone *azt;
   int tot = 0, add;
   /* Edge offset multiplied by the  */
 
@@ -950,7 +939,7 @@ static void region_azone_tab_plus(ScrArea *area, AZone *az, ARegion *region)
   const float tab_size_x = 0.7f * U.widget_unit;
   const float tab_size_y = 0.4f * U.widget_unit;
 
-  for (azt = area->actionzones.first; azt; azt = azt->next) {
+  LISTBASE_FOREACH (AZone *, azt, &area->actionzones) {
     if (azt->edge == az->edge) {
       tot++;
     }
@@ -1846,7 +1835,6 @@ void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area)
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  ARegion *region;
   rcti rect, overlap_rect;
   rcti window_rect;
 
@@ -1863,7 +1851,7 @@ void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area)
     area->type = BKE_spacetype_from_id(area->spacetype);
   }
 
-  for (region = area->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     region->type = BKE_regiontype_from_id_or_first(area->type, region->regiontype);
   }
 
@@ -1887,7 +1875,7 @@ void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area)
   area_azone_init(win, screen, area);
 
   /* region windows, default and own handlers */
-  for (region = area->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     region_subwindow(region);
 
     if (region->visible) {
@@ -2006,7 +1994,6 @@ void ED_region_toggle_hidden(bContext *C, ARegion *region)
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
 {
   SpaceType *st;
-  ARegion *region;
   const char spacetype = area_dst->spacetype;
   const short flag_copy = HEADER_NO_PULLDOWN;
 
@@ -2026,13 +2013,13 @@ void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
   /* regions */
   if (do_free) {
     st = BKE_spacetype_from_id(spacetype);
-    for (region = area_dst->regionbase.first; region; region = region->next) {
+    LISTBASE_FOREACH (ARegion *, region, &area_dst->regionbase) {
       BKE_area_region_free(st, region);
     }
     BLI_freelistN(&area_dst->regionbase);
   }
   st = BKE_spacetype_from_id(area_src->spacetype);
-  for (region = area_src->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area_src->regionbase) {
     ARegion *newar = BKE_area_region_copy(st, region);
     BLI_addtail(&area_dst->regionbase, newar);
   }
@@ -2320,7 +2307,6 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   if (area->spacetype != type) {
     SpaceType *st;
     SpaceLink *slold = area->spacedata.first;
-    SpaceLink *sl;
     /* store area->type->exit callback */
     void *area_exit = area->type ? area->type->exit : NULL;
     /* When the user switches between space-types from the type-selector,
@@ -2364,8 +2350,10 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
      * (e.g. with properties editor) until space-data is properly created */
 
     /* check previously stored space */
-    for (sl = area->spacedata.first; sl; sl = sl->next) {
-      if (sl->spacetype == type) {
+    SpaceLink *sl = NULL;
+    LISTBASE_FOREACH (SpaceLink *, sl_iter, &area->spacedata) {
+      if (sl_iter->spacetype == type) {
+        sl = sl_iter;
         break;
       }
     }
@@ -2569,14 +2557,12 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
  * correct old \a uiBlock, and NULL otherwise.
  */
 static void ed_panel_draw(const bContext *C,
-                          ScrArea *area,
                           ARegion *region,
                           ListBase *lb,
                           PanelType *pt,
                           Panel *panel,
                           int w,
                           int em,
-                          bool vertical,
                           char *unique_panel_str)
 {
   const uiStyle *style = UI_style_get_dpi();
@@ -2592,13 +2578,13 @@ static void ed_panel_draw(const bContext *C,
   uiBlock *block = UI_block_begin(C, region, block_name, UI_EMBOSS);
 
   bool open;
-  panel = UI_panel_begin(area, region, lb, block, pt, panel, &open);
+  panel = UI_panel_begin(region, lb, block, pt, panel, &open);
 
   /* bad fixed values */
   int xco, yco, h = 0;
   int headerend = w - UI_UNIT_X;
 
-  if (pt->draw_header_preset && !(pt->flag & PNL_NO_HEADER) && (open || vertical)) {
+  if (pt->draw_header_preset && !(pt->flag & PNL_NO_HEADER)) {
     /* for preset menu */
     panel->layout = UI_block_layout(block,
                                     UI_LAYOUT_HORIZONTAL,
@@ -2617,7 +2603,7 @@ static void ed_panel_draw(const bContext *C,
     panel->layout = NULL;
   }
 
-  if (pt->draw_header && !(pt->flag & PNL_NO_HEADER) && (open || vertical)) {
+  if (pt->draw_header && !(pt->flag & PNL_NO_HEADER)) {
     int labelx, labely;
     UI_panel_label_offset(block, &labelx, &labely);
 
@@ -2694,21 +2680,12 @@ static void ed_panel_draw(const bContext *C,
       Panel *child_panel = UI_panel_find_by_type(&panel->children, child_pt);
 
       if (child_pt->draw && (!child_pt->poll || child_pt->poll(C, child_pt))) {
-        ed_panel_draw(C,
-                      area,
-                      region,
-                      &panel->children,
-                      child_pt,
-                      child_panel,
-                      w,
-                      em,
-                      vertical,
-                      unique_panel_str);
+        ed_panel_draw(C, region, &panel->children, child_pt, child_panel, w, em, unique_panel_str);
       }
     }
   }
 
-  UI_panel_end(area, region, block, w, h, open);
+  UI_panel_end(region, block, w, h, open);
 }
 
 /**
@@ -2720,14 +2697,12 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBase *paneltypes,
                                 const char *contexts[],
-                                int contextnr,
-                                const bool vertical,
                                 const char *category_override)
 {
   /* collect panels to draw */
   WorkSpace *workspace = CTX_wm_workspace(C);
   LinkNode *panel_types_stack = NULL;
-  for (PanelType *pt = paneltypes->last; pt; pt = pt->prev) {
+  LISTBASE_FOREACH_BACKWARD (PanelType *, pt, paneltypes) {
     /* Only draw top level panels. */
     if (pt->parent) {
       continue;
@@ -2772,25 +2747,13 @@ void ED_region_panels_layout_ex(const bContext *C,
   const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
   int margin_x = 0;
   const bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
-  const bool is_context_new = (contextnr != -1) ? UI_view2d_tab_set(v2d, contextnr) : false;
   bool update_tot_size = true;
 
-  /* before setting the view */
-  if (vertical) {
-    /* only allow scrolling in vertical direction */
-    v2d->keepofs |= V2D_LOCKOFS_X | V2D_KEEPOFS_Y;
-    v2d->keepofs &= ~(V2D_LOCKOFS_Y | V2D_KEEPOFS_X);
-    v2d->scroll &= ~V2D_SCROLL_BOTTOM;
-    v2d->scroll |= V2D_SCROLL_RIGHT;
-  }
-  else {
-    /* for now, allow scrolling in both directions (since layouts are optimized for vertical,
-     * they often don't fit in horizontal layout)
-     */
-    v2d->keepofs &= ~(V2D_LOCKOFS_X | V2D_LOCKOFS_Y | V2D_KEEPOFS_X | V2D_KEEPOFS_Y);
-    v2d->scroll |= V2D_SCROLL_BOTTOM;
-    v2d->scroll &= ~V2D_SCROLL_RIGHT;
-  }
+  /* only allow scrolling in vertical direction */
+  v2d->keepofs |= V2D_LOCKOFS_X | V2D_KEEPOFS_Y;
+  v2d->keepofs &= ~(V2D_LOCKOFS_Y | V2D_KEEPOFS_X);
+  v2d->scroll &= ~V2D_SCROLL_BOTTOM;
+  v2d->scroll |= V2D_SCROLL_RIGHT;
 
   /* collect categories */
   if (use_category_tabs) {
@@ -2815,14 +2778,8 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
   }
 
-  if (vertical) {
-    w = BLI_rctf_size_x(&v2d->cur);
-    em = (region->type->prefsizex) ? 10 : 20; /* works out to 10*UI_UNIT_X or 20*UI_UNIT_X */
-  }
-  else {
-    w = UI_PANEL_WIDTH;
-    em = (region->type->prefsizex) ? 10 : 20;
-  }
+  w = BLI_rctf_size_x(&v2d->cur);
+  em = (region->type->prefsizex) ? 10 : 20; /* works out to 10*UI_UNIT_X or 20*UI_UNIT_X */
 
   w -= margin_x;
   int w_box_panel = w - UI_PANEL_BOX_STYLE_MARGIN * 2.0f;
@@ -2855,14 +2812,12 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
 
     ed_panel_draw(C,
-                  area,
                   region,
                   &region->panels,
                   pt,
                   panel,
                   (pt->flag & PNL_DRAW_BOX) ? w_box_panel : w,
                   em,
-                  vertical,
                   NULL);
   }
 
@@ -2890,14 +2845,12 @@ void ED_region_panels_layout_ex(const bContext *C,
       char unique_panel_str[8];
       UI_list_panel_unique_str(panel, unique_panel_str);
       ed_panel_draw(C,
-                    area,
                     region,
                     &region->panels,
                     panel->type,
                     panel,
                     (panel->type->flag & PNL_DRAW_BOX) ? w_box_panel : w,
                     em,
-                    vertical,
                     unique_panel_str);
     }
   }
@@ -2925,7 +2878,7 @@ void ED_region_panels_layout_ex(const bContext *C,
       y = fabsf(region->sizey * UI_DPI_FAC - 1);
     }
   }
-  else if (vertical) {
+  else {
     /* We always keep the scroll offset -
      * so the total view gets increased with the scrolled away part. */
     if (v2d->cur.ymax < -FLT_EPSILON) {
@@ -2935,19 +2888,6 @@ void ED_region_panels_layout_ex(const bContext *C,
       }
       else {
         y = min_ii(y, v2d->cur.ymin);
-      }
-    }
-
-    y = -y;
-  }
-  else {
-    /* don't jump back when panels close or hide */
-    if (!is_context_new) {
-      if (v2d->tot.xmax > v2d->winx) {
-        x = max_ii(x, 0);
-      }
-      else {
-        x = max_ii(x, v2d->cur.xmax);
       }
     }
 
@@ -2966,8 +2906,7 @@ void ED_region_panels_layout_ex(const bContext *C,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region)
 {
-  bool vertical = true;
-  ED_region_panels_layout_ex(C, region, &region->type->paneltypes, NULL, -1, vertical, NULL);
+  ED_region_panels_layout_ex(C, region, &region->type->paneltypes, NULL, NULL);
 }
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)
@@ -3011,12 +2950,10 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   UI_view2d_scrollers_draw(v2d, mask);
 }
 
-void ED_region_panels_ex(
-    const bContext *C, ARegion *region, const char *contexts[], int contextnr, const bool vertical)
+void ED_region_panels_ex(const bContext *C, ARegion *region, const char *contexts[])
 {
   /* TODO: remove? */
-  ED_region_panels_layout_ex(
-      C, region, &region->type->paneltypes, contexts, contextnr, vertical, NULL);
+  ED_region_panels_layout_ex(C, region, &region->type->paneltypes, contexts, NULL);
   ED_region_panels_draw(C, region);
 }
 
@@ -3042,7 +2979,6 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   const uiStyle *style = UI_style_get_dpi();
   uiBlock *block;
   uiLayout *layout;
-  HeaderType *ht;
   Header header = {NULL};
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
 
@@ -3065,7 +3001,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   UI_view2d_view_ortho(&region->v2d);
 
   /* draw all headers types */
-  for (ht = region->type->headertypes.first; ht; ht = ht->next) {
+  LISTBASE_FOREACH (HeaderType *, ht, &region->type->headertypes) {
     if (ht->poll && !ht->poll(C, ht)) {
       continue;
     }

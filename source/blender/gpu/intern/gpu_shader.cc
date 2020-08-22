@@ -41,7 +41,7 @@
 #include "GPU_platform.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
-#include "GPU_uniformbuffer.h"
+#include "GPU_uniform_buffer.h"
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
@@ -51,6 +51,11 @@ extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 
 using namespace blender;
 using namespace blender::gpu;
+
+/** Opaque type hidding blender::gpu::Shader */
+struct GPUShader {
+  char _pad[1];
+};
 
 /* -------------------------------------------------------------------- */
 /** \name Debug functions
@@ -95,7 +100,7 @@ void Shader::print_errors(Span<const char *> sources, char *log)
         error_char = (int)strtol(error_line_number_end + 1, NULL, 10);
       }
     }
-    if ((error_line == -1)) {
+    if (error_line == -1) {
       found_line_id = false;
     }
     const char *src_line = sources_combined;
@@ -196,9 +201,7 @@ Shader::Shader(const char *sh_name)
 
 Shader::~Shader()
 {
-  if (this->interface) {
-    GPU_shaderinterface_discard(this->interface);
-  }
+  delete interface;
 }
 
 static void standard_defines(Vector<const char *> &sources)
@@ -304,12 +307,12 @@ GPUShader *GPU_shader_create_ex(const char *vertcode,
     return NULL;
   };
 
-  return static_cast<GPUShader *>(shader);
+  return reinterpret_cast<GPUShader *>(shader);
 }
 
 void GPU_shader_free(GPUShader *shader)
 {
-  delete static_cast<Shader *>(shader);
+  delete reinterpret_cast<Shader *>(shader);
 }
 
 /** \} */
@@ -345,7 +348,7 @@ GPUShader *GPU_shader_create_from_python(const char *vertcode,
   }
 
   GPUShader *sh = GPU_shader_create_ex(
-      vertcode, fragcode, geomcode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, NULL);
+      vertcode, fragcode, geomcode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, "pyGPUShader");
 
   MEM_SAFE_FREE(libcodecat);
   return sh;
@@ -431,19 +434,19 @@ struct GPUShader *GPU_shader_create_from_arrays_impl(
 
 void GPU_shader_bind(GPUShader *gpu_shader)
 {
-  Shader *shader = static_cast<Shader *>(gpu_shader);
+  Shader *shader = reinterpret_cast<Shader *>(gpu_shader);
 
   GPUContext *ctx = GPU_context_active_get();
 
   if (ctx->shader != shader) {
     ctx->shader = shader;
     shader->bind();
-    GPU_matrix_bind(shader);
-    GPU_shader_set_srgb_uniform(shader);
+    GPU_matrix_bind(gpu_shader);
+    GPU_shader_set_srgb_uniform(gpu_shader);
   }
 
   if (GPU_matrix_dirty_get()) {
-    GPU_matrix_bind(shader);
+    GPU_matrix_bind(gpu_shader);
   }
 }
 
@@ -452,7 +455,7 @@ void GPU_shader_unbind(void)
 #ifndef NDEBUG
   GPUContext *ctx = GPU_context_active_get();
   if (ctx->shader) {
-    static_cast<Shader *>(ctx->shader)->unbind();
+    reinterpret_cast<Shader *>(ctx->shader)->unbind();
   }
   ctx->shader = NULL;
 #endif
@@ -468,12 +471,12 @@ void GPU_shader_unbind(void)
 
 bool GPU_shader_transform_feedback_enable(GPUShader *shader, GPUVertBuf *vertbuf)
 {
-  return static_cast<Shader *>(shader)->transform_feedback_enable(vertbuf);
+  return reinterpret_cast<Shader *>(shader)->transform_feedback_enable(vertbuf);
 }
 
 void GPU_shader_transform_feedback_disable(GPUShader *shader)
 {
-  static_cast<Shader *>(shader)->transform_feedback_disable();
+  reinterpret_cast<Shader *>(shader)->transform_feedback_disable();
 }
 
 /** \} */
@@ -484,43 +487,49 @@ void GPU_shader_transform_feedback_disable(GPUShader *shader)
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-  const GPUShaderInput *uniform = GPU_shaderinterface_uniform(shader->interface, name);
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  const ShaderInput *uniform = interface->uniform_get(name);
   return uniform ? uniform->location : -1;
 }
 
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin)
 {
-  return GPU_shaderinterface_uniform_builtin(shader->interface,
-                                             static_cast<GPUUniformBuiltin>(builtin));
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  return interface->uniform_builtin((GPUUniformBuiltin)builtin);
 }
 
 int GPU_shader_get_builtin_block(GPUShader *shader, int builtin)
 {
-  return GPU_shaderinterface_block_builtin(shader->interface,
-                                           static_cast<GPUUniformBlockBuiltin>(builtin));
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  return interface->ubo_builtin((GPUUniformBlockBuiltin)builtin);
 }
 
+/* DEPRECATED. */
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
 {
-  const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  const ShaderInput *ubo = interface->ubo_get(name);
   return ubo ? ubo->location : -1;
 }
 
 int GPU_shader_get_uniform_block_binding(GPUShader *shader, const char *name)
 {
-  const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  const ShaderInput *ubo = interface->ubo_get(name);
   return ubo ? ubo->binding : -1;
 }
 
 int GPU_shader_get_texture_binding(GPUShader *shader, const char *name)
 {
-  const GPUShaderInput *tex = GPU_shaderinterface_uniform(shader->interface, name);
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  const ShaderInput *tex = interface->uniform_get(name);
   return tex ? tex->binding : -1;
 }
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 {
-  const GPUShaderInput *attr = GPU_shaderinterface_attr(shader->interface, name);
+  ShaderInterface *interface = reinterpret_cast<Shader *>(shader)->interface;
+  const ShaderInput *attr = interface->attr_get(name);
   return attr ? attr->location : -1;
 }
 
@@ -546,13 +555,13 @@ int GPU_shader_get_program(GPUShader *UNUSED(shader))
 void GPU_shader_uniform_vector(
     GPUShader *shader, int loc, int len, int arraysize, const float *value)
 {
-  static_cast<Shader *>(shader)->uniform_float(loc, len, arraysize, value);
+  reinterpret_cast<Shader *>(shader)->uniform_float(loc, len, arraysize, value);
 }
 
 void GPU_shader_uniform_vector_int(
     GPUShader *shader, int loc, int len, int arraysize, const int *value)
 {
-  static_cast<Shader *>(shader)->uniform_int(loc, len, arraysize, value);
+  reinterpret_cast<Shader *>(shader)->uniform_int(loc, len, arraysize, value);
 }
 
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value)
@@ -565,14 +574,10 @@ void GPU_shader_uniform_float(GPUShader *shader, int location, float value)
   GPU_shader_uniform_vector(shader, location, 1, 1, &value);
 }
 
-#define GET_UNIFORM \
-  const GPUShaderInput *uniform = GPU_shaderinterface_uniform(sh->interface, name); \
-  BLI_assert(uniform);
-
 void GPU_shader_uniform_1i(GPUShader *sh, const char *name, int value)
 {
-  GET_UNIFORM
-  GPU_shader_uniform_int(sh, uniform->location, value);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_int(sh, loc, value);
 }
 
 void GPU_shader_uniform_1b(GPUShader *sh, const char *name, bool value)
@@ -600,44 +605,44 @@ void GPU_shader_uniform_4f(GPUShader *sh, const char *name, float x, float y, fl
 
 void GPU_shader_uniform_1f(GPUShader *sh, const char *name, float x)
 {
-  GET_UNIFORM
-  GPU_shader_uniform_float(sh, uniform->location, x);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_float(sh, loc, x);
 }
 
 void GPU_shader_uniform_2fv(GPUShader *sh, const char *name, const float data[2])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 2, 1, data);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 2, 1, data);
 }
 
 void GPU_shader_uniform_3fv(GPUShader *sh, const char *name, const float data[3])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 3, 1, data);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 3, 1, data);
 }
 
 void GPU_shader_uniform_4fv(GPUShader *sh, const char *name, const float data[4])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 4, 1, data);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 4, 1, data);
 }
 
 void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 16, 1, (const float *)data);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 16, 1, (const float *)data);
 }
 
 void GPU_shader_uniform_2fv_array(GPUShader *sh, const char *name, int len, const float (*val)[2])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 2, len, (const float *)val);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 2, len, (const float *)val);
 }
 
 void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, const float (*val)[4])
 {
-  GET_UNIFORM
-  GPU_shader_uniform_vector(sh, uniform->location, 4, len, (const float *)val);
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_vector(sh, loc, 4, len, (const float *)val);
 }
 
 /** \} */
@@ -657,7 +662,7 @@ static int g_shader_builtin_srgb_transform = 0;
 
 void GPU_shader_set_srgb_uniform(GPUShader *shader)
 {
-  int32_t loc = GPU_shaderinterface_uniform_builtin(shader->interface, GPU_UNIFORM_SRGB_TRANSFORM);
+  int32_t loc = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_SRGB_TRANSFORM);
   if (loc != -1) {
     GPU_shader_uniform_vector_int(shader, loc, 1, 1, &g_shader_builtin_srgb_transform);
   }

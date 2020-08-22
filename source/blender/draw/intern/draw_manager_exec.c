@@ -78,6 +78,9 @@ typedef struct DRWCommandsState {
 
 void drw_state_set(DRWState state)
 {
+  /* Mask locked state. */
+  state = (~DST.state_lock & state) | (DST.state_lock & DST.state);
+
   if (DST.state == state) {
     return;
   }
@@ -296,16 +299,13 @@ void DRW_state_reset(void)
   DRW_state_reset_ex(DRW_STATE_DEFAULT);
 
   GPU_texture_unbind_all();
-  GPU_uniformbuffer_unbind_all();
+  GPU_uniformbuf_unbind_all();
 
   /* Should stay constant during the whole rendering. */
   GPU_point_size(5);
   GPU_line_smooth(false);
-  /* Bypass U.pixelsize factor. */
-  glLineWidth(1.0f);
-
-  /* Reset blending function */
-  glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+  /* Bypass U.pixelsize factor by using a factor of 0.0f. Will be clamped to 1.0f. */
+  GPU_line_width(0.0f);
 }
 
 /** \} */
@@ -608,11 +608,7 @@ static bool ubo_bindings_validate(DRWShadingGroup *shgroup)
       DRWPass *parent_pass = DRW_memblock_elem_from_handle(DST.vmempool->passes,
                                                            &shgroup->pass_handle);
 
-      printf("Pass : %s, Shader : %s, Block : %s, Binding %d\n",
-             parent_pass->name,
-             shgroup->shader->name,
-             blockname,
-             binding);
+      printf("Pass : %s, Block : %s, Binding %d\n", parent_pass->name, blockname, binding);
     }
   }
 #  endif
@@ -651,18 +647,18 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           GPU_texture_bind_ex(*uni->texture_ref, uni->sampler_state, uni->location, false);
           break;
         case DRW_UNIFORM_BLOCK:
-          GPU_uniformbuffer_bind(uni->block, uni->location);
+          GPU_uniformbuf_bind(uni->block, uni->location);
           break;
         case DRW_UNIFORM_BLOCK_REF:
-          GPU_uniformbuffer_bind(*uni->block_ref, uni->location);
+          GPU_uniformbuf_bind(*uni->block_ref, uni->location);
           break;
         case DRW_UNIFORM_BLOCK_OBMATS:
           state->obmats_loc = uni->location;
-          GPU_uniformbuffer_bind(DST.vmempool->matrices_ubo[0], uni->location);
+          GPU_uniformbuf_bind(DST.vmempool->matrices_ubo[0], uni->location);
           break;
         case DRW_UNIFORM_BLOCK_OBINFOS:
           state->obinfos_loc = uni->location;
-          GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[0], uni->location);
+          GPU_uniformbuf_bind(DST.vmempool->obinfos_ubo[0], uni->location);
           break;
         case DRW_UNIFORM_RESOURCE_CHUNK:
           state->chunkid_loc = uni->location;
@@ -762,27 +758,22 @@ static void draw_call_resource_bind(DRWCommandsState *state, const DRWResourceHa
   /* Front face is not a resource but it is inside the resource handle. */
   bool neg_scale = DRW_handle_negative_scale_get(handle);
   if (neg_scale != state->neg_scale) {
-    if (DST.view_active->is_inverted) {
-      glFrontFace(neg_scale ? GL_CCW : GL_CW);
-    }
-    else {
-      glFrontFace(neg_scale ? GL_CW : GL_CCW);
-    }
     state->neg_scale = neg_scale;
+    GPU_front_facing(neg_scale != DST.view_active->is_inverted);
   }
 
   int chunk = DRW_handle_chunk_get(handle);
   if (state->resource_chunk != chunk) {
     if (state->chunkid_loc != -1) {
-      GPU_shader_uniform_int(NULL, state->chunkid_loc, chunk);
+      GPU_shader_uniform_int(DST.shader, state->chunkid_loc, chunk);
     }
     if (state->obmats_loc != -1) {
-      GPU_uniformbuffer_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
-      GPU_uniformbuffer_bind(DST.vmempool->matrices_ubo[chunk], state->obmats_loc);
+      GPU_uniformbuf_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
+      GPU_uniformbuf_bind(DST.vmempool->matrices_ubo[chunk], state->obmats_loc);
     }
     if (state->obinfos_loc != -1) {
-      GPU_uniformbuffer_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
-      GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[chunk], state->obinfos_loc);
+      GPU_uniformbuf_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
+      GPU_uniformbuf_bind(DST.vmempool->obinfos_ubo[chunk], state->obinfos_loc);
     }
     state->resource_chunk = chunk;
   }
@@ -790,7 +781,7 @@ static void draw_call_resource_bind(DRWCommandsState *state, const DRWResourceHa
   if (state->resourceid_loc != -1) {
     int id = DRW_handle_id_get(handle);
     if (state->resource_id != id) {
-      GPU_shader_uniform_int(NULL, state->resourceid_loc, id);
+      GPU_shader_uniform_int(DST.shader, state->resourceid_loc, id);
       state->resource_id = id;
     }
   }
@@ -898,13 +889,13 @@ static void draw_call_batching_finish(DRWShadingGroup *shgroup, DRWCommandsState
 
   /* Reset state */
   if (state->neg_scale) {
-    glFrontFace(DST.view_active->is_inverted ? GL_CW : GL_CCW);
+    GPU_front_facing(DST.view_active->is_inverted);
   }
   if (state->obmats_loc != -1) {
-    GPU_uniformbuffer_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
+    GPU_uniformbuf_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
   }
   if (state->obinfos_loc != -1) {
-    GPU_uniformbuffer_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
+    GPU_uniformbuf_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
   }
 }
 
@@ -934,7 +925,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
       /* Unbinding can be costly. Skip in normal condition. */
       if (G.debug & G_DEBUG_GPU) {
         GPU_texture_unbind_all();
-        GPU_uniformbuffer_unbind_all();
+        GPU_uniformbuf_unbind_all();
       }
     }
     GPU_shader_bind(shgroup->shader);
@@ -1070,7 +1061,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 static void drw_update_view(void)
 {
   /* TODO(fclem) update a big UBO and only bind ranges here. */
-  DRW_uniformbuffer_update(G_draw.view_ubo, &DST.view_active->storage);
+  GPU_uniformbuf_update(G_draw.view_ubo, &DST.view_active->storage);
 
   /* TODO get rid of this. */
   DST.view_storage_cpy = DST.view_active->storage;
@@ -1110,7 +1101,7 @@ static void drw_draw_pass_ex(DRWPass *pass,
   drw_state_validate();
 
   if (DST.view_active->is_inverted) {
-    glFrontFace(GL_CW);
+    GPU_front_facing(true);
   }
 
   DRW_stats_query_start(pass->name);
@@ -1147,7 +1138,7 @@ static void drw_draw_pass_ex(DRWPass *pass,
 
   /* Reset default. */
   if (DST.view_active->is_inverted) {
-    glFrontFace(GL_CCW);
+    GPU_front_facing(false);
   }
 
   DRW_stats_query_end();

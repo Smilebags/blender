@@ -23,13 +23,25 @@
 #include "BLI_span.hh"
 
 #include "GPU_shader.h"
-#include "GPU_shader_interface.h"
 #include "GPU_vertex_buffer.h"
+#include "gpu_shader_interface.hh"
 
 namespace blender {
 namespace gpu {
 
-class Shader : public GPUShader {
+/**
+ * Implementation of shader compilation and uniforms handling.
+ * Base class which is then specialized for each implementation (GL, VK, ...).
+ **/
+class Shader {
+ public:
+  /** Uniform & attribute locations for shader. */
+  ShaderInterface *interface;
+
+ protected:
+  /** For debugging purpose. */
+  char name[64];
+
  public:
   Shader(const char *name);
   virtual ~Shader();
