@@ -1834,39 +1834,26 @@ static void ui_draw_but_curve_grid2(uint pos,
                                     float step_x,
                                     float step_y)
 {
-  /* Account for 1px border. */
-  rcti draw_rect = {
-      .xmin = rect->xmin + 1,
-      .xmax = rect->xmax - 1,
-      .ymin = rect->ymin + 1,
-      .ymax = rect->ymax - 1,
-  };
+  float start_x = (ceilf(offset_x / step_x) * step_x - offset_x) * zoom_x + rect->xmin;
+  float start_y = (ceilf(offset_y / step_y) * step_y - offset_y) * zoom_y + rect->ymin;
 
-  step_x *= zoom_x;
-  float start_x = draw_rect.xmin - zoom_x * offset_x;
-  if (start_x > draw_rect.xmin) {
-    start_x -= step_x * (floorf(start_x - draw_rect.xmin));
+  int line_count_x = ceilf((rect->xmax - start_x) / (step_x * zoom_x));
+  int line_count_y = ceilf((rect->ymax - start_y) / (step_y * zoom_y));
+
+  if (line_count_x + line_count_y == 0) {
+    return;
   }
-
-  step_y *= zoom_y;
-  float start_y = draw_rect.ymin - zoom_y * offset_y;
-  if (start_y > draw_rect.ymin) {
-    start_y -= step_y * (floorf(start_y - draw_rect.ymin));
-  }
-
-  int line_count_x = floorf((draw_rect.xmax - start_x) / step_x) + 1;
-  int line_count_y = floorf((draw_rect.ymax - start_y) / step_y) + 1;
 
   immBegin(GPU_PRIM_LINES, (line_count_x + line_count_y) * 2);
   for (int i = 0; i < line_count_x; i++) {
-    float x = start_x + i * step_x;
-    immVertex2f(pos, x, draw_rect.ymin);
-    immVertex2f(pos, x, draw_rect.ymax);
+    float x = start_x + i * step_x * zoom_x;
+    immVertex2f(pos, x, rect->ymin);
+    immVertex2f(pos, x, rect->ymax);
   }
   for (int i = 0; i < line_count_y; i++) {
-    float y = start_y + i * step_y;
-    immVertex2f(pos, draw_rect.xmin, y);
-    immVertex2f(pos, draw_rect.xmax, y);
+    float y = start_y + i * step_y * zoom_y;
+    immVertex2f(pos, rect->xmin, y);
+    immVertex2f(pos, rect->xmax, y);
   }
   immEnd();
 }
@@ -1942,10 +1929,10 @@ void ui_draw_but_CURVE(
   };
   rcti scissor_region = {0, region->winx, 0, region->winy};
   BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
-  GPU_scissor(scissor_new.xmin,
-              scissor_new.ymin,
-              BLI_rcti_size_x(&scissor_new),
-              BLI_rcti_size_y(&scissor_new));
+  //   GPU_scissor(scissor_new.xmin,
+  //               scissor_new.ymin,
+  //               BLI_rcti_size_x(&scissor_new),
+  //               BLI_rcti_size_y(&scissor_new));
 
   float color_backdrop[4] = {0, 0, 0, 1};
 
