@@ -494,18 +494,12 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
   scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
   scene->lookup_tables->remove_table(&wavelength_importance_offset);
 
-  /* TODO: Deduplicate. */
-  const static int wavelength_importance_resolution = RAMP_TABLE_SIZE;
+  vector<float> wavelength_importance(WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
-  vector<float> wavelength_importance(wavelength_importance_resolution);
-  if (use_custom_wavelength_importance) {
-    for (int i = 0; i < wavelength_importance_resolution; i++) {
-      wavelength_importance[i] = wavelength_importance_curve[i];
-    }
-  }
-  else {
-    for (int i = 0; i < wavelength_importance_resolution; i++) {
-      wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]);
+  for (int i = 0; i < WAVELENGTH_IMPORTANCE_TABLE_SIZE; i++) {
+    wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]);
+    if (use_custom_wavelength_importance) {
+      wavelength_importance[i] *= wavelength_importance_curve[i];
     }
   }
 
@@ -514,14 +508,14 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
 
   vector<float> wavelength_importance_cdf;
   util_cdf_inverted(
-      wavelength_importance_resolution,
+      WAVELENGTH_IMPORTANCE_TABLE_SIZE,
       MIN_WAVELENGTH,
       MAX_WAVELENGTH,
       [&wavelength_importance](float x) {
         /* TODO: Deduplicate code. */
         const static float start = MIN_WAVELENGTH;
         const static float end = MAX_WAVELENGTH;
-        const static int size = wavelength_importance_resolution;
+        const static int size = WAVELENGTH_IMPORTANCE_TABLE_SIZE;
         const static float step = (end - start) / (size - 1);
 
         if (UNLIKELY(x <= start)) {
