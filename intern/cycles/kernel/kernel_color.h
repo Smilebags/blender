@@ -633,7 +633,7 @@ ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
         kg,
         inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelengths[i]),
         kernel_data.cam.wavelength_importance_offset,
-        RAMP_TABLE_SIZE);
+        WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
     xyz_sum += wavelength_xyz * intensities[i] / wavelength_importance;
   }

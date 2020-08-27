@@ -532,12 +532,14 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
   bcam.use_custom_wavelength_importance = b_render.use_custom_wavelength_importance();
 
   BL::CurveMapping b_wavelength_importance_curve(b_render.wavelength_importance_curve());
-  curvemapping_wavelength_importance_to_array(
-      b_wavelength_importance_curve, bcam.wavelength_importance_curve, RAMP_TABLE_SIZE);
+  curvemapping_wavelength_importance_to_array(b_wavelength_importance_curve,
+                                              bcam.wavelength_importance_curve,
+                                              WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   BL::CurveMapping b_camera_response_function_curve(b_render.camera_response_function_curve());
-  curvemapping_crf_to_array(
-      b_camera_response_function_curve, bcam.camera_response_function_curve, RAMP_TABLE_SIZE);
+  curvemapping_crf_to_array(b_camera_response_function_curve,
+                            bcam.camera_response_function_curve,
+                            WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
   bcam.motion_position = (Camera::MotionPosition)get_enum(cscene,
@@ -678,13 +680,15 @@ static void blender_camera_from_view(BlenderCamera *bcam,
   bcam->use_custom_wavelength_importance = b_scene.render().use_custom_wavelength_importance();
 
   BL::CurveMapping b_wavelength_importance_curve(b_scene.render().wavelength_importance_curve());
-  curvemapping_wavelength_importance_to_array(
-      b_wavelength_importance_curve, bcam->wavelength_importance_curve, RAMP_TABLE_SIZE);
+  curvemapping_wavelength_importance_to_array(b_wavelength_importance_curve,
+                                              bcam->wavelength_importance_curve,
+                                              WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   BL::CurveMapping b_camera_response_function_curve(
       b_scene.render().camera_response_function_curve());
-  curvemapping_crf_to_array(
-      b_camera_response_function_curve, bcam->camera_response_function_curve, RAMP_TABLE_SIZE);
+  curvemapping_crf_to_array(b_camera_response_function_curve,
+                            bcam->camera_response_function_curve,
+                            WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   if (b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_CAMERA) {
     /* camera view */
