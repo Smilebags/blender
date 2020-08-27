@@ -1929,10 +1929,10 @@ void ui_draw_but_CURVE(
   };
   rcti scissor_region = {0, region->winx, 0, region->winy};
   BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
-  //   GPU_scissor(scissor_new.xmin,
-  //               scissor_new.ymin,
-  //               BLI_rcti_size_x(&scissor_new),
-  //               BLI_rcti_size_y(&scissor_new));
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   float color_backdrop[4] = {0, 0, 0, 1};
 
