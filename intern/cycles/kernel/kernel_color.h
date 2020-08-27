@@ -598,11 +598,12 @@ ccl_device float3 wavelength_to_xyz(KernelGlobals *kg, float wavelength)
 {
   int table_offset = kernel_data.cam.camera_response_function_table_offset;
 
-  float position = lerp(
-      0.0f, RAMP_TABLE_SIZE - 1.0f, inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength));
+  float position = lerp(0.0f,
+                        WAVELENGTH_IMPORTANCE_TABLE_SIZE - 1.0f,
+                        inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength));
 
   int lower_bound = floor_to_int(position);
-  int upper_bound = min(lower_bound + 1, RAMP_TABLE_SIZE - 1);
+  int upper_bound = min(lower_bound + 1, WAVELENGTH_IMPORTANCE_TABLE_SIZE - 1);
   float progress = position - int(position);
 
   float3 lower_value = make_float3(
