@@ -84,6 +84,7 @@
 
 #include "draw_color_management.h"
 #include "draw_manager_profiling.h"
+#include "draw_manager_testing.h"
 #include "draw_manager_text.h"
 
 /* only for callbacks */
@@ -1461,7 +1462,7 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
   DRW_hair_init();
 
   /* No framebuffer allowed before drawing. */
-  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   /* Init engines */
   drw_engines_init();
@@ -1916,7 +1917,7 @@ static struct DRWSelectBuffer {
 static void draw_select_framebuffer_depth_only_setup(const int size[2])
 {
   if (g_select_buffer.framebuffer_depth_only == NULL) {
-    g_select_buffer.framebuffer_depth_only = GPU_framebuffer_create();
+    g_select_buffer.framebuffer_depth_only = GPU_framebuffer_create("framebuffer_depth_only");
   }
 
   if ((g_select_buffer.texture_depth != NULL) &&
@@ -2887,6 +2888,8 @@ void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
   GPU_context_active_set(NULL);
 }
 
+/** \} */
+
 #ifdef WITH_XR_OPENXR
 
 /* XXX
@@ -2922,4 +2925,17 @@ void DRW_xr_drawing_end(void)
 }
 
 #endif
+
+/** \name Internal testing API for gtests
+ * \{ */
+
+#ifdef WITH_OPENGL_DRAW_TESTS
+
+void DRW_draw_state_init_gtests(eGPUShaderConfig sh_cfg)
+{
+  DST.draw_ctx.sh_cfg = sh_cfg;
+}
+
+#endif
+
 /** \} */

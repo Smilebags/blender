@@ -99,6 +99,9 @@ void drw_state_set(DRWState state)
   if (state & DRW_STATE_WRITE_COLOR) {
     write_mask |= GPU_WRITE_COLOR;
   }
+  if (state & DRW_STATE_WRITE_STENCIL_ENABLED) {
+    write_mask |= GPU_WRITE_STENCIL;
+  }
 
   switch (state & (DRW_STATE_CULL_BACK | DRW_STATE_CULL_FRONT)) {
     case DRW_STATE_CULL_BACK:
@@ -967,19 +970,14 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 
       switch (cmd_type) {
         case DRW_CMD_CLEAR:
-          GPU_framebuffer_clear(
-#ifndef NDEBUG
-              GPU_framebuffer_active_get(),
-#else
-              NULL,
-#endif
-              cmd->clear.clear_channels,
-              (float[4]){cmd->clear.r / 255.0f,
-                         cmd->clear.g / 255.0f,
-                         cmd->clear.b / 255.0f,
-                         cmd->clear.a / 255.0f},
-              cmd->clear.depth,
-              cmd->clear.stencil);
+          GPU_framebuffer_clear(GPU_framebuffer_active_get(),
+                                cmd->clear.clear_channels,
+                                (float[4]){cmd->clear.r / 255.0f,
+                                           cmd->clear.g / 255.0f,
+                                           cmd->clear.b / 255.0f,
+                                           cmd->clear.a / 255.0f},
+                                cmd->clear.depth,
+                                cmd->clear.stencil);
           break;
         case DRW_CMD_DRWSTATE:
           state.drw_state_enabled |= cmd->state.enable;

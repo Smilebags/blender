@@ -36,7 +36,7 @@ namespace gpu {
 class Shader {
  public:
   /** Uniform & attribute locations for shader. */
-  ShaderInterface *interface;
+  ShaderInterface *interface = nullptr;
 
  protected:
   /** For debugging purpose. */
@@ -65,7 +65,7 @@ class Shader {
   virtual void vertformat_from_shader(GPUVertFormat *) const = 0;
 
  protected:
-  void print_errors(Span<const char *> sources, char *log);
+  void print_errors(Span<const char *> sources, char *log, const char *stage);
 };
 
 }  // namespace gpu

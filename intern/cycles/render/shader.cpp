@@ -631,16 +631,15 @@ void ShaderManager::add_default(Scene *scene)
   {
     ShaderGraph *graph = new ShaderGraph();
 
-    DiffuseBsdfNode *diffuse = new DiffuseBsdfNode();
+    DiffuseBsdfNode *diffuse = graph->create_node<DiffuseBsdfNode>();
     diffuse->color = make_float3(0.8f, 0.8f, 0.8f);
     graph->add(diffuse);
 
     graph->connect(diffuse->output("BSDF"), graph->output()->input("Surface"));
 
-    Shader *shader = new Shader();
+    Shader *shader = scene->create_node<Shader>();
     shader->name = "default_surface";
     shader->set_graph(graph);
-    scene->shaders.push_back(shader);
     scene->default_surface = shader;
     shader->tag_update(scene);
   }
@@ -649,15 +648,14 @@ void ShaderManager::add_default(Scene *scene)
   {
     ShaderGraph *graph = new ShaderGraph();
 
-    PrincipledVolumeNode *principled = new PrincipledVolumeNode();
+    PrincipledVolumeNode *principled = graph->create_node<PrincipledVolumeNode>();
     graph->add(principled);
 
     graph->connect(principled->output("Volume"), graph->output()->input("Volume"));
 
-    Shader *shader = new Shader();
+    Shader *shader = scene->create_node<Shader>();
     shader->name = "default_volume";
     shader->set_graph(graph);
-    scene->shaders.push_back(shader);
     scene->default_volume = shader;
     shader->tag_update(scene);
   }
@@ -666,17 +664,16 @@ void ShaderManager::add_default(Scene *scene)
   {
     ShaderGraph *graph = new ShaderGraph();
 
-    EmissionNode *emission = new EmissionNode();
+    EmissionNode *emission = graph->create_node<EmissionNode>();
     emission->color = make_float3(0.8f, 0.8f, 0.8f);
     emission->strength = 0.0f;
     graph->add(emission);
 
     graph->connect(emission->output("Emission"), graph->output()->input("Surface"));
 
-    Shader *shader = new Shader();
+    Shader *shader = scene->create_node<Shader>();
     shader->name = "default_light";
     shader->set_graph(graph);
-    scene->shaders.push_back(shader);
     scene->default_light = shader;
     shader->tag_update(scene);
   }
@@ -685,10 +682,9 @@ void ShaderManager::add_default(Scene *scene)
   {
     ShaderGraph *graph = new ShaderGraph();
 
-    Shader *shader = new Shader();
+    Shader *shader = scene->create_node<Shader>();
     shader->name = "default_background";
     shader->set_graph(graph);
-    scene->shaders.push_back(shader);
     scene->default_background = shader;
     shader->tag_update(scene);
   }
@@ -697,10 +693,9 @@ void ShaderManager::add_default(Scene *scene)
   {
     ShaderGraph *graph = new ShaderGraph();
 
-    Shader *shader = new Shader();
+    Shader *shader = scene->create_node<Shader>();
     shader->name = "default_empty";
     shader->set_graph(graph);
-    scene->shaders.push_back(shader);
     scene->default_empty = shader;
     shader->tag_update(scene);
   }
