@@ -12,31 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
  */
 
 /** \file
- * \ingroup gpu
- *
- * GPU vertex attribute binding
+ * \ingroup pythonintern
  */
 
 #pragma once
-
-#include "GPU_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct GPUAttrBinding {
-  /** Store 4 bits for each of the 16 attributes. */
-  uint64_t loc_bits;
-  /** 1 bit for each attribute. */
-  uint16_t enabled_bits;
-} GPUAttrBinding;
+extern PyMethodDef BPY_rna_uilayout_introspect_method_def;
 
 #ifdef __cplusplus
 }

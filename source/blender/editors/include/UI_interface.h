@@ -1865,6 +1865,8 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout);
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr);
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
+struct wmOperatorType *UI_but_operatortype_get_from_enum_menu(struct uiBut *but,
+                                                              PropertyRNA **r_prop);
 struct MenuType *UI_but_menutype_get(uiBut *but);
 struct PanelType *UI_but_paneltype_get(uiBut *but);
 void UI_menutype_draw(struct bContext *C, struct MenuType *mt, struct uiLayout *layout);
@@ -2406,6 +2408,9 @@ void uiItemTabsEnumR_prop(uiLayout *layout,
                           struct PointerRNA *ptr,
                           PropertyRNA *prop,
                           bool icon_only);
+
+/* Only for testing, inspecting layouts. */
+const char *UI_layout_introspect(uiLayout *layout);
 
 /* UI Operators */
 typedef struct uiDragColorHandle {

@@ -13,31 +13,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
+ * The Original Code is Copyright (C) 2020 Blender Foundation,
  * All rights reserved.
  */
 
-/** \file
- * \ingroup gpu
- *
- * GPU vertex attribute binding
- */
-
-#pragma once
-
-#include "GPU_vertex_format.h"
-#include "gpu_shader_interface.hh"
+#ifndef __RB_HULL_API_H__
+#define __RB_HULL_API_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* TODO(fclem) remove, use shaderface directly. */
-void AttrBinding_clear(GPUAttrBinding *binding);
+typedef struct plConvexHull__ {
+  int unused;
+} * plConvexHull;
 
-void get_attr_locations(const GPUVertFormat *format, GPUAttrBinding *binding, GPUShader *shader);
-uint read_attr_location(const GPUAttrBinding *binding, uint a_idx);
+plConvexHull plConvexHullCompute(float (*coords)[3], int count);
+void plConvexHullDelete(plConvexHull hull);
+int plConvexHullNumVertices(plConvexHull hull);
+int plConvexHullNumFaces(plConvexHull hull);
+void plConvexHullGetVertex(plConvexHull hull, int n, float coords[3], int *original_index);
+int plConvexHullGetFaceSize(plConvexHull hull, int n);
+void plConvexHullGetFaceVertices(plConvexHull hull, int n, int *vertices);
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* __RB_HULL_API_H__ */
