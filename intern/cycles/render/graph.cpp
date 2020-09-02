@@ -841,7 +841,7 @@ void ShaderGraph::expand()
       if (input->type() == SocketType::SPECTRAL && !input->link) {
         RGBColor color = input->parent->get_float3(input->socket_type);
 
-        RGBToSpectrumNode *node = new RGBToSpectrumNode();
+        RGBToSpectrumNode *node = create_node<RGBToSpectrumNode>();
         node->color = color;
 
         add(node);

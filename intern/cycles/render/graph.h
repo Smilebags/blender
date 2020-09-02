@@ -359,8 +359,7 @@ class ShaderGraph : public NodeOwner {
    */
   template<typename T> void delete_node(T *node)
   {
-    /* TODO: Uncomment */
-    // assert(node->get_owner() == this);
+    assert(node->get_owner() == this);
     delete node;
   }
 

@@ -237,7 +237,7 @@ static ShaderNode *add_node(Scene *scene,
   if (b_node.is_a(&RNA_ShaderNodeSpectrumCurve)) {
     BL::ShaderNodeSpectrumCurve b_curve_node(b_node);
     BL::CurveMapping mapping(b_curve_node.mapping());
-    SpectrumCurvesNode *curves = new SpectrumCurvesNode();
+    SpectrumCurvesNode *curves = graph->create_node<SpectrumCurvesNode>();
 
     mapping.update();
 
@@ -343,7 +343,7 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_a(&RNA_ShaderNodeSpectrumMath)) {
     BL::ShaderNodeSpectrumMath b_spectrum_math_node(b_node);
-    SpectrumMathNode *math_node = new SpectrumMathNode();
+    SpectrumMathNode *math_node = graph->create_node<SpectrumMathNode>();
     math_node->type = (NodeSpectrumMathType)b_spectrum_math_node.operation();
     math_node->use_clamp = b_spectrum_math_node.use_clamp();
     node = math_node;
@@ -613,7 +613,7 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_a(&RNA_ShaderNodeGaussianSpectrum)) {
     BL::ShaderNodeGaussianSpectrum b_gaussian_spectrum(b_node);
-    GaussianSpectrumNode *gaussian_spectrum = new GaussianSpectrumNode();
+    GaussianSpectrumNode *gaussian_spectrum = graph->create_node<GaussianSpectrumNode>();
     gaussian_spectrum->normalize = b_gaussian_spectrum.normalize();
     node = gaussian_spectrum;
   }
@@ -621,7 +621,7 @@ static ShaderNode *add_node(Scene *scene,
     node = graph->create_node<BlackbodyNode>();
   }
   else if (b_node.is_a(&RNA_ShaderNodeBlackbodySpectral)) {
-    node = new BlackbodySpectralNode();
+    node = graph->create_node<BlackbodySpectralNode>();
   }
   else if (b_node.is_a(&RNA_ShaderNodeLightPath)) {
     node = graph->create_node<LightPathNode>();
@@ -868,7 +868,7 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_a(&RNA_ShaderNodeTexSkySpectral)) {
     BL::ShaderNodeTexSkySpectral b_sky_node(b_node);
-    NishitaSpectralSkyTextureNode *sky = new NishitaSpectralSkyTextureNode();
+    NishitaSpectralSkyTextureNode *sky = graph->create_node<NishitaSpectralSkyTextureNode>();
     sky->sun_disc = b_sky_node.sun_disc();
     sky->sun_size = b_sky_node.sun_size();
     sky->sun_intensity = b_sky_node.sun_intensity();
