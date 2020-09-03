@@ -2141,6 +2141,11 @@ ConvertNode::ConvertNode(SocketType::Type from_, SocketType::Type to_, bool auto
   from = from_;
   to = to_;
 
+  if (from == SocketType::SPECTRAL && to == SocketType::COLOR) {
+    fprintf(stderr, "Spectral Cycles: SPECTRUM -> COLOR conversion\n");
+    return;
+  }
+
   if (from == to)
     special_type = SHADER_SPECIAL_TYPE_PROXY;
   else if (autoconvert)

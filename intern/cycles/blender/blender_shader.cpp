@@ -134,8 +134,25 @@ static float3 get_node_output_vector(BL::Node &b_node, const string &name)
   return make_float3(value[0], value[1], value[2]);
 }
 
+static bool is_spectral_socket(BL::NodeSocket b_socket)
+{
+  BL::Node b_node = b_socket.node();
+
+  /* Add new spectral nodes here. */
+  return (b_socket.type() == BL::NodeSocket::type_RGBA &&
+          (b_node.is_a(&RNA_ShaderNodeSpectrumCurve) || b_node.is_a(&RNA_ShaderNodeSpectrumMath) ||
+           b_node.is_a(&RNA_ShaderNodeTexSkySpectral) ||
+           b_node.is_a(&RNA_ShaderNodeBlackbodySpectral) ||
+           b_node.is_a(&RNA_ShaderNodeGaussianSpectrum)));
+}
+
 static SocketType::Type convert_socket_type(BL::NodeSocket &b_socket)
 {
+  /* Hack to support spectral sockets without adding them to Blender. */
+  if (is_spectral_socket(b_socket)) {
+    return SocketType::SPECTRAL;
+  }
+
   switch (b_socket.type()) {
     case BL::NodeSocket::type_VALUE:
       return SocketType::FLOAT;
@@ -1085,19 +1102,47 @@ static void add_nodes(Scene *scene,
   for (b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
     if (b_node->mute() || b_node->is_a(&RNA_NodeReroute)) {
       /* replace muted node with internal links */
-      BL::Node::internal_links_iterator b_link;
-      for (b_node->internal_links.begin(b_link); b_link != b_node->internal_links.end();
-           ++b_link) {
-        BL::NodeSocket to_socket(b_link->to_socket());
+      BL::Node::internal_links_iterator b_internal_link;
+      for (b_node->internal_links.begin(b_internal_link);
+           b_internal_link != b_node->internal_links.end();
+           ++b_internal_link) {
+        BL::NodeSocket to_socket(b_internal_link->to_socket());
         SocketType::Type to_socket_type = convert_socket_type(to_socket);
+
+        /* Hack to support spectral socket for reroute nodes. Iterate down the node tree until
+         * first non-reroute node is found and check if connected socket is spectral. */
+        auto iter_node = *b_node;
+        BL::NodeSocket iter_socket = to_socket;
+        while (iter_node.is_a(&RNA_NodeReroute)) {
+          BL::NodeTree::links_iterator b_link;
+
+          bool found = false;
+          for (b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
+            if (b_link->to_socket().ptr.data == iter_node.inputs[0].ptr.data) {
+              found = true;
+              iter_node = b_link->from_socket().node();
+              iter_socket = b_link->from_socket();
+              break;
+            }
+          }
+
+          if (!found) {
+            break;
+          }
+        }
+
+        if (is_spectral_socket(iter_socket)) {
+          to_socket_type = SocketType::SPECTRAL;
+        }
+
         if (to_socket_type == SocketType::UNDEFINED) {
           continue;
         }
 
         ConvertNode *proxy = graph->create_node<ConvertNode>(to_socket_type, to_socket_type, true);
 
-        input_map[b_link->from_socket().ptr.data] = proxy->inputs[0];
-        output_map[b_link->to_socket().ptr.data] = proxy->outputs[0];
+        input_map[b_internal_link->from_socket().ptr.data] = proxy->inputs[0];
+        output_map[b_internal_link->to_socket().ptr.data] = proxy->outputs[0];
 
         graph->add(proxy);
       }
