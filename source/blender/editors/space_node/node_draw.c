@@ -763,6 +763,18 @@ static void node_socket_outline_color_get(bool selected, float r_outline_color[4
   }
 }
 
+static bool is_socket_spectral(bNodeSocket *sock, bNode *node)
+{
+  /* Add new spectral nodes here. */
+  return ((node->typeinfo->nclass == NODE_CLASS_SHADER || ELEM(node->typeinfo->type,
+                                                               SH_NODE_SPECTRUM_MATH,
+                                                               SH_NODE_CURVE_SPECTRUM,
+                                                               SH_NODE_TEX_SKY_SPECTRAL,
+                                                               SH_NODE_BLACKBODY_SPECTRAL,
+                                                               SH_NODE_GAUSSIAN_SPECTRUM)) &&
+          sock->type == SOCK_RGBA);
+}
+
 /* Usual convention here would be node_socket_get_color(), but that's already used (for setting a
  * color property socket). */
 void node_socket_color_get(
@@ -773,15 +785,20 @@ void node_socket_color_get(
   BLI_assert(RNA_struct_is_a(node_ptr->type, &RNA_Node));
   RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
 
-  /* Hack to use different color for spectral sockets without adding them to Blender. */
   bNode *node = node_ptr->data;
-  if ((node->typeinfo->nclass == NODE_CLASS_SHADER || ELEM(node->typeinfo->type,
-                                                           SH_NODE_SPECTRUM_MATH,
-                                                           SH_NODE_CURVE_SPECTRUM,
-                                                           SH_NODE_TEX_SKY_SPECTRAL,
-                                                           SH_NODE_BLACKBODY_SPECTRAL,
-                                                           SH_NODE_GAUSSIAN_SPECTRUM)) &&
-      sock->type == SOCK_RGBA) {
+
+  /* Hack to show correct socket type of reroute node. */
+  while (node->typeinfo->type == NODE_REROUTE) {
+    if (((bNodeSocket *)node->inputs.first)->link == NULL) {
+      break;
+    }
+
+    sock = ((bNodeSocket *)node->inputs.first)->link->fromsock;
+    node = ((bNodeSocket *)node->inputs.first)->link->fromnode;
+  }
+
+  /* Hack to use different color for spectral sockets without adding them to Blender. */
+  if (is_socket_spectral(sock, node)) {
     r_color[0] = 0.78f;
     r_color[1] = 0.16f;
     r_color[2] = 0.16f;
