@@ -3127,7 +3127,13 @@ void ui_draw_gradient(const rcti *rect,
   immUnbindProgram();
 }
 
-void ui_draw_gradient_spectrum(const bContext *C, const rcti *rect, const float alpha)
+void ui_draw_gradient_spectrum(const bContext *C,
+                               const rcti *rect,
+                               const float alpha,
+                               const float offset_x,
+                               const float offset_y,
+                               const float zoom_x,
+                               const float zoom_y)
 {
   const int steps = 64;
   const float steps_inv = 1.0f / steps;
@@ -3158,9 +3164,8 @@ void ui_draw_gradient_spectrum(const bContext *C, const rcti *rect, const float 
     linearrgb_to_srgb_v3_v3(color2, linear2);
     mul_v3_fl(color2, 0.5f); /* Avoid clipping. */
 
-    /* TODO: Take offset into account. */
-    float x1 = interpf(rect->xmax, rect->xmin, step * steps_inv);
-    float x2 = interpf(rect->xmax, rect->xmin, (step + 1) * steps_inv);
+    const float x1 = (wavelength1 - offset_x) * zoom_x + rect->xmin;
+    const float x2 = (wavelength2 - offset_x) * zoom_x + rect->xmin;
 
     immAttr4f(col, color1[0], color1[1], color1[2], alpha);
     immVertex2f(pos, x1, rect->ymin);

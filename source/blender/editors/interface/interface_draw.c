@@ -1965,7 +1965,7 @@ void ui_draw_but_CURVE(
 
       immUnbindProgram();
 
-      ui_draw_gradient_spectrum(C, rect, 1.0f);
+      ui_draw_gradient_spectrum(C, rect, 1.0f, offsx, offsy, zoomx, zoomy);
       break;
     }
 

@@ -808,7 +808,13 @@ void ui_draw_gradient(const rcti *rect,
                       const float hsv[3],
                       const eButGradientType type,
                       const float alpha);
-void ui_draw_gradient_spectrum(const struct bContext *C, const rcti *rect, const float alpha);
+void ui_draw_gradient_spectrum(const struct bContext *C,
+                               const rcti *rect,
+                               const float alpha,
+                               const float offset_x,
+                               const float offset_y,
+                               const float zoom_x,
+                               const float zoom_y);
 
 void ui_draw_but_TAB_outline(const rcti *rect,
                              float rad,
