@@ -2118,9 +2118,11 @@ void ui_draw_but_CURVE(
 
   /* Curve filled. */
   switch ((int)but->a1) {
-    case UI_GRAD_SPECTRUM: ;
+    case UI_GRAD_SPECTRUM:
+      {
       uint8_t white[3] = {0xFF, 0xFF, 0xFF};
       immUniformColor3ubvAlpha(white, 128);
+      }
       break;
     default:
       immUniformColor3ubvAlpha(wcol->item, 128);
@@ -2144,9 +2146,11 @@ void ui_draw_but_CURVE(
   GPU_line_width(1.0f);
   /* Curve filled. */
   switch ((int)but->a1) {
-    case UI_GRAD_SPECTRUM: ;
+    case UI_GRAD_SPECTRUM:
+      {
       uint8_t white[3] = {0xFF, 0xFF, 0xFF};
       immUniformColor3ubvAlpha(white, 255);
+      }
       break;
     default:
       immUniformColor3ubvAlpha(wcol->item, 255);
@@ -2178,11 +2182,13 @@ void ui_draw_but_CURVE(
   float color_vert[4], color_vert_select[4];
 
   switch ((int)but->a1) {
-    case UI_GRAD_SPECTRUM: ;
+    case UI_GRAD_SPECTRUM:
+      {
       uint8_t unselected[3] = {0xFF, 0xFF, 0xFF};
       uint8_t selected[3] = {0xFF, 0xA0, 0x28};
       rgb_uchar_to_float(color_vert, unselected);
       rgb_uchar_to_float(color_vert_select, selected);
+      }
       break;
 
     default:
