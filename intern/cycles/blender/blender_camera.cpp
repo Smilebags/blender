@@ -76,6 +76,9 @@ struct BlenderCamera {
   int full_width;
   int full_height;
 
+  int render_width;
+  int render_height;
+
   BoundBox2D border;
   BoundBox2D pano_viewplane;
   BoundBox2D viewport_camera_border;
@@ -85,6 +88,10 @@ struct BlenderCamera {
   float offscreen_dicing_scale;
 
   int motion_steps;
+
+  array<float3> camera_response_function_curve;
+  array<float> wavelength_importance_curve;
+  bool use_custom_wavelength_importance;
 };
 
 static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_render)
@@ -126,8 +133,10 @@ static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_rende
   bcam->matrix = transform_identity();
 
   /* render resolution */
-  bcam->full_width = render_resolution_x(b_render);
-  bcam->full_height = render_resolution_y(b_render);
+  bcam->render_width = render_resolution_x(b_render);
+  bcam->render_height = render_resolution_y(b_render);
+  bcam->full_width = bcam->render_width;
+  bcam->full_height = bcam->render_height;
 }
 
 static float blender_camera_focal_distance(BL::RenderEngine &b_engine,
@@ -398,8 +407,8 @@ static void blender_camera_sync(Camera *cam,
 
   /* panorama sensor */
   if (bcam->type == CAMERA_PANORAMA && bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID) {
-    float fit_xratio = (float)bcam->full_width * bcam->pixelaspect.x;
-    float fit_yratio = (float)bcam->full_height * bcam->pixelaspect.y;
+    float fit_xratio = (float)bcam->render_width * bcam->pixelaspect.x;
+    float fit_yratio = (float)bcam->render_height * bcam->pixelaspect.y;
     bool horizontal_fit;
     float sensor_size;
 
@@ -485,6 +494,9 @@ static void blender_camera_sync(Camera *cam,
   cam->rolling_shutter_duration = bcam->rolling_shutter_duration;
 
   cam->shutter_curve = bcam->shutter_curve;
+  cam->camera_response_function_curve = bcam->camera_response_function_curve;
+  cam->wavelength_importance_curve = bcam->wavelength_importance_curve;
+  cam->use_custom_wavelength_importance = bcam->use_custom_wavelength_importance;
 
   /* border */
   cam->border = bcam->border;
@@ -516,6 +528,18 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
 
   BL::CurveMapping b_shutter_curve(b_render.motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam.shutter_curve, RAMP_TABLE_SIZE);
+
+  bcam.use_custom_wavelength_importance = b_render.use_custom_wavelength_importance();
+
+  BL::CurveMapping b_wavelength_importance_curve(b_render.wavelength_importance_curve());
+  curvemapping_wavelength_importance_to_array(b_wavelength_importance_curve,
+                                              bcam.wavelength_importance_curve,
+                                              WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+
+  BL::CurveMapping b_camera_response_function_curve(b_render.camera_response_function_curve());
+  curvemapping_crf_to_array(b_camera_response_function_curve,
+                            bcam.camera_response_function_curve,
+                            WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
   bcam.motion_position = (Camera::MotionPosition)get_enum(cscene,
@@ -653,6 +677,19 @@ static void blender_camera_from_view(BlenderCamera *bcam,
   BL::CurveMapping b_shutter_curve(b_scene.render().motion_blur_shutter_curve());
   curvemapping_to_array(b_shutter_curve, bcam->shutter_curve, RAMP_TABLE_SIZE);
 
+  bcam->use_custom_wavelength_importance = b_scene.render().use_custom_wavelength_importance();
+
+  BL::CurveMapping b_wavelength_importance_curve(b_scene.render().wavelength_importance_curve());
+  curvemapping_wavelength_importance_to_array(b_wavelength_importance_curve,
+                                              bcam->wavelength_importance_curve,
+                                              WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+
+  BL::CurveMapping b_camera_response_function_curve(
+      b_scene.render().camera_response_function_curve());
+  curvemapping_crf_to_array(b_camera_response_function_curve,
+                            bcam->camera_response_function_curve,
+                            WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+
   if (b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_CAMERA) {
     /* camera view */
     BL::Object b_ob = (b_v3d.use_local_camera()) ? b_v3d.camera() : b_scene.camera();
@@ -709,6 +746,10 @@ static void blender_camera_from_view(BlenderCamera *bcam,
 
   /* 3d view transform */
   bcam->matrix = transform_inverse(get_transform(b_rv3d.view_matrix()));
+
+  /* dimensions */
+  bcam->full_width = width;
+  bcam->full_height = height;
 }
 
 static void blender_camera_view_subset(BL::RenderEngine &b_engine,
@@ -867,13 +908,13 @@ void BlenderSync::sync_view(BL::SpaceView3D &b_v3d,
   }
 }
 
-BufferParams BlenderSync::get_buffer_params(BL::Scene &b_scene,
-                                            BL::RenderSettings &b_render,
+BufferParams BlenderSync::get_buffer_params(BL::RenderSettings &b_render,
                                             BL::SpaceView3D &b_v3d,
                                             BL::RegionView3D &b_rv3d,
                                             Camera *cam,
                                             int width,
-                                            int height)
+                                            int height,
+                                            const bool use_denoiser)
 {
   BufferParams params;
   bool use_border = false;
@@ -907,8 +948,7 @@ BufferParams BlenderSync::get_buffer_params(BL::Scene &b_scene,
   PassType display_pass = update_viewport_display_passes(b_v3d, params.passes);
 
   /* Can only denoise the combined image pass */
-  params.denoising_data_pass = display_pass == PASS_COMBINED &&
-                               update_viewport_display_denoising(b_v3d, b_scene);
+  params.denoising_data_pass = display_pass == PASS_COMBINED && use_denoiser;
 
   return params;
 }

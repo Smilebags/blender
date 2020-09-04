@@ -25,6 +25,7 @@
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_define.h"
@@ -804,11 +805,11 @@ static char *rna_EffectorWeight_path(PointerRNA *ptr)
     /* check smoke modifier */
     md = (ModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
     if (md) {
-      FluidModifierData *mmd = (FluidModifierData *)md;
-      if (mmd->domain->effector_weights == ew) {
+      FluidModifierData *fmd = (FluidModifierData *)md;
+      if (fmd->domain->effector_weights == ew) {
         char name_esc[sizeof(md->name) * 2];
         BLI_strescape(name_esc, md->name, sizeof(name_esc));
-        return BLI_sprintfN("modifiers[\"%s\"].settings.effector_weights", name_esc);
+        return BLI_sprintfN("modifiers[\"%s\"].domain_settings.effector_weights", name_esc);
       }
     }
 
@@ -850,7 +851,7 @@ static void rna_CollisionSettings_dependency_update(Main *bmain, Scene *scene, P
     ED_object_modifier_add(NULL, bmain, scene, ob, NULL, eModifierType_Collision);
   }
   else if (!ob->pd->deflect && md) {
-    ED_object_modifier_remove(NULL, bmain, ob, md);
+    ED_object_modifier_remove(NULL, bmain, scene, ob, md);
   }
 
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
@@ -934,7 +935,7 @@ static void rna_def_pointcache_common(StructRNA *srna)
   prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, NULL, "startframe");
   RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
-  RNA_def_property_ui_range(prop, 1, MAXFRAME, 1, 1);
+  RNA_def_property_ui_range(prop, 0, MAXFRAME, 1, 1);
   RNA_def_property_ui_text(prop, "Start", "Frame on which the simulation starts");
 
   prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
@@ -1516,6 +1517,15 @@ static void rna_def_field(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Flow", "Convert effector force into air flow velocity");
   RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
 
+  prop = RNA_def_property(srna, "wind_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "f_wind_factor");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Wind Factor",
+      "How much the force is reduced when acting parallel to a surface, e.g. cloth");
+  RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
+
   /* different ui range to above */
   prop = RNA_def_property(srna, "inflow", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "f_flow");
@@ -1908,7 +1918,7 @@ static void rna_def_softbody(BlenderRNA *brna)
   prop = RNA_def_property(srna, "plastic", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "plastic");
   RNA_def_property_range(prop, 0.0f, 100.0f);
-  RNA_def_property_ui_text(prop, "Plastic", "Permanent deform");
+  RNA_def_property_ui_text(prop, "Plasticity", "Permanent deform");
   RNA_def_property_update(prop, 0, "rna_softbody_update");
 
   prop = RNA_def_property(srna, "bend", PROP_FLOAT, PROP_NONE);

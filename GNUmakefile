@@ -32,6 +32,7 @@ Convenience Targets
    * debug:         Build a debug binary.
    * full:          Enable all supported dependencies & options.
    * lite:          Disable non essential features for a smaller binary and faster build.
+   * release        Complete build with all options enabled including CUDA and Optix, matching the releases on blender.org
    * headless:      Build without an interface (renderfarm or server automation).
    * cycles:        Build Cycles standalone only, without Blender.
    * bpy:           Build as a python module which can be loaded from python directly.
@@ -141,6 +142,10 @@ Information
 endef
 # HELP_TEXT (end)
 
+# This makefile is not meant for Windows
+ifeq ($(OS),Windows_NT)
+    $(error On Windows, use "cmd //c make.bat" instead of "make")
+endif
 
 # System Vars
 OS:=$(shell uname -s)
@@ -206,6 +211,10 @@ endif
 ifneq "$(findstring lite, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_lite
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_lite.cmake" $(CMAKE_CONFIG_ARGS)
+endif
+ifneq "$(findstring release, $(MAKECMDGOALS))" ""
+	BUILD_DIR:=$(BUILD_DIR)_release
+	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_release.cmake" $(CMAKE_CONFIG_ARGS)
 endif
 ifneq "$(findstring cycles, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_cycles
@@ -317,6 +326,7 @@ all: .FORCE
 debug: all
 full: all
 lite: all
+release: all
 cycles: all
 headless: all
 bpy: all

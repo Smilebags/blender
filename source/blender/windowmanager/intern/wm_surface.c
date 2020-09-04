@@ -53,9 +53,14 @@ void wm_surfaces_iter(bContext *C, void (*cb)(bContext *C, wmSurface *))
 void wm_surface_clear_drawable(void)
 {
   if (g_drawable) {
-    BLF_batch_reset();
-    gpu_batch_presets_reset();
+    WM_opengl_context_release(g_drawable->ghost_ctx);
+    GPU_context_active_set(NULL);
+
     immDeactivate();
+
+    if (g_drawable->deactivate) {
+      g_drawable->deactivate();
+    }
 
     g_drawable = NULL;
   }
@@ -67,7 +72,10 @@ void wm_surface_set_drawable(wmSurface *surface, bool activate)
 
   g_drawable = surface;
   if (activate) {
-    GHOST_ActivateOpenGLContext(surface->ghost_ctx);
+    if (surface->activate) {
+      surface->activate();
+    }
+    WM_opengl_context_activate(surface->ghost_ctx);
   }
 
   GPU_context_active_set(surface->gpu_ctx);
@@ -76,7 +84,7 @@ void wm_surface_set_drawable(wmSurface *surface, bool activate)
 
 void wm_surface_make_drawable(wmSurface *surface)
 {
-  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   if (surface != g_drawable) {
     wm_surface_clear_drawable();
@@ -87,7 +95,7 @@ void wm_surface_make_drawable(wmSurface *surface)
 void wm_surface_reset_drawable(void)
 {
   BLI_assert(BLI_thread_is_main());
-  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   if (g_drawable) {
     wm_surface_clear_drawable();
@@ -109,6 +117,8 @@ void wm_surface_remove(wmSurface *surface)
 
 void wm_surfaces_free(void)
 {
+  wm_surface_clear_drawable();
+
   for (wmSurface *surf = global_surface_list.first, *surf_next; surf; surf = surf_next) {
     surf_next = surf->next;
     wm_surface_remove(surf);

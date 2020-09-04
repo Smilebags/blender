@@ -101,6 +101,7 @@ DefNode(ShaderNode,     SH_NODE_HAIR_INFO,          0,                      "HAI
 DefNode(ShaderNode,     SH_NODE_VOLUME_INFO,        0,                      "VOLUME_INFO",        VolumeInfo,       "Volume Info",       ""       )
 DefNode(ShaderNode,     SH_NODE_WIREFRAME,          def_sh_tex_wireframe,   "WIREFRAME",          Wireframe,        "Wireframe",         ""       )
 DefNode(ShaderNode,     SH_NODE_WAVELENGTH,         0,                      "WAVELENGTH",         Wavelength,       "Wavelength",        ""       )
+DefNode(ShaderNode,     SH_NODE_GAUSSIAN_SPECTRUM,  def_sh_gaussian_spectrum,"GAUSSIAN_SPECTRUM", GaussianSpectrum, "Gaussian Spectrum", ""       )
 DefNode(ShaderNode,     SH_NODE_BLACKBODY,          0,                      "BLACKBODY",          Blackbody,        "Blackbody",         ""       )
 DefNode(ShaderNode,     SH_NODE_BLACKBODY_SPECTRAL, 0,                      "BLACKBODY_SPECTRAL", BlackbodySpectral,"Spectral Blackbody",""       )
 DefNode(ShaderNode,     SH_NODE_BUMP,               def_sh_bump,            "BUMP",               Bump,             "Bump",              ""       )
@@ -110,6 +111,7 @@ DefNode(ShaderNode,     SH_NODE_SCRIPT,             def_sh_script,          "SCR
 DefNode(ShaderNode,     SH_NODE_TEX_IMAGE,          def_sh_tex_image,       "TEX_IMAGE",          TexImage,         "Image Texture",     ""       )
 DefNode(ShaderNode,     SH_NODE_TEX_ENVIRONMENT,    def_sh_tex_environment, "TEX_ENVIRONMENT",    TexEnvironment,   "Environment Texture",""      )
 DefNode(ShaderNode,     SH_NODE_TEX_SKY,            def_sh_tex_sky,         "TEX_SKY",            TexSky,           "Sky Texture",       ""       )
+DefNode(ShaderNode,     SH_NODE_TEX_SKY_SPECTRAL,   def_sh_tex_sky_spectral,"TEX_SKY_SPECTRAL",   TexSkySpectral,   "Nishita Spectral Sky Texture","")
 DefNode(ShaderNode,     SH_NODE_TEX_GRADIENT,       def_sh_tex_gradient,    "TEX_GRADIENT",       TexGradient,      "Gradient Texture",  ""       )
 DefNode(ShaderNode,     SH_NODE_TEX_NOISE,          def_sh_tex_noise,       "TEX_NOISE",          TexNoise,         "Noise Texture",     ""       )
 DefNode(ShaderNode,     SH_NODE_TEX_MAGIC,          def_sh_tex_magic,       "TEX_MAGIC",          TexMagic,         "Magic Texture",     ""       )
@@ -273,12 +275,16 @@ DefNode(SimulationNode, SIM_NODE_PARTICLE_MESH_COLLISION_EVENT, 0,       "PARTIC
 DefNode(SimulationNode, SIM_NODE_EMIT_PARTICLES, 0,                      "EMIT_PARTICLES",      EmitParticles,      "Emit Particles",       "")
 DefNode(SimulationNode, SIM_NODE_TIME,           def_sim_time,           "TIME",                Time,               "Time",                 "")
 DefNode(SimulationNode, SIM_NODE_PARTICLE_ATTRIBUTE, def_sim_particle_attribute, "PARTICLE_ATTRIBUTE",  ParticleAttribute,  "Particle Attribute",   "")
+DefNode(SimulationNode, SIM_NODE_AGE_REACHED_EVENT, 0, "AGE_REACHED_EVENT", AgeReachedEvent, "Age Reached Event", "")
+DefNode(SimulationNode, SIM_NODE_KILL_PARTICLE, 0, "KILL_PARTICLE", KillParticle, "Kill Particle", "")
 
 DefNode(FunctionNode, FN_NODE_BOOLEAN_MATH,  def_boolean_math,  "BOOLEAN_MATH",  BooleanMath,  "Boolean Math", "")
 DefNode(FunctionNode, FN_NODE_FLOAT_COMPARE, def_float_compare, "FLOAT_COMPARE", FloatCompare, "Float Compare", "")
 DefNode(FunctionNode, FN_NODE_SWITCH,        def_fn_switch,     "SWITCH",        Switch,       "Switch", "")
 DefNode(FunctionNode, FN_NODE_GROUP_INSTANCE_ID, 0,             "GROUP_INSTANCE_ID", GroupInstanceID,  "Group Instance ID", "")
 DefNode(FunctionNode, FN_NODE_COMBINE_STRINGS, 0,               "COMBINE_STRINGS", CombineStrings, "Combine Strings", "")
+DefNode(FunctionNode, FN_NODE_OBJECT_TRANSFORMS, 0,             "OBJECT_TRANSFORMS", ObjectTransforms, "Object Transforms", "")
+DefNode(FunctionNode, FN_NODE_RANDOM_FLOAT, 0,                  "RANDOM_FLOAT", RandomFloat, "Random Float", "")
 
 
 /* undefine macros */

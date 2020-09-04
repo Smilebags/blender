@@ -39,7 +39,6 @@
 #include "BLI_array_utils.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
@@ -48,25 +47,20 @@
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
-#include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_message.h"
-#include "WM_toolsystem.h"
 #include "WM_types.h"
 #include "wm.h"
 
 #include "ED_armature.h"
-#include "ED_curve.h"
 #include "ED_gizmo_library.h"
 #include "ED_gizmo_utils.h"
 #include "ED_gpencil.h"
@@ -89,8 +83,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_state.h"
-
-#include "DEG_depsgraph_query.h"
 
 /* return codes for select, and drawing flags */
 
@@ -595,7 +587,9 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
       if (pchan->parent) {
         float parent_mat[3][3];
 
-        copy_m3_m4(parent_mat, pchan->parent->pose_mat);
+        copy_m3_m4(parent_mat,
+                   (pchan->bone->flag & BONE_HINGE) ? pchan->parent->bone->arm_mat :
+                                                      pchan->parent->pose_mat);
         mul_m3_m3m3(mat, parent_mat, tmat);
 
         /* needed if object transformation isn't identity */
@@ -1349,8 +1343,8 @@ void drawDial3d(const TransInfo *t)
     BLI_assert(axis_idx >= MAN_AXIS_RANGE_ROT_START && axis_idx < MAN_AXIS_RANGE_ROT_END);
     gizmo_get_axis_color(axis_idx, NULL, color, color);
 
-    GPU_depth_test(false);
-    GPU_blend(true);
+    GPU_depth_test(GPU_DEPTH_NONE);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPU_line_smooth(true);
 
     ED_gizmotypes_dial_3d_draw_util(mat_basis,
@@ -1365,8 +1359,8 @@ void drawDial3d(const TransInfo *t)
                                     });
 
     GPU_line_smooth(false);
-    GPU_depth_test(true);
-    GPU_blend(false);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -2059,7 +2053,7 @@ static void WIDGETGROUP_xform_cage_setup(const bContext *UNUSED(C), wmGizmoGroup
     for (int x = 0; x < 3; x++) {
       for (int y = 0; y < 3; y++) {
         for (int z = 0; z < 3; z++) {
-          bool constraint[3] = {x != 1, y != 1, z != 1};
+          const bool constraint[3] = {x != 1, y != 1, z != 1};
           ptr = WM_gizmo_operator_set(gz, i, ot_resize, NULL);
           if (prop_release_confirm == NULL) {
             prop_release_confirm = RNA_struct_find_property(ptr, "release_confirm");

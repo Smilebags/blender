@@ -54,7 +54,9 @@
 
 #include "MEM_guardedalloc.h"
 
-/****************************** Camera Datablock *****************************/
+/* -------------------------------------------------------------------- */
+/** \name Camera Data-Block
+ * \{ */
 
 static void camera_init_data(ID *id)
 {
@@ -126,9 +128,19 @@ IDTypeInfo IDType_ID_CA = {
     .free_data = camera_free_data,
     .make_local = camera_make_local,
     .foreach_id = camera_foreach_id,
+    .foreach_cache = NULL,
+
+    .blend_write = NULL,
+    .blend_read_data = NULL,
+    .blend_read_lib = NULL,
+    .blend_read_expand = NULL,
 };
 
-/******************************** Camera Usage *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Usage
+ * \{ */
 
 void *BKE_camera_add(Main *bmain, const char *name)
 {
@@ -180,15 +192,18 @@ int BKE_camera_sensor_fit(int sensor_fit, float sizex, float sizey)
     if (sizex >= sizey) {
       return CAMERA_SENSOR_FIT_HOR;
     }
-    else {
-      return CAMERA_SENSOR_FIT_VERT;
-    }
+
+    return CAMERA_SENSOR_FIT_VERT;
   }
 
   return sensor_fit;
 }
 
-/******************************** Camera Params *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Parameter Access
+ * \{ */
 
 void BKE_camera_params_init(CameraParams *params)
 {
@@ -380,7 +395,11 @@ void BKE_camera_params_compute_matrix(CameraParams *params)
   }
 }
 
-/***************************** Camera View Frame *****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera View Frame
+ * \{ */
 
 void BKE_camera_view_frame_ex(const Scene *scene,
                               const Camera *camera,
@@ -481,6 +500,12 @@ void BKE_camera_view_frame(const Scene *scene, const Camera *camera, float r_vec
   BKE_camera_view_frame_ex(
       scene, camera, 1.0, false, dummy_scale, dummy_asp, dummy_shift, &dummy_drawsize, r_vec);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera View Frame Fit to Points
+ * \{ */
 
 #define CAMERA_VIEWFRAME_NUM_PLANES 4
 
@@ -616,64 +641,63 @@ static bool camera_frame_fit_calc_from_data(CameraParams *params,
 
     return true;
   }
-  else {
-    float plane_isect_1[3], plane_isect_1_no[3], plane_isect_1_other[3];
-    float plane_isect_2[3], plane_isect_2_no[3], plane_isect_2_other[3];
 
-    float plane_isect_pt_1[3], plane_isect_pt_2[3];
+  float plane_isect_1[3], plane_isect_1_no[3], plane_isect_1_other[3];
+  float plane_isect_2[3], plane_isect_2_no[3], plane_isect_2_other[3];
 
-    /* apply the dist-from-plane's to the transformed plane points */
-    for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
-      float co[3];
-      mul_v3_v3fl(co, data->normal_tx[i], sqrtf_signed(data->dist_vals_sq[i]));
-      plane_from_point_normal_v3(plane_tx[i], co, data->normal_tx[i]);
+  float plane_isect_pt_1[3], plane_isect_pt_2[3];
+
+  /* apply the dist-from-plane's to the transformed plane points */
+  for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
+    float co[3];
+    mul_v3_v3fl(co, data->normal_tx[i], sqrtf_signed(data->dist_vals_sq[i]));
+    plane_from_point_normal_v3(plane_tx[i], co, data->normal_tx[i]);
+  }
+
+  if ((!isect_plane_plane_v3(plane_tx[0], plane_tx[2], plane_isect_1, plane_isect_1_no)) ||
+      (!isect_plane_plane_v3(plane_tx[1], plane_tx[3], plane_isect_2, plane_isect_2_no))) {
+    return false;
+  }
+
+  add_v3_v3v3(plane_isect_1_other, plane_isect_1, plane_isect_1_no);
+  add_v3_v3v3(plane_isect_2_other, plane_isect_2, plane_isect_2_no);
+
+  if (isect_line_line_v3(plane_isect_1,
+                         plane_isect_1_other,
+                         plane_isect_2,
+                         plane_isect_2_other,
+                         plane_isect_pt_1,
+                         plane_isect_pt_2) != 0) {
+    float cam_plane_no[3];
+    float plane_isect_delta[3];
+    float plane_isect_delta_len;
+
+    float shift_fac = BKE_camera_sensor_size(
+                          params->sensor_fit, params->sensor_x, params->sensor_y) /
+                      params->lens;
+
+    /* we want (0, 0, -1) transformed by camera_rotmat, this is a quicker shortcut. */
+    negate_v3_v3(cam_plane_no, data->camera_rotmat[2]);
+
+    sub_v3_v3v3(plane_isect_delta, plane_isect_pt_2, plane_isect_pt_1);
+    plane_isect_delta_len = len_v3(plane_isect_delta);
+
+    if (dot_v3v3(plane_isect_delta, cam_plane_no) > 0.0f) {
+      copy_v3_v3(r_co, plane_isect_pt_1);
+
+      /* offset shift */
+      normalize_v3(plane_isect_1_no);
+      madd_v3_v3fl(r_co, plane_isect_1_no, params->shifty * plane_isect_delta_len * shift_fac);
+    }
+    else {
+      copy_v3_v3(r_co, plane_isect_pt_2);
+
+      /* offset shift */
+      normalize_v3(plane_isect_2_no);
+      madd_v3_v3fl(r_co, plane_isect_2_no, params->shiftx * plane_isect_delta_len * shift_fac);
     }
 
-    if ((!isect_plane_plane_v3(plane_tx[0], plane_tx[2], plane_isect_1, plane_isect_1_no)) ||
-        (!isect_plane_plane_v3(plane_tx[1], plane_tx[3], plane_isect_2, plane_isect_2_no))) {
-      return false;
-    }
-
-    add_v3_v3v3(plane_isect_1_other, plane_isect_1, plane_isect_1_no);
-    add_v3_v3v3(plane_isect_2_other, plane_isect_2, plane_isect_2_no);
-
-    if (isect_line_line_v3(plane_isect_1,
-                           plane_isect_1_other,
-                           plane_isect_2,
-                           plane_isect_2_other,
-                           plane_isect_pt_1,
-                           plane_isect_pt_2) != 0) {
-      float cam_plane_no[3];
-      float plane_isect_delta[3];
-      float plane_isect_delta_len;
-
-      float shift_fac = BKE_camera_sensor_size(
-                            params->sensor_fit, params->sensor_x, params->sensor_y) /
-                        params->lens;
-
-      /* we want (0, 0, -1) transformed by camera_rotmat, this is a quicker shortcut. */
-      negate_v3_v3(cam_plane_no, data->camera_rotmat[2]);
-
-      sub_v3_v3v3(plane_isect_delta, plane_isect_pt_2, plane_isect_pt_1);
-      plane_isect_delta_len = len_v3(plane_isect_delta);
-
-      if (dot_v3v3(plane_isect_delta, cam_plane_no) > 0.0f) {
-        copy_v3_v3(r_co, plane_isect_pt_1);
-
-        /* offset shift */
-        normalize_v3(plane_isect_1_no);
-        madd_v3_v3fl(r_co, plane_isect_1_no, params->shifty * plane_isect_delta_len * shift_fac);
-      }
-      else {
-        copy_v3_v3(r_co, plane_isect_pt_2);
-
-        /* offset shift */
-        normalize_v3(plane_isect_2_no);
-        madd_v3_v3fl(r_co, plane_isect_2_no, params->shiftx * plane_isect_delta_len * shift_fac);
-      }
-
-      return true;
-    }
+    return true;
   }
 
   return false;
@@ -723,7 +747,11 @@ bool BKE_camera_view_frame_fit_to_coords(const Depsgraph *depsgraph,
   return camera_frame_fit_calc_from_data(&params, &data_cb, r_co, r_scale);
 }
 
-/******************* multiview matrix functions ***********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Multi-View Matrix
+ * \{ */
 
 static void camera_model_matrix(const Object *camera, float r_modelmat[4][4])
 {
@@ -751,11 +779,10 @@ static void camera_stereo3d_model_matrix(const Object *camera,
     camera_model_matrix(camera, r_modelmat);
     return;
   }
-  else {
-    float size[3];
-    mat4_to_size(size, camera->obmat);
-    size_to_mat4(sizemat, size);
-  }
+
+  float size[3];
+  mat4_to_size(size, camera->obmat);
+  size_to_mat4(sizemat, size);
 
   if (pivot == CAM_S3D_PIVOT_CENTER) {
     fac = 0.5f;
@@ -907,9 +934,8 @@ bool BKE_camera_multiview_spherical_stereo(const RenderData *rd, const Object *c
   if (camera->type != OB_CAMERA) {
     return false;
   }
-  else {
-    cam = camera->data;
-  }
+
+  cam = camera->data;
 
   if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) && ELEM(cam->type, CAM_PANO, CAM_PERSP) &&
       ((cam->stereo.flag & CAM_S3D_SPHERICAL) != 0)) {
@@ -960,13 +986,12 @@ Object *BKE_camera_multiview_render(const Scene *scene, Object *camera, const ch
   if (!is_multiview) {
     return camera;
   }
-  else if (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D) {
+  if (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D) {
     return camera;
   }
-  else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
-    const char *suffix = BKE_scene_multiview_view_suffix_get(&scene->r, viewname);
-    return camera_multiview_advanced(scene, camera, suffix);
-  }
+  /* SCE_VIEWS_FORMAT_MULTIVIEW */
+  const char *suffix = BKE_scene_multiview_view_suffix_get(&scene->r, viewname);
+  return camera_multiview_advanced(scene, camera, suffix);
 }
 
 static float camera_stereo3d_shift_x(const Object *camera, const char *viewname)
@@ -1020,12 +1045,11 @@ float BKE_camera_multiview_shift_x(const RenderData *rd,
   if (!is_multiview) {
     return data->shiftx;
   }
-  else if (rd->views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
+  if (rd->views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return data->shiftx;
   }
-  else { /* SCE_VIEWS_SETUP_BASIC */
-    return camera_stereo3d_shift_x(camera, viewname);
-  }
+  /* SCE_VIEWS_SETUP_BASIC */
+  return camera_stereo3d_shift_x(camera, viewname);
 }
 
 void BKE_camera_multiview_params(const RenderData *rd,
@@ -1037,6 +1061,12 @@ void BKE_camera_multiview_params(const RenderData *rd,
     params->shiftx = BKE_camera_multiview_shift_x(rd, camera, viewname);
   }
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Background Image
+ * \{ */
 
 CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 {
@@ -1072,3 +1102,5 @@ void BKE_camera_background_image_clear(Camera *cam)
     bgpic = next_bgpic;
   }
 }
+
+/** \} */

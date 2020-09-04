@@ -163,6 +163,39 @@ static inline void curvemapping_to_array(BL::CurveMapping &cumap, array<float> &
   }
 }
 
+static inline void curvemapping_wavelength_importance_to_array(BL::CurveMapping &cumap,
+                                                               array<float> &data,
+                                                               int size)
+{
+  cumap.update();
+
+  BL::CurveMap curve = cumap.curves[0];
+
+  data.resize(size);
+  for (int i = 0; i < size; i++) {
+    float t = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, inverse_lerp(0, size - 1, i));
+    data[i] = fabsf(cumap.evaluate(curve, t));
+  }
+}
+
+static inline void curvemapping_crf_to_array(BL::CurveMapping &cumap,
+                                             array<float3> &data,
+                                             int size)
+{
+  cumap.update();
+
+  BL::CurveMap curveX = cumap.curves[0];
+  BL::CurveMap curveY = cumap.curves[1];
+  BL::CurveMap curveZ = cumap.curves[2];
+
+  data.resize(size);
+  for (int i = 0; i < size; i++) {
+    float t = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, inverse_lerp(0, size - 1, i));
+    data[i] = make_float3(
+        cumap.evaluate(curveX, t), cumap.evaluate(curveY, t), cumap.evaluate(curveZ, t));
+  }
+}
+
 static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
                                                array<float3> &data,
                                                int size,
@@ -238,7 +271,7 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
 {
   char filepath[1024];
   iuser.tile(0);
-  BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
+  BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
 
   string filepath_str = string(filepath);
@@ -248,9 +281,9 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
   return filepath_str;
 }
 
-static inline int image_user_frame_number(BL::ImageUser &iuser, int cfra)
+static inline int image_user_frame_number(BL::ImageUser &iuser, BL::Image &ima, int cfra)
 {
-  BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
+  BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   return iuser.frame_current();
 }
 

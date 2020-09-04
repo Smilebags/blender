@@ -558,11 +558,6 @@ ccl_device float linear_rgb_to_gray(KernelGlobals *kg, float3 c)
   return dot(c, float4_to_float3(kernel_data.film.rgb_to_y));
 }
 
-ccl_device float float_lerp(float start, float end, float progress)
-{
-  return start + ((end - start) * progress);
-}
-
 ccl_device float3 find_position_in_lookup_unit_step(
     ccl_constant float lookup[][3], float position_to_find, int start, int end, int step)
 {
@@ -574,25 +569,74 @@ ccl_device float3 find_position_in_lookup_unit_step(
     return load_float3(lookup[i]);
   }
 
-  int lower_bound = (int(position_to_find) - start) / step;
-  int upper_bound = lower_bound + 1;
-  float progress = position_to_find - int(position_to_find);
+  float lookup_pos = (position_to_find - start) / (float)step;
+  int lower_bound = floor_to_int(lookup_pos);
+  int upper_bound = min(lower_bound + 1, (end - start) / step);
+  float progress = lookup_pos - int(lookup_pos);
   return mix(load_float3(lookup[lower_bound]), load_float3(lookup[upper_bound]), progress);
 }
 
-ccl_device float3 wavelength_to_xyz(float wavelength)
+ccl_device float find_position_in_lookup_unit_step(
+    ccl_constant float lookup[], float position_to_find, int start, int end, int step)
 {
-  return find_position_in_lookup_unit_step(wavelength_xyz_lookup, wavelength, 360, 830, 1);
+  if (UNLIKELY(position_to_find <= start)) {
+    return lookup[0];
+  }
+  if (UNLIKELY(position_to_find >= end)) {
+    int i = (end - start) / step;
+    return lookup[i];
+  }
+
+  float lookup_pos = (position_to_find - start) / (float)step;
+  int lower_bound = floor_to_int(lookup_pos);
+  int upper_bound = min(lower_bound + 1, (end - start) / step);
+  float progress = lookup_pos - int(lookup_pos);
+  return mix(lookup[lower_bound], lookup[upper_bound], progress);
+}
+
+ccl_device float3 wavelength_to_xyz(KernelGlobals *kg, float wavelength)
+{
+  int table_offset = kernel_data.cam.camera_response_function_table_offset;
+
+  float position = lerp(0.0f,
+                        WAVELENGTH_IMPORTANCE_TABLE_SIZE - 1.0f,
+                        inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelength));
+
+  int lower_bound = floor_to_int(position);
+  int upper_bound = min(lower_bound + 1, WAVELENGTH_IMPORTANCE_TABLE_SIZE - 1);
+  float progress = position - int(position);
+
+  float3 lower_value = make_float3(
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * lower_bound + 0),
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * lower_bound + 1),
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * lower_bound + 2));
+  float3 upper_value = make_float3(
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * upper_bound + 0),
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * upper_bound + 1),
+      kernel_tex_fetch(__lookup_table, table_offset + 3 * upper_bound + 2));
+
+  return lerp(lower_value, upper_value, progress);
+  //   return
+  //   find_position_in_lookup_unit_step(wavelength_xyz_lookup,
+  //   wavelength, 360, 830, 1);
 }
 
 ccl_device RGBColor wavelength_intensities_to_linear(KernelGlobals *kg,
                                                      SpectralColor intensities,
                                                      SpectralColor wavelengths)
 {
-  float3 xyz_sum = make_float3(0.0f);
+  RGBColor xyz_sum = make_float3(0.0f);
   FOR_EACH_CHANNEL(i)
   {
-    xyz_sum += wavelength_to_xyz(wavelengths[i]) * intensities[i];
+    RGBColor wavelength_xyz = wavelength_to_xyz(kg, wavelengths[i]);
+
+    float wavelength_importance = lookup_table_read(
+        kg,
+        inverse_lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, wavelengths[i]),
+        kernel_data.cam.wavelength_importance_offset,
+        WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+
+    xyz_sum += wavelength_xyz * intensities[i] / wavelength_importance;
   }
 
   xyz_sum *= 3.0f / CHANNELS_PER_RAY;

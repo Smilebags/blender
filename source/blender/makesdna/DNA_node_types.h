@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_NODE_TYPES_H__
-#define __DNA_NODE_TYPES_H__
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
@@ -844,7 +843,22 @@ typedef struct NodeTexSky {
   float sun_direction[3];
   float turbidity;
   float ground_albedo;
+  float sun_size;
+  float sun_intensity;
+  float sun_elevation;
+  float sun_rotation;
+  float altitude;
+  float air_density;
+  float dust_density;
+  float ozone_density;
+  char sun_disc;
+  char _pad[7];
 } NodeTexSky;
+
+typedef struct NodeGaussianSpectrum {
+  char normalize;
+  char _pad[7];
+} NodeGaussianSpectrum;
 
 typedef struct NodeTexImage {
   NodeTexBase base;
@@ -1171,8 +1185,9 @@ enum {
 };
 
 /* sky texture */
-#define SHD_SKY_OLD 0
-#define SHD_SKY_NEW 1
+#define SHD_SKY_PREETHAM 0
+#define SHD_SKY_HOSEK 1
+#define SHD_SKY_NISHITA 2
 
 /* environment texture */
 #define SHD_PROJ_EQUIRECTANGULAR 0
@@ -1444,5 +1459,3 @@ typedef enum NodeSimInputTimeType {
   NODE_SIM_INPUT_SIMULATION_TIME = 0,
   NODE_SIM_INPUT_SCENE_TIME = 1,
 } NodeSimInputTimeType;
-
-#endif

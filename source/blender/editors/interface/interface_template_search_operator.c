@@ -91,7 +91,7 @@ static void operator_search_update_fn(const bContext *C,
     if (index == words_len) {
       if (WM_operator_poll((bContext *)C, ot)) {
         char name[256];
-        int len = strlen(ot_ui_name);
+        const int len = strlen(ot_ui_name);
 
         /* display name for menu, can hold hotkey */
         BLI_strncpy(name, ot_ui_name, sizeof(name));
@@ -109,7 +109,7 @@ static void operator_search_update_fn(const bContext *C,
           }
         }
 
-        if (!UI_search_item_add(items, name, ot, ICON_NONE, 0)) {
+        if (!UI_search_item_add(items, name, ot, ICON_NONE, 0, 0)) {
           break;
         }
       }

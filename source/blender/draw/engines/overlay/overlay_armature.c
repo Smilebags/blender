@@ -178,6 +178,7 @@ void OVERLAY_armature_cache_init(OVERLAY_Data *vedata)
 
 #define BUF_INSTANCE DRW_shgroup_call_buffer_instance
 #define BUF_LINE(grp, format) DRW_shgroup_call_buffer(grp, format, GPU_PRIM_LINES)
+#define BUF_POINT(grp, format) DRW_shgroup_call_buffer(grp, format, GPU_PRIM_POINTS)
 
     {
       format = formats->instance_bone;
@@ -228,11 +229,12 @@ void OVERLAY_armature_cache_init(OVERLAY_Data *vedata)
     {
       format = formats->instance_extra;
 
-      sh = OVERLAY_shader_armature_degrees_of_freedom();
+      sh = OVERLAY_shader_armature_degrees_of_freedom_wire();
       grp = DRW_shgroup_create(sh, armature_ps);
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       cb->dof_lines = BUF_INSTANCE(grp, format, DRW_cache_bone_dof_lines_get());
 
+      sh = OVERLAY_shader_armature_degrees_of_freedom_solid();
       grp = DRW_shgroup_create(sh, armature_transp_ps);
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       cb->dof_sphere = BUF_INSTANCE(grp, format, DRW_cache_bone_dof_sphere_get());
@@ -510,7 +512,7 @@ static void drw_shgroup_bone_envelope(ArmatureDrawContext *ctx,
 /* Custom (geometry) */
 
 extern void drw_batch_cache_validate(Object *custom);
-extern void drw_batch_cache_generate_requested(Object *custom);
+extern void drw_batch_cache_generate_requested_delayed(Object *custom);
 
 BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(ArmatureDrawContext *ctx,
                                                        DRWShadingGroup *grp,
@@ -567,7 +569,7 @@ static void drw_shgroup_bone_custom_solid(ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem) needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested(custom);
+  drw_batch_cache_generate_requested_delayed(custom);
 }
 
 static void drw_shgroup_bone_custom_wire(ArmatureDrawContext *ctx,
@@ -591,7 +593,7 @@ static void drw_shgroup_bone_custom_wire(ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem) needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested(custom);
+  drw_batch_cache_generate_requested_delayed(custom);
 }
 
 static void drw_shgroup_bone_custom_empty(ArmatureDrawContext *ctx,
@@ -599,7 +601,7 @@ static void drw_shgroup_bone_custom_empty(ArmatureDrawContext *ctx,
                                           const float color[4],
                                           Object *custom)
 {
-  float final_color[4] = {color[0], color[1], color[2], 1.0f};
+  const float final_color[4] = {color[0], color[1], color[2], 1.0f};
   float mat[4][4];
   mul_m4_m4m4(mat, ctx->ob->obmat, bone_mat);
 
@@ -922,12 +924,11 @@ static float get_bone_wire_thickness(const ArmatureDrawContext *ctx, int bonefla
   if (ctx->const_color) {
     return ctx->const_wire;
   }
-  else if (boneflag & (BONE_DRAW_ACTIVE | BONE_SELECTED)) {
+  if (boneflag & (BONE_DRAW_ACTIVE | BONE_SELECTED)) {
     return 2.0f;
   }
-  else {
-    return 1.0f;
-  }
+
+  return 1.0f;
 }
 
 static const float *get_bone_wire_color(const ArmatureDrawContext *ctx,
@@ -1077,7 +1078,7 @@ static void edbo_compute_bbone_child(bArmature *arm)
 }
 
 /* A version of BKE_pchan_bbone_spline_setup() for previewing editmode curve settings. */
-static void ebone_spline_preview(EditBone *ebone, float result_array[MAX_BBONE_SUBDIV][4][4])
+static void ebone_spline_preview(EditBone *ebone, const float result_array[MAX_BBONE_SUBDIV][4][4])
 {
   BBoneSplineParameters param;
   EditBone *prev, *next;
@@ -2117,10 +2118,11 @@ static void armature_context_setup(ArmatureDrawContext *ctx,
                                    const bool do_envelope_dist,
                                    const bool is_edit_mode,
                                    const bool is_pose_mode,
-                                   float *const_color)
+                                   const float *const_color)
 {
   const bool is_object_mode = !do_envelope_dist;
-  const bool is_xray = (ob->dtx & OB_DRAWXRAY) != 0 || (pd->armature.do_pose_xray && is_pose_mode);
+  const bool is_xray = (ob->dtx & OB_DRAW_IN_FRONT) != 0 ||
+                       (pd->armature.do_pose_xray && is_pose_mode);
   const bool draw_as_wire = (ob->dt < OB_SOLID);
   const bool is_filled = (!pd->armature.transparent && !draw_as_wire) || !is_object_mode;
   const bool is_transparent = pd->armature.transparent || (draw_as_wire && !is_object_mode);
@@ -2167,7 +2169,8 @@ static void armature_context_setup(ArmatureDrawContext *ctx,
   ctx->do_relations = !DRW_state_is_select() && pd->armature.show_relations &&
                       (is_edit_mode | is_pose_mode);
   ctx->const_color = DRW_state_is_select() ? select_const_color : const_color;
-  ctx->const_wire = (((ob->base_flag & BASE_SELECTED) || (arm->drawtype == ARM_WIRE)) ?
+  ctx->const_wire = ((((ob->base_flag & BASE_SELECTED) && (pd->v3d_flag & V3D_SELECT_OUTLINE)) ||
+                      (arm->drawtype == ARM_WIRE)) ?
                          1.5f :
                          ((!is_filled || is_transparent) ? 1.0f : 0.0f));
 }
@@ -2215,13 +2218,13 @@ static bool POSE_is_driven_by_active_armature(Object *ob)
     }
     return is_active;
   }
-  else {
-    Object *ob_mesh_deform = BKE_modifiers_is_deformed_by_meshdeform(ob);
-    if (ob_mesh_deform) {
-      /* Recursive. */
-      return POSE_is_driven_by_active_armature(ob_mesh_deform);
-    }
+
+  Object *ob_mesh_deform = BKE_modifiers_is_deformed_by_meshdeform(ob);
+  if (ob_mesh_deform) {
+    /* Recursive. */
+    return POSE_is_driven_by_active_armature(ob_mesh_deform);
   }
+
   return false;
 }
 

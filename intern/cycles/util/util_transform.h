@@ -466,6 +466,17 @@ ccl_device void transform_motion_array_interpolate(Transform *tfm,
   transform_compose(tfm, &decomp);
 }
 
+ccl_device_inline bool transform_isfinite_safe(Transform *tfm)
+{
+  return isfinite_safe(tfm->x) && isfinite_safe(tfm->y) && isfinite_safe(tfm->z);
+}
+
+ccl_device_inline bool transform_decomposed_isfinite_safe(DecomposedTransform *decomp)
+{
+  return isfinite_safe(decomp->x) && isfinite_safe(decomp->y) && isfinite_safe(decomp->z) &&
+         isfinite_safe(decomp->w);
+}
+
 #ifndef __KERNEL_GPU__
 
 class BoundBox2D;

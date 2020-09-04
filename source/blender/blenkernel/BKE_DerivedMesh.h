@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_DERIVEDMESH_H__
-#define __BKE_DERIVEDMESH_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -282,9 +281,9 @@ void DM_from_template(DerivedMesh *dm,
 
 /**
  * Utility function to release a DerivedMesh's layers
- * returns 1 if DerivedMesh has to be released by the backend, 0 otherwise.
+ * returns true if DerivedMesh has to be released by the backend, false otherwise.
  */
-int DM_release(DerivedMesh *dm);
+bool DM_release(DerivedMesh *dm);
 
 void DM_set_only_copy(DerivedMesh *dm, const struct CustomData_MeshMasks *mask);
 
@@ -382,7 +381,6 @@ void DM_calc_loop_tangents(DerivedMesh *dm,
 #ifndef NDEBUG
 char *DM_debug_info(DerivedMesh *dm);
 void DM_debug_print(DerivedMesh *dm);
-void DM_debug_print_cdlayers(CustomData *cdata);
 
 bool DM_is_valid(DerivedMesh *dm);
 #endif
@@ -390,5 +388,3 @@ bool DM_is_valid(DerivedMesh *dm);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_DERIVEDMESH_H__ */

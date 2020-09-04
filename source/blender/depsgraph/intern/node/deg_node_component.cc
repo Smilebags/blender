@@ -26,6 +26,8 @@
 #include <cstring> /* required for STREQ later on. */
 #include <stdio.h>
 
+#include "BLI_ghash.h"
+#include "BLI_hash.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
@@ -36,7 +38,8 @@
 #include "intern/node/deg_node_id.h"
 #include "intern/node/deg_node_operation.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 /* *********** */
 /* Outer Nodes */
@@ -69,6 +72,15 @@ bool ComponentNode::OperationIDKey::operator==(const OperationIDKey &other) cons
   return (opcode == other.opcode) && (STREQ(name, other.name)) && (name_tag == other.name_tag);
 }
 
+uint64_t ComponentNode::OperationIDKey::hash() const
+{
+  const int opcode_as_int = static_cast<int>(opcode);
+  return BLI_ghashutil_combine_hash(
+      name_tag,
+      BLI_ghashutil_combine_hash(BLI_ghashutil_uinthash(opcode_as_int),
+                                 BLI_ghashutil_strhash_p(name)));
+}
+
 ComponentNode::ComponentNode()
     : entry_operation(nullptr), exit_operation(nullptr), affects_directly_visible(false)
 {
@@ -86,9 +98,7 @@ void ComponentNode::init(const ID * /*id*/, const char * /*subdata*/)
 ComponentNode::~ComponentNode()
 {
   clear_operations();
-  if (operations_map != nullptr) {
-    delete operations_map;
-  }
+  delete operations_map;
 }
 
 string ComponentNode::identifier() const
@@ -209,12 +219,12 @@ void ComponentNode::clear_operations()
 {
   if (operations_map != nullptr) {
     for (OperationNode *op_node : operations_map->values()) {
-      OBJECT_GUARDED_DELETE(op_node, OperationNode);
+      delete op_node;
     }
     operations_map->clear();
   }
   for (OperationNode *op_node : operations) {
-    OBJECT_GUARDED_DELETE(op_node, OperationNode);
+    delete op_node;
   }
   operations.clear();
 }
@@ -241,7 +251,7 @@ OperationNode *ComponentNode::get_entry_operation()
   if (entry_operation) {
     return entry_operation;
   }
-  else if (operations_map != nullptr && operations_map->size() == 1) {
+  if (operations_map != nullptr && operations_map->size() == 1) {
     OperationNode *op_node = nullptr;
     /* TODO(sergey): This is somewhat slow. */
     for (OperationNode *tmp : operations_map->values()) {
@@ -251,7 +261,7 @@ OperationNode *ComponentNode::get_entry_operation()
     entry_operation = op_node;
     return op_node;
   }
-  else if (operations.size() == 1) {
+  if (operations.size() == 1) {
     return operations[0];
   }
   return nullptr;
@@ -262,7 +272,7 @@ OperationNode *ComponentNode::get_exit_operation()
   if (exit_operation) {
     return exit_operation;
   }
-  else if (operations_map != nullptr && operations_map->size() == 1) {
+  if (operations_map != nullptr && operations_map->size() == 1) {
     OperationNode *op_node = nullptr;
     /* TODO(sergey): This is somewhat slow. */
     for (OperationNode *tmp : operations_map->values()) {
@@ -272,7 +282,7 @@ OperationNode *ComponentNode::get_exit_operation()
     exit_operation = op_node;
     return op_node;
   }
-  else if (operations.size() == 1) {
+  if (operations.size() == 1) {
     return operations[0];
   }
   return nullptr;
@@ -282,7 +292,7 @@ void ComponentNode::finalize_build(Depsgraph * /*graph*/)
 {
   operations.reserve(operations_map->size());
   for (OperationNode *op_node : operations_map->values()) {
-    operations.push_back(op_node);
+    operations.append(op_node);
   }
   delete operations_map;
   operations_map = nullptr;
@@ -366,4 +376,5 @@ void deg_register_component_depsnodes()
   register_node_typeinfo(&DNTI_SIMULATION);
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

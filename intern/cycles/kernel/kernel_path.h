@@ -284,19 +284,11 @@ ccl_device_forceinline bool kernel_path_shader_apply(KernelGlobals *kg,
 #ifdef __HOLDOUT__
   if (((sd->flag & SD_HOLDOUT) || (sd->object_flag & SD_OBJECT_HOLDOUT_MASK)) &&
       (state->flag & PATH_RAY_TRANSPARENT_BACKGROUND)) {
+    const SpectralColor holdout_weight = shader_holdout_apply(kg, sd);
     if (kernel_data.background.transparent) {
-      SpectralColor holdout_weight;
-      if (sd->object_flag & SD_OBJECT_HOLDOUT_MASK) {
-        holdout_weight = make_spectral_color(1.0f);
-      }
-      else {
-        holdout_weight = shader_holdout_eval(kg, sd);
-      }
-      /* any throughput is ok, should all be identical here */
       L->transparent += average(holdout_weight * throughput);
     }
-
-    if (sd->object_flag & SD_OBJECT_HOLDOUT_MASK) {
+    if (isequal(holdout_weight, make_spectral_color(1.0f))) {
       return false;
     }
   }
@@ -677,11 +669,9 @@ ccl_device void kernel_path_trace(
 
   kernel_path_trace_setup(kg, sample, x, y, &rng_hash, &ray);
 
-#  ifndef __KERNEL_OPTIX__
   if (ray.t == 0.0f) {
     return;
   }
-#  endif
 
   /* Initialize state. */
   SpectralColor throughput = make_spectral_color(1.0f);

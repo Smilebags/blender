@@ -31,8 +31,10 @@
 #include "util/util_logging.h"
 #include "util/util_md5.h"
 #include "util/util_opengl.h"
+#include "util/util_openimagedenoise.h"
 #include "util/util_path.h"
 #include "util/util_string.h"
+#include "util/util_task.h"
 #include "util/util_types.h"
 
 #ifdef WITH_OSL
@@ -90,6 +92,7 @@ bool debug_flags_sync_from_scene(BL::Scene b_scene)
   flags.cuda.split_kernel = get_boolean(cscene, "debug_use_cuda_split_kernel");
   /* Synchronize OptiX flags. */
   flags.optix.cuda_streams = get_int(cscene, "debug_optix_cuda_streams");
+  flags.optix.curves_api = get_boolean(cscene, "debug_optix_curves_api");
   /* Synchronize OpenCL device type. */
   switch (get_enum(cscene, "debug_opencl_device_type")) {
     case 0:
@@ -416,10 +419,11 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
   for (size_t i = 0; i < devices.size(); i++) {
     DeviceInfo &device = devices[i];
     string type_name = Device::string_from_type(device.type);
-    PyObject *device_tuple = PyTuple_New(3);
+    PyObject *device_tuple = PyTuple_New(4);
     PyTuple_SET_ITEM(device_tuple, 0, pyunicode_from_string(device.description.c_str()));
     PyTuple_SET_ITEM(device_tuple, 1, pyunicode_from_string(type_name.c_str()));
     PyTuple_SET_ITEM(device_tuple, 2, pyunicode_from_string(device.id.c_str()));
+    PyTuple_SET_ITEM(device_tuple, 3, PyBool_FromLong(device.has_peer_memory));
     PyTuple_SET_ITEM(ret, i, device_tuple);
   }
 
@@ -1073,6 +1077,15 @@ void *CCL_python_module_init()
   PyModule_AddObject(mod, "with_embree", Py_False);
   Py_INCREF(Py_False);
 #endif /* WITH_EMBREE */
+
+  if (ccl::openimagedenoise_supported()) {
+    PyModule_AddObject(mod, "with_openimagedenoise", Py_True);
+    Py_INCREF(Py_True);
+  }
+  else {
+    PyModule_AddObject(mod, "with_openimagedenoise", Py_False);
+    Py_INCREF(Py_False);
+  }
 
   return (void *)mod;
 }

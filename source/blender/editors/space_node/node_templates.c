@@ -71,9 +71,7 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
   if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
     return (node->id == (ID *)item->ngroup);
   }
-  else {
-    return true;
-  }
+  return true;
 }
 
 static void node_link_item_apply(Main *bmain, bNode *node, NodeLinkItem *item)
@@ -283,7 +281,9 @@ static void node_socket_add_replace(const bContext *C,
 
     /* also preserve mapping for texture nodes */
     if (node_from->typeinfo->nclass == NODE_CLASS_TEXTURE &&
-        node_prev->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+        node_prev->typeinfo->nclass == NODE_CLASS_TEXTURE &&
+        /* White noise texture node does not have NodeTexBase. */
+        node_from->storage != NULL && node_prev->storage != NULL) {
       memcpy(node_from->storage, node_prev->storage, sizeof(NodeTexBase));
     }
 

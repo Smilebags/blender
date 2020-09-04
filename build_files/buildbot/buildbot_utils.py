@@ -33,15 +33,16 @@ def is_tool(name):
     return which(name) is not None
 
 class Builder:
-    def __init__(self, name, branch):
+    def __init__(self, name, branch, codesign):
         self.name = name
         self.branch = branch
         self.is_release_branch = re.match("^blender-v(.*)-release$", branch) is not None
+        self.codesign = codesign
 
         # Buildbot runs from build/ directory
         self.blender_dir = os.path.abspath(os.path.join('..', 'blender.git'))
-        self.build_dir = os.path.abspath(os.path.join('..', 'build', name))
-        self.install_dir = os.path.abspath(os.path.join('..', 'install', name))
+        self.build_dir = os.path.abspath(os.path.join('..', 'build'))
+        self.install_dir = os.path.abspath(os.path.join('..', 'install'))
         self.upload_dir = os.path.abspath(os.path.join('..', 'install'))
 
         # Detect platform
@@ -51,7 +52,7 @@ class Builder:
         elif name.startswith('linux'):
             self.platform = 'linux'
             if is_tool('scl'):
-                self.command_prefix =  ['scl', 'enable', 'devtoolset-6', '--']
+                self.command_prefix =  ['scl', 'enable', 'devtoolset-9', '--']
             else:
                 self.command_prefix =  []
         elif name.startswith('win'):
@@ -67,8 +68,9 @@ def create_builder_from_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('builder_name')
     parser.add_argument('branch', default='master', nargs='?')
+    parser.add_argument("--codesign", action="store_true")
     args = parser.parse_args()
-    return Builder(args.builder_name, args.branch)
+    return Builder(args.builder_name, args.branch, args.codesign)
 
 
 class VersionInfo:

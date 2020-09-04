@@ -23,6 +23,8 @@
 
 #include "node_shader_util.h"
 
+#include "BKE_spectral_stuff.h"
+
 /* **************** CURVE VEC  ******************** */
 static bNodeSocketTemplate sh_node_curve_spectrum_in[] = {
     {-1, ""},
@@ -35,7 +37,7 @@ static bNodeSocketTemplate sh_node_curve_spectrum_out[] = {
 
 static void node_shader_init_curve_spectrum(bNodeTree *UNUSED(ntree), bNode *node)
 {
-  node->storage = BKE_curvemapping_add(1, 380.0f, 0.0f, 730.0f, 1.0f);
+  node->storage = BKE_curvemapping_add_spectrum(1);
 }
 
 void register_node_type_sh_curve_spectrum(void)

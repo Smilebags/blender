@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __RNA_ENUM_TYPES_H__
-#define __RNA_ENUM_TYPES_H__
+#pragma once
 
 /** \file
  * \ingroup RNA
@@ -118,6 +117,8 @@ extern const EnumPropertyItem rna_enum_motionpath_bake_location_items[];
 extern const EnumPropertyItem rna_enum_event_value_items[];
 extern const EnumPropertyItem rna_enum_event_type_items[];
 extern const EnumPropertyItem rna_enum_event_type_mask_items[];
+
+extern const EnumPropertyItem rna_enum_operator_type_flag_items[];
 extern const EnumPropertyItem rna_enum_operator_return_items[];
 extern const EnumPropertyItem rna_enum_operator_property_tags[];
 
@@ -226,7 +227,6 @@ extern const EnumPropertyItem rna_enum_dt_mix_mode_items[];
 extern const EnumPropertyItem rna_enum_dt_layers_select_src_items[];
 extern const EnumPropertyItem rna_enum_dt_layers_select_dst_items[];
 
-extern const EnumPropertyItem rna_enum_abc_compression_items[];
 extern const EnumPropertyItem rna_enum_context_mode_items[];
 
 extern const EnumPropertyItem rna_enum_curveprofile_preset_items[];
@@ -325,5 +325,3 @@ const EnumPropertyItem *RNA_enum_node_tree_types_itemf_impl(struct bContext *C, 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __RNA_ENUM_TYPES_H__ */

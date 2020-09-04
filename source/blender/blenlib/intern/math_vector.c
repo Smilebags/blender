@@ -307,7 +307,7 @@ void mid_v3_v3_array(float r[3], const float (*vec_arr)[3], const uint nbr)
 
 /**
  * Specialized function for calculating normals.
- * fastpath for:
+ * Fast-path for:
  *
  * \code{.c}
  * add_v3_v3v3(r, a, b);
@@ -506,11 +506,10 @@ float angle_normalized_v3v3(const float v1[3], const float v2[3])
   if (dot_v3v3(v1, v2) >= 0.0f) {
     return 2.0f * saasin(len_v3v3(v1, v2) / 2.0f);
   }
-  else {
-    float v2_n[3];
-    negate_v3_v3(v2_n, v2);
-    return (float)M_PI - 2.0f * saasin(len_v3v3(v1, v2_n) / 2.0f);
-  }
+
+  float v2_n[3];
+  negate_v3_v3(v2_n, v2);
+  return (float)M_PI - 2.0f * saasin(len_v3v3(v1, v2_n) / 2.0f);
 }
 
 float angle_normalized_v2v2(const float v1[2], const float v2[2])
@@ -523,11 +522,10 @@ float angle_normalized_v2v2(const float v1[2], const float v2[2])
   if (dot_v2v2(v1, v2) >= 0.0f) {
     return 2.0f * saasin(len_v2v2(v1, v2) / 2.0f);
   }
-  else {
-    float v2_n[2];
-    negate_v2_v2(v2_n, v2);
-    return (float)M_PI - 2.0f * saasin(len_v2v2(v1, v2_n) / 2.0f);
-  }
+
+  float v2_n[2];
+  negate_v2_v2(v2_n, v2);
+  return (float)M_PI - 2.0f * saasin(len_v2v2(v1, v2_n) / 2.0f);
 }
 
 /**
@@ -671,6 +669,15 @@ void project_v3_v3v3(float out[3], const float p[3], const float v_proj[3])
   out[2] = mul * v_proj[2];
 }
 
+void project_v3_v3v3_db(double out[3], const double p[3], const double v_proj[3])
+{
+  const double mul = dot_v3v3_db(p, v_proj) / dot_v3v3_db(v_proj, v_proj);
+
+  out[0] = mul * v_proj[0];
+  out[1] = mul * v_proj[1];
+  out[2] = mul * v_proj[2];
+}
+
 /**
  * Project \a p onto a unit length \a v_proj
  */
@@ -699,14 +706,14 @@ void project_v3_v3v3_normalized(float out[3], const float p[3], const float v_pr
 /**
  * In this case plane is a 3D vector only (no 4th component).
  *
- * Projecting will make \a c a copy of \a v orthogonal to \a v_plane.
+ * Projecting will make \a out a copy of \a p orthogonal to \a v_plane.
  *
- * \note If \a v is exactly perpendicular to \a v_plane, \a c will just be a copy of \a v.
+ * \note If \a p is exactly perpendicular to \a v_plane, \a out will just be a copy of \a p.
  *
  * \note This function is a convenience to call:
  * \code{.c}
- * project_v3_v3v3(c, v, v_plane);
- * sub_v3_v3v3(c, v, c);
+ * project_v3_v3v3(out, p, v_plane);
+ * sub_v3_v3v3(out, p, out);
  * \endcode
  */
 void project_plane_v3_v3v3(float out[3], const float p[3], const float v_plane[3])
@@ -792,6 +799,17 @@ void reflect_v3_v3v3(float out[3], const float v[3], const float normal[3])
   const float dot2 = 2.0f * dot_v3v3(v, normal);
 
   BLI_ASSERT_UNIT_V3(normal);
+
+  out[0] = v[0] - (dot2 * normal[0]);
+  out[1] = v[1] - (dot2 * normal[1]);
+  out[2] = v[2] - (dot2 * normal[2]);
+}
+
+void reflect_v3_v3v3_db(double out[3], const double v[3], const double normal[3])
+{
+  const double dot2 = 2.0 * dot_v3v3_db(v, normal);
+
+  /* BLI_ASSERT_UNIT_V3_DB(normal); this assert is not known? */
 
   out[0] = v[0] - (dot2 * normal[0]);
   out[1] = v[1] - (dot2 * normal[1]);

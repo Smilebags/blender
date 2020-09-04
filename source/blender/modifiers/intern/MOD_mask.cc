@@ -44,12 +44,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-
-/* SpaceType struct has a member called 'new' which obviously conflicts with C++
- * so temporarily redefining the new keyword to make it compile. */
-#define new extern_new
 #include "BKE_screen.h"
-#undef new
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -66,12 +61,12 @@
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_vector.hh"
 
-using BLI::Array;
-using BLI::ArrayRef;
-using BLI::IndexRange;
-using BLI::ListBaseWrapper;
-using BLI::MutableArrayRef;
-using BLI::Vector;
+using blender::Array;
+using blender::IndexRange;
+using blender::ListBaseWrapper;
+using blender::MutableSpan;
+using blender::Span;
+using blender::Vector;
 
 static void requiredDataMask(Object *UNUSED(ob),
                              ModifierData *UNUSED(md),
@@ -82,13 +77,13 @@ static void requiredDataMask(Object *UNUSED(ob),
 
 static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
 {
-  MaskModifierData *mmd = (MaskModifierData *)md;
+  MaskModifierData *mmd = reinterpret_cast<MaskModifierData *>(md);
   walk(userData, ob, &mmd->ob_arm, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  MaskModifierData *mmd = (MaskModifierData *)md;
+  MaskModifierData *mmd = reinterpret_cast<MaskModifierData *>(md);
   if (mmd->ob_arm) {
     bArmature *arm = (bArmature *)mmd->ob_arm->data;
     /* Tag relationship in depsgraph, but also on the armature. */
@@ -104,7 +99,7 @@ static void compute_vertex_mask__armature_mode(MDeformVert *dvert,
                                                Object *ob,
                                                Object *armature_ob,
                                                float threshold,
-                                               MutableArrayRef<bool> r_vertex_mask)
+                                               MutableSpan<bool> r_vertex_mask)
 {
   /* Element i is true if there is a selected bone that uses vertex group i. */
   Vector<bool> selected_bone_uses_group;
@@ -115,10 +110,10 @@ static void compute_vertex_mask__armature_mode(MDeformVert *dvert,
     selected_bone_uses_group.append(bone_for_group_exists);
   }
 
-  ArrayRef<bool> use_vertex_group = selected_bone_uses_group;
+  Span<bool> use_vertex_group = selected_bone_uses_group;
 
   for (int i : r_vertex_mask.index_range()) {
-    ArrayRef<MDeformWeight> weights(dvert[i].dw, dvert[i].totweight);
+    Span<MDeformWeight> weights(dvert[i].dw, dvert[i].totweight);
     r_vertex_mask[i] = false;
 
     /* check the groups that vertex is assigned to, and see if it was any use */
@@ -137,7 +132,7 @@ static void compute_vertex_mask__armature_mode(MDeformVert *dvert,
 static void compute_vertex_mask__vertex_group_mode(MDeformVert *dvert,
                                                    int defgrp_index,
                                                    float threshold,
-                                                   MutableArrayRef<bool> r_vertex_mask)
+                                                   MutableSpan<bool> r_vertex_mask)
 {
   for (int i : r_vertex_mask.index_range()) {
     const bool found = BKE_defvert_find_weight(&dvert[i], defgrp_index) > threshold;
@@ -145,15 +140,15 @@ static void compute_vertex_mask__vertex_group_mode(MDeformVert *dvert,
   }
 }
 
-static void invert_boolean_array(MutableArrayRef<bool> array)
+static void invert_boolean_array(MutableSpan<bool> array)
 {
   for (bool &value : array) {
     value = !value;
   }
 }
 
-static void compute_masked_vertices(ArrayRef<bool> vertex_mask,
-                                    MutableArrayRef<int> r_vertex_map,
+static void compute_masked_vertices(Span<bool> vertex_mask,
+                                    MutableSpan<int> r_vertex_map,
                                     uint *r_num_masked_vertices)
 {
   BLI_assert(vertex_mask.size() == r_vertex_map.size());
@@ -173,8 +168,8 @@ static void compute_masked_vertices(ArrayRef<bool> vertex_mask,
 }
 
 static void computed_masked_edges(const Mesh *mesh,
-                                  ArrayRef<bool> vertex_mask,
-                                  MutableArrayRef<int> r_edge_map,
+                                  Span<bool> vertex_mask,
+                                  MutableSpan<int> r_edge_map,
                                   uint *r_num_masked_edges)
 {
   BLI_assert(mesh->totedge == r_edge_map.size());
@@ -197,7 +192,7 @@ static void computed_masked_edges(const Mesh *mesh,
 }
 
 static void computed_masked_polygons(const Mesh *mesh,
-                                     ArrayRef<bool> vertex_mask,
+                                     Span<bool> vertex_mask,
                                      Vector<int> &r_masked_poly_indices,
                                      Vector<int> &r_loop_starts,
                                      uint *r_num_masked_polys,
@@ -213,7 +208,7 @@ static void computed_masked_polygons(const Mesh *mesh,
     const MPoly &poly_src = mesh->mpoly[i];
 
     bool all_verts_in_mask = true;
-    ArrayRef<MLoop> loops_src(&mesh->mloop[poly_src.loopstart], poly_src.totloop);
+    Span<MLoop> loops_src(&mesh->mloop[poly_src.loopstart], poly_src.totloop);
     for (const MLoop &loop : loops_src) {
       if (!vertex_mask[loop.v]) {
         all_verts_in_mask = false;
@@ -234,7 +229,7 @@ static void computed_masked_polygons(const Mesh *mesh,
 
 static void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
                                              Mesh &dst_mesh,
-                                             ArrayRef<int> vertex_map)
+                                             Span<int> vertex_map)
 {
   BLI_assert(src_mesh.totvert == vertex_map.size());
   for (const int i_src : vertex_map.index_range()) {
@@ -253,8 +248,8 @@ static void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
 
 static void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
                                           Mesh &dst_mesh,
-                                          ArrayRef<int> vertex_map,
-                                          ArrayRef<int> edge_map)
+                                          Span<int> vertex_map,
+                                          Span<int> edge_map)
 {
   BLI_assert(src_mesh.totvert == vertex_map.size());
   BLI_assert(src_mesh.totedge == edge_map.size());
@@ -276,10 +271,10 @@ static void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
 
 static void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
                                           Mesh &dst_mesh,
-                                          ArrayRef<int> vertex_map,
-                                          ArrayRef<int> edge_map,
-                                          ArrayRef<int> masked_poly_indices,
-                                          ArrayRef<int> new_loop_starts)
+                                          Span<int> vertex_map,
+                                          Span<int> edge_map,
+                                          Span<int> masked_poly_indices,
+                                          Span<int> new_loop_starts)
 {
   for (const int i_dst : masked_poly_indices.index_range()) {
     const int i_src = masked_poly_indices[i_dst];
@@ -311,7 +306,7 @@ static void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
  */
 static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  MaskModifierData *mmd = (MaskModifierData *)md;
+  MaskModifierData *mmd = reinterpret_cast<MaskModifierData *>(md);
   Object *ob = ctx->object;
   const bool invert_mask = mmd->flag & MOD_MASK_INV;
 
@@ -393,7 +388,7 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
                        ModifierData *md,
                        bool UNUSED(useRenderParams))
 {
-  MaskModifierData *mmd = (MaskModifierData *)md;
+  MaskModifierData *mmd = reinterpret_cast<MaskModifierData *>(md);
 
   /* The object type check is only needed here in case we have a placeholder
    * object assigned (because the library containing the armature is missing).
@@ -403,35 +398,34 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return mmd->ob_arm && mmd->ob_arm->type != OB_ARMATURE;
 }
 
-static void panel_draw(const bContext *C, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *sub, *row;
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr;
   PointerRNA ob_ptr;
-  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  int mode = RNA_enum_get(&ptr, "mode");
+  int mode = RNA_enum_get(ptr, "mode");
 
-  uiItemR(layout, &ptr, "mode", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   if (mode == MOD_MASK_MODE_ARM) {
     row = uiLayoutRow(layout, true);
-    uiItemR(row, &ptr, "armature", 0, NULL, ICON_NONE);
+    uiItemR(row, ptr, "armature", 0, NULL, ICON_NONE);
     sub = uiLayoutRow(row, true);
     uiLayoutSetPropDecorate(sub, false);
-    uiItemR(sub, &ptr, "invert_vertex_group", 0, "", ICON_ARROW_LEFTRIGHT);
+    uiItemR(sub, ptr, "invert_vertex_group", 0, "", ICON_ARROW_LEFTRIGHT);
   }
   else if (mode == MOD_MASK_MODE_VGROUP) {
-    modifier_vgroup_ui(layout, &ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+    modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
   }
 
-  uiItemR(layout, &ptr, "threshold", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "threshold", 0, NULL, ICON_NONE);
 
-  modifier_panel_end(layout, &ptr);
+  modifier_panel_end(layout, ptr);
 }
 
 static void panelRegister(ARegionType *region_type)
@@ -471,4 +465,6 @@ ModifierTypeInfo modifierType_Mask = {
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,
+    /* blendWrite */ NULL,
+    /* blendRead */ NULL,
 };

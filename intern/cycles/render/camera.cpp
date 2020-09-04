@@ -26,6 +26,7 @@
 #include "util/util_function.h"
 #include "util/util_logging.h"
 #include "util/util_math_cdf.h"
+#include "util/util_task.h"
 #include "util/util_vector.h"
 
 /* needed for calculating differentials */
@@ -80,6 +81,13 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(rolling_shutter_duration, "Rolling Shutter Duration", 0.1f);
 
   SOCKET_FLOAT_ARRAY(shutter_curve, "Shutter Curve", array<float>());
+
+  SOCKET_COLOR_ARRAY(
+      camera_response_function_curve, "Camera Response Function Curve", array<float3>());
+  SOCKET_FLOAT_ARRAY(
+      wavelength_importance_curve, "Wavelength Importance Sampling Curve", array<float>());
+  SOCKET_BOOLEAN(
+      use_custom_wavelength_importance, "Use Custom Wavelength Importance Sampling", false);
 
   SOCKET_FLOAT(aperturesize, "Aperture Size", 0.0f);
   SOCKET_FLOAT(focaldistance, "Focal Distance", 10.0f);
@@ -153,6 +161,9 @@ NODE_DEFINE(Camera)
 Camera::Camera() : Node(node_type)
 {
   shutter_table_offset = TABLE_OFFSET_INVALID;
+  camera_response_function_table_offset = TABLE_OFFSET_INVALID;
+  wavelength_importance_cdf_offset = TABLE_OFFSET_INVALID;
+  wavelength_importance_offset = TABLE_OFFSET_INVALID;
 
   width = 1024;
   height = 512;
@@ -465,6 +476,73 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
   if (!need_device_update)
     return;
 
+  /* Camera response function. */
+  scene->lookup_tables->remove_table(&camera_response_function_table_offset);
+  vector<float> camera_response_function_table(camera_response_function_curve.size() * 3);
+
+  for (int i = 0; i < camera_response_function_curve.size(); i++) {
+    camera_response_function_table[3 * i + 0] = camera_response_function_curve[i].x;
+    camera_response_function_table[3 * i + 1] = camera_response_function_curve[i].y;
+    camera_response_function_table[3 * i + 2] = camera_response_function_curve[i].z;
+  }
+
+  camera_response_function_table_offset = scene->lookup_tables->add_table(
+      dscene, camera_response_function_table);
+  kernel_camera.camera_response_function_table_offset = (int)camera_response_function_table_offset;
+
+  /* Wavelength importance sampling. */
+  scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_offset);
+
+  vector<float> wavelength_importance(WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+
+  for (int i = 0; i < WAVELENGTH_IMPORTANCE_TABLE_SIZE; i++) {
+    wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]);
+    if (use_custom_wavelength_importance) {
+      wavelength_importance[i] *= wavelength_importance_curve[i];
+    }
+  }
+
+  wavelength_importance_offset = scene->lookup_tables->add_table(dscene, wavelength_importance);
+  kernel_camera.wavelength_importance_offset = (int)wavelength_importance_offset;
+
+  vector<float> wavelength_importance_cdf;
+  util_cdf_inverted(
+      WAVELENGTH_IMPORTANCE_TABLE_SIZE,
+      MIN_WAVELENGTH,
+      MAX_WAVELENGTH,
+      [&wavelength_importance](float x) {
+        /* TODO: Deduplicate code. */
+        const static float start = MIN_WAVELENGTH;
+        const static float end = MAX_WAVELENGTH;
+        const static int size = WAVELENGTH_IMPORTANCE_TABLE_SIZE;
+        const static float step = (end - start) / (size - 1);
+
+        if (UNLIKELY(x <= start)) {
+          return wavelength_importance[0];
+        }
+        if (UNLIKELY(x >= end)) {
+          return wavelength_importance[size - 1];
+        }
+
+        float lookup_pos = (x - start) / step;
+        int lower_bound = floor_to_int(lookup_pos);
+        int upper_bound = min(lower_bound + 1, size - 1);
+        float progress = lookup_pos - int(lookup_pos);
+
+        float lower_value = wavelength_importance[lower_bound];
+        float upper_value = wavelength_importance[upper_bound];
+
+        return mix(lower_value, upper_value, progress);
+      },
+      false,
+      wavelength_importance_cdf);
+
+  wavelength_importance_cdf_offset = scene->lookup_tables->add_table(dscene,
+                                                                     wavelength_importance_cdf);
+  kernel_camera.wavelength_importance_cdf_offset = (int)wavelength_importance_cdf_offset;
+
+  /* Shutter curve. */
   scene->lookup_tables->remove_table(&shutter_table_offset);
   if (kernel_camera.shuttertime != -1.0f) {
     vector<float> shutter_table;
@@ -496,20 +574,35 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
   if (!need_device_update && !need_flags_update) {
     return;
   }
-  KernelCamera *kcam = &dscene->data.cam;
-  BoundBox viewplane_boundbox = viewplane_bounds_get();
-  for (size_t i = 0; i < scene->objects.size(); ++i) {
-    Object *object = scene->objects[i];
-    if (object->geometry->has_volume && viewplane_boundbox.intersects(object->bounds)) {
-      /* TODO(sergey): Consider adding more grained check. */
-      VLOG(1) << "Detected camera inside volume.";
-      kcam->is_inside_volume = 1;
-      break;
+
+  KernelIntegrator *kintegrator = &dscene->data.integrator;
+  if (kintegrator->use_volumes) {
+    KernelCamera *kcam = &dscene->data.cam;
+    BoundBox viewplane_boundbox = viewplane_bounds_get();
+
+    /* Parallel object update, with grain size to avoid too much threading overhead
+     * for individual objects. */
+    static const int OBJECTS_PER_TASK = 32;
+    parallel_for(blocked_range<size_t>(0, scene->objects.size(), OBJECTS_PER_TASK),
+                 [&](const blocked_range<size_t> &r) {
+                   for (size_t i = r.begin(); i != r.end(); i++) {
+                     Object *object = scene->objects[i];
+                     if (object->geometry->has_volume &&
+                         viewplane_boundbox.intersects(object->bounds)) {
+                       /* TODO(sergey): Consider adding more grained check. */
+                       VLOG(1) << "Detected camera inside volume.";
+                       kcam->is_inside_volume = 1;
+                       parallel_for_cancel();
+                       break;
+                     }
+                   }
+                 });
+
+    if (!kcam->is_inside_volume) {
+      VLOG(1) << "Camera is outside of the volume.";
     }
   }
-  if (!kcam->is_inside_volume) {
-    VLOG(1) << "Camera is outside of the volume.";
-  }
+
   need_device_update = false;
   need_flags_update = false;
 }
@@ -517,6 +610,9 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
 void Camera::device_free(Device * /*device*/, DeviceScene *dscene, Scene *scene)
 {
   scene->lookup_tables->remove_table(&shutter_table_offset);
+  scene->lookup_tables->remove_table(&camera_response_function_table_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_cdf_offset);
+  scene->lookup_tables->remove_table(&wavelength_importance_offset);
   dscene->camera_motion.free();
 }
 
@@ -735,7 +831,9 @@ float Camera::world_to_raster_size(float3 P)
     }
 #else
     camera_sample_panorama(&kernel_camera,
+#  ifdef __CAMERA_MOTION__
                            kernel_camera_motion.data(),
+#  endif
                            0.5f * full_width,
                            0.5f * full_height,
                            0.0f,

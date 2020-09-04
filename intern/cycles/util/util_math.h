@@ -457,7 +457,7 @@ CCL_NAMESPACE_BEGIN
 #ifndef __KERNEL_OPENCL__
 /* Interpolation */
 
-template<class A, class B> A lerp(const A &a, const A &b, const B &t)
+template<class A, class B> ccl_device_inline A lerp(const A &a, const A &b, const B &t)
 {
   return (A)(a * ((B)1 - t) + b * t);
 }
@@ -728,6 +728,16 @@ ccl_device_inline float compare_floats(float a, float b, float abs_diff, int ulp
   }
 
   return (abs(__float_as_int(a) - __float_as_int(b)) < ulp_diff);
+}
+
+/* Calculate the angle between the two vectors a and b.
+ * The usual approach acos(dot(a, b)) has severe precision issues for small angles,
+ * which are avoided by this method.
+ * Based on "Mangled Angles" from https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
+ */
+ccl_device_inline float precise_angle(float3 a, float3 b)
+{
+  return 2.0f * atan2f(len(a - b), len(a + b));
 }
 
 CCL_NAMESPACE_END

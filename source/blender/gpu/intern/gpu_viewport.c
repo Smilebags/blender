@@ -38,11 +38,10 @@
 #include "DNA_vec_types.h"
 
 #include "GPU_framebuffer.h"
-#include "GPU_glew.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_texture.h"
-#include "GPU_uniformbuffer.h"
+#include "GPU_uniform_buffer.h"
 #include "GPU_viewport.h"
 
 #include "DRW_engine.h"
@@ -630,13 +629,13 @@ void GPU_viewport_stereo_composite(GPUViewport *viewport, Stereo3dFormat *stereo
   if (settings == S3D_DISPLAY_ANAGLYPH) {
     switch (stereo_format->anaglyph_type) {
       case S3D_ANAGLYPH_REDCYAN:
-        glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(false, true, true, true);
         break;
       case S3D_ANAGLYPH_GREENMAGENTA:
-        glColorMask(GL_TRUE, GL_FALSE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(true, false, true, true);
         break;
       case S3D_ANAGLYPH_YELLOWBLUE:
-        glColorMask(GL_FALSE, GL_FALSE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(false, false, true, true);
         break;
     }
   }
@@ -666,7 +665,7 @@ void GPU_viewport_stereo_composite(GPUViewport *viewport, Stereo3dFormat *stereo
   GPU_matrix_pop();
 
   if (settings == S3D_DISPLAY_ANAGLYPH) {
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    GPU_color_mask(true, true, true, true);
   }
 
   GPU_framebuffer_restore();
@@ -913,9 +912,8 @@ GPUTexture *GPU_viewport_color_texture(GPUViewport *viewport, int view)
     if (viewport->active_view == view) {
       return dtxl->color;
     }
-    else {
-      return dtxl->color_stereo;
-    }
+
+    return dtxl->color_stereo;
   }
 
   return NULL;
@@ -1022,8 +1020,8 @@ void GPU_viewport_free(GPUViewport *viewport)
   }
 
   for (int i = 0; i < viewport->vmempool.ubo_len; i++) {
-    GPU_uniformbuffer_free(viewport->vmempool.matrices_ubo[i]);
-    GPU_uniformbuffer_free(viewport->vmempool.obinfos_ubo[i]);
+    GPU_uniformbuf_free(viewport->vmempool.matrices_ubo[i]);
+    GPU_uniformbuf_free(viewport->vmempool.obinfos_ubo[i]);
   }
   MEM_SAFE_FREE(viewport->vmempool.matrices_ubo);
   MEM_SAFE_FREE(viewport->vmempool.obinfos_ubo);
@@ -1035,4 +1033,16 @@ void GPU_viewport_free(GPUViewport *viewport)
   gpu_viewport_batch_free(viewport);
 
   MEM_freeN(viewport);
+}
+
+GPUFrameBuffer *GPU_viewport_framebuffer_default_get(GPUViewport *viewport)
+{
+  DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
+  return fbl->default_fb;
+}
+
+GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport)
+{
+  DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
+  return fbl->overlay_fb;
 }

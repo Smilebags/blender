@@ -67,6 +67,7 @@ set(LIB
   cycles_render
   cycles_kernel
   cycles_util
+  ${BLENDER_GL_LIBRARIES}
 )
 
 if(WITH_CUDA_DYNLOAD)
@@ -97,6 +98,18 @@ if(WITH_CYCLES_DEVICE_OPTIX)
 endif()
 if(WITH_CYCLES_DEVICE_MULTI)
   add_definitions(-DWITH_MULTI)
+endif()
+
+if(WITH_OPENIMAGEDENOISE)
+  add_definitions(-DWITH_OPENIMAGEDENOISE)
+  add_definitions(-DOIDN_STATIC_LIB)
+  list(APPEND INC_SYS
+    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${OPENIMAGEDENOISE_LIBRARIES}
+    ${TBB_LIBRARIES}
+  )
 endif()
 
 include_directories(${INC})

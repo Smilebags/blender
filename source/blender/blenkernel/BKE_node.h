@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_NODE_H__
-#define __BKE_NODE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -101,6 +100,30 @@ typedef struct bNodeSocketTemplate {
   char identifier[64];      /* generated from name */
 } bNodeSocketTemplate;
 
+/* Use `void *` for callbacks that require C++. This is rather ugly, but works well for now. This
+ * would not be necessary if we would use bNodeSocketType and bNodeType only in C++ code.
+ * However, achieving this requires quite a few changes currently. */
+#ifdef __cplusplus
+namespace blender {
+namespace nodes {
+class SocketMFNetworkBuilder;
+class NodeMFNetworkBuilder;
+}  // namespace nodes
+namespace fn {
+class MFDataType;
+}
+}  // namespace blender
+
+using NodeExpandInMFNetworkFunction = void (*)(blender::nodes::NodeMFNetworkBuilder &builder);
+using SocketGetMFDataTypeFunction = blender::fn::MFDataType (*)();
+using SocketExpandInMFNetworkFunction = void (*)(blender::nodes::SocketMFNetworkBuilder &builder);
+
+#else
+typedef void *NodeExpandInMFNetworkFunction;
+typedef void *SocketGetMFDataTypeFunction;
+typedef void *SocketExpandInMFNetworkFunction;
+#endif
+
 /**
  * \brief Defines a socket type.
  *
@@ -153,6 +176,11 @@ typedef struct bNodeSocketType {
 
   /* Callback to free the socket type. */
   void (*free_self)(struct bNodeSocketType *stype);
+
+  /* Returns the multi-function data type of this socket type. */
+  SocketGetMFDataTypeFunction get_mf_data_type;
+  /* Expands the socket into a multi-function node that outputs the socket value. */
+  SocketExpandInMFNetworkFunction expand_in_mf_network;
 } bNodeSocketType;
 
 typedef void *(*NodeInitExecFunction)(struct bNodeExecContext *context,
@@ -266,6 +294,9 @@ typedef struct bNodeType {
   NodeExecFunction execfunc;
   /* gpu */
   NodeGPUExecFunction gpufunc;
+
+  /* Expands the bNode into nodes in a multi-function network, which will be evaluated later on. */
+  NodeExpandInMFNetworkFunction expand_in_mf_network;
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -415,8 +446,8 @@ void ntreeSetOutput(struct bNodeTree *ntree);
 
 void ntreeFreeCache(struct bNodeTree *ntree);
 
-int ntreeNodeExists(struct bNodeTree *ntree, struct bNode *testnode);
-int ntreeOutputExists(struct bNode *node, struct bNodeSocket *testsock);
+bool ntreeNodeExists(struct bNodeTree *ntree, struct bNode *testnode);
+bool ntreeOutputExists(struct bNode *node, struct bNodeSocket *testsock);
 void ntreeNodeFlagSet(const bNodeTree *ntree, const int flag, const bool enable);
 struct bNodeTree *ntreeLocalize(struct bNodeTree *ntree);
 void ntreeLocalSync(struct bNodeTree *localtree, struct bNodeTree *ntree);
@@ -500,7 +531,7 @@ const char *nodeStaticSocketInterfaceType(int type, int subtype);
   } \
   ((void)0)
 
-struct bNodeSocket *nodeFindSocket(struct bNode *node, int in_out, const char *identifier);
+struct bNodeSocket *nodeFindSocket(const struct bNode *node, int in_out, const char *identifier);
 struct bNodeSocket *nodeAddSocket(struct bNodeTree *ntree,
                                   struct bNode *node,
                                   int in_out,
@@ -587,10 +618,10 @@ void nodePositionRelative(struct bNode *from_node,
 void nodePositionPropagate(struct bNode *node);
 
 struct bNode *nodeFindNodebyName(struct bNodeTree *ntree, const char *name);
-int nodeFindNode(struct bNodeTree *ntree,
-                 struct bNodeSocket *sock,
-                 struct bNode **nodep,
-                 int *sockindex);
+bool nodeFindNode(struct bNodeTree *ntree,
+                  struct bNodeSocket *sock,
+                  struct bNode **r_node,
+                  int *r_sockindex);
 struct bNode *nodeFindRootParent(bNode *node);
 
 bool nodeIsChildOf(const bNode *parent, const bNode *child);
@@ -1002,6 +1033,8 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_VECTOR_ROTATE 708
 #define SH_NODE_SPECTRUM_MATH 709
 #define SH_NODE_BLACKBODY_SPECTRAL 710
+#define SH_NODE_TEX_SKY_SPECTRAL 711
+#define SH_NODE_GAUSSIAN_SPECTRUM 712
 
 /* custom defines options for Material node */
 // #define SH_NODE_MAT_DIFF 1
@@ -1302,6 +1335,8 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define SIM_NODE_EMIT_PARTICLES 1009
 #define SIM_NODE_TIME 1010
 #define SIM_NODE_PARTICLE_ATTRIBUTE 1011
+#define SIM_NODE_AGE_REACHED_EVENT 1012
+#define SIM_NODE_KILL_PARTICLE 1013
 
 /** \} */
 
@@ -1314,6 +1349,8 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define FN_NODE_FLOAT_COMPARE 1202
 #define FN_NODE_GROUP_INSTANCE_ID 1203
 #define FN_NODE_COMBINE_STRINGS 1204
+#define FN_NODE_OBJECT_TRANSFORMS 1205
+#define FN_NODE_RANDOM_FLOAT 1206
 
 /** \} */
 
@@ -1335,5 +1372,3 @@ extern struct bNodeSocketType NodeSocketTypeUndefined;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_NODE_H__ */

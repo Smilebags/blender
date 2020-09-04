@@ -50,7 +50,6 @@
 
 #include "UI_resources.h"
 
-#include "GPU_glew.h"
 #include "GPU_matrix.h"
 #include "GPU_select.h"
 #include "GPU_state.h"
@@ -497,13 +496,13 @@ static bool view3d_camera_to_view_poll(bContext *C)
     if (v3d && v3d->camera && !ID_IS_LINKED(v3d->camera)) {
       if (rv3d && (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
         if (rv3d->persp != RV3D_CAMOB) {
-          return 1;
+          return true;
         }
       }
     }
   }
 
-  return 0;
+  return false;
 }
 
 void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
@@ -568,9 +567,7 @@ static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, camera_ob);
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot)
@@ -1103,11 +1100,7 @@ int view3d_opengl_select(ViewContext *vc,
       wm, vc->win, depsgraph, scene, region, v3d, vc->rv3d->viewmat, NULL, &rect);
 
   if (!XRAY_ACTIVE(v3d)) {
-    GPU_depth_test(true);
-  }
-
-  if (RV3D_CLIPPING_ENABLED(vc->v3d, vc->rv3d)) {
-    ED_view3d_clipping_set(vc->rv3d);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
 
   /* If in xray mode, we select the wires in priority. */
@@ -1172,11 +1165,7 @@ int view3d_opengl_select(ViewContext *vc,
       wm, vc->win, depsgraph, scene, region, v3d, vc->rv3d->viewmat, NULL, NULL);
 
   if (!XRAY_ACTIVE(v3d)) {
-    GPU_depth_test(false);
-  }
-
-  if (RV3D_CLIPPING_ENABLED(v3d, vc->rv3d)) {
-    ED_view3d_clipping_disable();
+    GPU_depth_test(GPU_DEPTH_NONE);
   }
 
   DRW_opengl_context_disable();
@@ -1189,6 +1178,24 @@ finally:
 
   UI_Theme_Restore(&theme_state);
 
+  return hits;
+}
+
+int view3d_opengl_select_with_id_filter(ViewContext *vc,
+                                        uint *buffer,
+                                        uint bufsize,
+                                        const rcti *input,
+                                        eV3DSelectMode select_mode,
+                                        eV3DSelectObjectFilter select_filter,
+                                        uint select_id)
+{
+  int hits = view3d_opengl_select(vc, buffer, bufsize, input, select_mode, select_filter);
+
+  /* Selection sometimes uses -1 for an invalid selection ID, remove these as they
+   * interfere with detection of actual number of hits in the selection. */
+  if (hits > 0) {
+    hits = GPU_select_buffer_remove_by_id(buffer, hits, select_id);
+  }
   return hits;
 }
 
@@ -1468,9 +1475,7 @@ static int localview_exec(bContext *C, wmOperator *op)
 
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void VIEW3D_OT_localview(wmOperatorType *ot)
@@ -1520,10 +1525,9 @@ static int localview_remove_from_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
     return OPERATOR_FINISHED;
   }
-  else {
-    BKE_report(op->reports, RPT_ERROR, "No object selected");
-    return OPERATOR_CANCELLED;
-  }
+
+  BKE_report(op->reports, RPT_ERROR, "No object selected");
+  return OPERATOR_CANCELLED;
 }
 
 static bool localview_remove_from_poll(bContext *C)
@@ -1728,6 +1732,8 @@ void ED_view3d_xr_shading_update(wmWindowManager *wm, const View3D *v3d, const S
 {
   if (v3d->runtime.flag & V3D_RUNTIME_XR_SESSION_ROOT) {
     View3DShading *xr_shading = &wm->xr.session_settings.shading;
+    /* Flags that shouldn't be overridden by the 3D View shading. */
+    const int flag_copy = V3D_SHADING_WORLD_ORIENTATION;
 
     BLI_assert(WM_xr_session_exists(&wm->xr));
 
@@ -1745,7 +1751,9 @@ void ED_view3d_xr_shading_update(wmWindowManager *wm, const View3D *v3d, const S
     }
 
     /* Copy shading from View3D to VR view. */
+    const int old_xr_shading_flag = xr_shading->flag;
     *xr_shading = v3d->shading;
+    xr_shading->flag = (xr_shading->flag & ~flag_copy) | (old_xr_shading_flag & flag_copy);
     if (v3d->shading.prop) {
       xr_shading->prop = IDP_CopyProperty(xr_shading->prop);
     }

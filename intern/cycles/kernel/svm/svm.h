@@ -192,6 +192,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_flat_spectrum.h"
 #include "kernel/svm/svm_fresnel.h"
 #include "kernel/svm/svm_gamma.h"
+#include "kernel/svm/svm_gaussian_spectrum.h"
 #include "kernel/svm/svm_geometry.h"
 #include "kernel/svm/svm_gradient.h"
 #include "kernel/svm/svm_hsv.h"
@@ -212,6 +213,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_sepcomb_hsv.h"
 #include "kernel/svm/svm_sepcomb_vector.h"
 #include "kernel/svm/svm_sky.h"
+#include "kernel/svm/svm_sky_nishita.h"
 #include "kernel/svm/svm_spectrum_curve.h"
 #include "kernel/svm/svm_tex_coord.h"
 #include "kernel/svm/svm_value.h"
@@ -453,6 +455,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
       case NODE_TEX_SKY:
         svm_node_tex_sky(kg, sd, stack, node, &offset);
         break;
+      case NODE_TEX_SKY_NISHITA:
+        svm_node_tex_sky_nishita(kg, state, stack, node, &offset);
+        break;
       case NODE_TEX_GRADIENT:
         svm_node_tex_gradient(sd, stack, node);
         break;
@@ -531,6 +536,12 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         break;
       case NODE_WAVELENGTH:
         svm_node_wavelength(kg, sd, stack, node.y, node.z);
+        break;
+      case NODE_GAUSSIAN_SPECTRUM:
+        svm_node_gaussian_spectrum(kg, state, stack, node.y, node.z, node.w);
+        break;
+      case NODE_GAUSSIAN_SPECTRUM_NORMALIZED:
+        svm_node_gaussian_spectrum_normalized(kg, state, stack, node.y, node.z, node.w);
         break;
       case NODE_BLACKBODY:
         svm_node_blackbody(kg, sd, stack, node.y, node.z);

@@ -44,6 +44,8 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
+#include "BLO_read_write.h"
+
 /* ********************************* color curve ********************* */
 
 /* ***************** operations on full struct ************* */
@@ -309,10 +311,10 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
 
   switch (preset) {
     case CURVE_PRESET_LINE:
-      cuma->curve[0].x = clipr->xmin;
-      cuma->curve[0].y = clipr->ymax;
-      cuma->curve[1].x = clipr->xmax;
-      cuma->curve[1].y = clipr->ymin;
+      cuma->curve[0].x = 0;
+      cuma->curve[0].y = 0;
+      cuma->curve[1].x = 1;
+      cuma->curve[1].y = 1;
       if (slope == CURVEMAP_SLOPE_POS_NEG) {
         cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
         cuma->curve[1].flag |= CUMA_HANDLE_VECTOR;
@@ -431,6 +433,12 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
     cuma->totpoint = num_points;
     MEM_freeN(cuma->curve);
     cuma->curve = new_points;
+  }
+
+  /* Map points to clip region. */
+  for (int i = 0; i < cuma->totpoint; i++) {
+    cuma->curve[i].x = interpf(clipr->xmax, clipr->xmin, cuma->curve[i].x);
+    cuma->curve[i].y = interpf(clipr->ymax, clipr->ymin, cuma->curve[i].y);
   }
 
   if (cuma->table) {
@@ -601,28 +609,24 @@ static float curvemap_calc_extend(const CurveMapping *cumap,
       /* extrapolate horizontally */
       return first[1];
     }
-    else {
-      if (cuma->ext_in[0] == 0.0f) {
-        return first[1] + cuma->ext_in[1] * 10000.0f;
-      }
-      else {
-        return first[1] + cuma->ext_in[1] * (x - first[0]) / cuma->ext_in[0];
-      }
+
+    if (cuma->ext_in[0] == 0.0f) {
+      return first[1] + cuma->ext_in[1] * 10000.0f;
     }
+
+    return first[1] + cuma->ext_in[1] * (x - first[0]) / cuma->ext_in[0];
   }
-  else if (x >= last[0]) {
+  if (x >= last[0]) {
     if ((cumap->flag & CUMA_EXTEND_EXTRAPOLATE) == 0) {
       /* extrapolate horizontally */
       return last[1];
     }
-    else {
-      if (cuma->ext_out[0] == 0.0f) {
-        return last[1] - cuma->ext_out[1] * 10000.0f;
-      }
-      else {
-        return last[1] + cuma->ext_out[1] * (x - last[0]) / cuma->ext_out[0];
-      }
+
+    if (cuma->ext_out[0] == 0.0f) {
+      return last[1] - cuma->ext_out[1] * 10000.0f;
     }
+
+    return last[1] + cuma->ext_out[1] * (x - last[0]) / cuma->ext_out[0];
   }
   return 0.0f;
 }
@@ -726,14 +730,14 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
                                   bezt[a + 1].vec[1][0],
                                   point,
                                   CM_RESOL - 1,
-                                  2 * sizeof(float));
+                                  sizeof(float[2]));
     BKE_curve_forward_diff_bezier(bezt[a].vec[1][1],
                                   bezt[a].vec[2][1],
                                   bezt[a + 1].vec[0][1],
                                   bezt[a + 1].vec[1][1],
                                   point + 1,
                                   CM_RESOL - 1,
-                                  2 * sizeof(float));
+                                  sizeof(float[2]));
   }
 
   /* store first and last handle for extrapolation, unit length */
@@ -868,7 +872,7 @@ static int sort_curvepoints(const void *a1, const void *a2)
   if (x1->x > x2->x) {
     return 1;
   }
-  else if (x1->x < x2->x) {
+  if (x1->x < x2->x) {
     return -1;
   }
   return 0;
@@ -982,17 +986,16 @@ float BKE_curvemap_evaluateF(const CurveMapping *cumap, const CurveMap *cuma, fl
   if (fi < 0.0f || fi > CM_TABLE) {
     return curvemap_calc_extend(cumap, cuma, value, &cuma->table[0].x, &cuma->table[CM_TABLE].x);
   }
-  else {
-    if (i < 0) {
-      return cuma->table[0].y;
-    }
-    if (i >= CM_TABLE) {
-      return cuma->table[CM_TABLE].y;
-    }
 
-    fi = fi - (float)i;
-    return (1.0f - fi) * cuma->table[i].y + (fi)*cuma->table[i + 1].y;
+  if (i < 0) {
+    return cuma->table[0].y;
   }
+  if (i >= CM_TABLE) {
+    return cuma->table[CM_TABLE].y;
+  }
+
+  fi = fi - (float)i;
+  return (1.0f - fi) * cuma->table[i].y + (fi)*cuma->table[i + 1].y;
 }
 
 /* works with curve 'cur' */
@@ -1154,53 +1157,51 @@ void BKE_curvemapping_evaluate_premulRGB(const CurveMapping *cumap,
   vecout_byte[2] = unit_float_to_uchar_clamp(vecout[2]);
 }
 
-int BKE_curvemapping_RGBA_does_something(const CurveMapping *cumap)
+bool BKE_curvemapping_RGBA_does_something(const CurveMapping *cumap)
 {
-  int a;
-
   if (cumap->black[0] != 0.0f) {
-    return 1;
+    return true;
   }
   if (cumap->black[1] != 0.0f) {
-    return 1;
+    return true;
   }
   if (cumap->black[2] != 0.0f) {
-    return 1;
+    return true;
   }
   if (cumap->white[0] != 1.0f) {
-    return 1;
+    return true;
   }
   if (cumap->white[1] != 1.0f) {
-    return 1;
+    return true;
   }
   if (cumap->white[2] != 1.0f) {
-    return 1;
+    return true;
   }
 
-  for (a = 0; a < CM_TOT; a++) {
+  for (int a = 0; a < CM_TOT; a++) {
     if (cumap->cm[a].curve) {
       if (cumap->cm[a].totpoint != 2) {
-        return 1;
+        return true;
       }
 
       if (cumap->cm[a].curve[0].x != 0.0f) {
-        return 1;
+        return true;
       }
       if (cumap->cm[a].curve[0].y != 0.0f) {
-        return 1;
+        return true;
       }
       if (cumap->cm[a].curve[1].x != 1.0f) {
-        return 1;
+        return true;
       }
       if (cumap->cm[a].curve[1].y != 1.0f) {
-        return 1;
+        return true;
       }
     }
   }
-  return 0;
+  return false;
 }
 
-void BKE_curvemapping_initialize(CurveMapping *cumap)
+void BKE_curvemapping_init(CurveMapping *cumap)
 {
   int a;
 
@@ -1235,6 +1236,32 @@ void BKE_curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *
     if (cumap->cm[3].table) {
       (*array)[a * 4 + 3] = cumap->cm[3].table[a].y;
     }
+  }
+}
+
+void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap)
+{
+  BLO_write_struct(writer, CurveMapping, cumap);
+  BKE_curvemapping_curves_blend_write(writer, cumap);
+}
+
+void BKE_curvemapping_curves_blend_write(BlendWriter *writer, const CurveMapping *cumap)
+{
+  for (int a = 0; a < CM_TOT; a++) {
+    BLO_write_struct_array(writer, CurveMapPoint, cumap->cm[a].totpoint, cumap->cm[a].curve);
+  }
+}
+
+/* cumap itself has been read already. */
+void BKE_curvemapping_blend_read(BlendDataReader *reader, CurveMapping *cumap)
+{
+  /* flag seems to be able to hang? Maybe old files... not bad to clear anyway */
+  cumap->flag &= ~CUMA_PREMULLED;
+
+  for (int a = 0; a < CM_TOT; a++) {
+    BLO_read_data_address(reader, &cumap->cm[a].curve);
+    cumap->cm[a].table = NULL;
+    cumap->cm[a].premultable = NULL;
   }
 }
 

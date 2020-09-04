@@ -649,7 +649,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
       .mpoly = mpoly,
       .polynors = polynors,
       .poly_strength = CustomData_get_layer_named(
-          &result->pdata, CD_PROP_INT, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID),
+          &result->pdata, CD_PROP_INT32, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID),
 
       .dvert = dvert,
       .defgrp_index = defgrp_index,
@@ -677,6 +677,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
   /* Currently Modifier stack assumes there is no poly normal data passed around... */
   CustomData_free_layers(pdata, CD_NORMAL, numPolys);
+
+  result->runtime.is_original = false;
+
   return result;
 }
 
@@ -702,7 +705,7 @@ static void requiredDataMask(Object *UNUSED(ob),
   }
 
   if (wnmd->flag & MOD_WEIGHTEDNORMAL_FACE_INFLUENCE) {
-    r_cddata_masks->pmask |= CD_MASK_PROP_INT;
+    r_cddata_masks->pmask |= CD_MASK_PROP_INT32;
   }
 }
 
@@ -711,27 +714,28 @@ static bool dependsOnNormals(ModifierData *UNUSED(md))
   return true;
 }
 
-static void panel_draw(const bContext *C, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
+  uiLayout *col;
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr;
   PointerRNA ob_ptr;
-  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, &ptr, "mode", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 
-  uiItemR(layout, &ptr, "weight", 0, IFACE_("Weight"), ICON_NONE);
-  uiItemR(layout, &ptr, "thresh", 0, IFACE_("Threshold"), ICON_NONE);
+  uiItemR(layout, ptr, "weight", 0, IFACE_("Weight"), ICON_NONE);
+  uiItemR(layout, ptr, "thresh", 0, IFACE_("Threshold"), ICON_NONE);
 
-  uiItemR(layout, &ptr, "keep_sharp", 0, NULL, ICON_NONE);
-  uiItemR(layout, &ptr, "face_influence", 0, NULL, ICON_NONE);
+  col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "keep_sharp", 0, NULL, ICON_NONE);
+  uiItemR(col, ptr, "face_influence", 0, NULL, ICON_NONE);
 
-  modifier_vgroup_ui(layout, &ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
 
-  modifier_panel_end(layout, &ptr);
+  modifier_panel_end(layout, ptr);
 }
 
 static void panelRegister(ARegionType *region_type)
@@ -770,4 +774,6 @@ ModifierTypeInfo modifierType_WeightedNormal = {
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,
+    /* blendWrite */ NULL,
+    /* blendRead */ NULL,
 };

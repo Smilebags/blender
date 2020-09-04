@@ -18,11 +18,12 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_GPENCIL_MODIFIER_TYPES_H__
-#define __DNA_GPENCIL_MODIFIER_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+
+struct LatticeDeformData;
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
  * (ONLY ADD NEW ITEMS AT THE END)
@@ -56,7 +57,7 @@ typedef enum GpencilModifierMode {
   eGpencilModifierMode_Realtime = (1 << 0),
   eGpencilModifierMode_Render = (1 << 1),
   eGpencilModifierMode_Editmode = (1 << 2),
-  eGpencilModifierMode_Expanded = (1 << 3),
+  eGpencilModifierMode_Expanded_DEPRECATED = (1 << 3),
 } GpencilModifierMode;
 
 typedef enum {
@@ -70,7 +71,7 @@ typedef struct GpencilModifierData {
   int type, mode;
   int stackindex;
   short flag;
-  short _pad;
+  short ui_expand_flag;
   /** MAX_NAME. */
   char name[64];
 
@@ -445,8 +446,8 @@ typedef struct LatticeGpencilModifierData {
   float strength;
   /** Custom index for passes. */
   int layer_pass;
-  /** Runtime only (LatticeDeformData). */
-  void *cache_data;
+  /** Runtime only. */
+  struct LatticeDeformData *cache_data;
 } LatticeGpencilModifierData;
 
 typedef enum eLatticeGpencil_Flag {
@@ -655,12 +656,12 @@ typedef enum eSmoothGpencil_Flag {
 
 typedef struct ArmatureGpencilModifierData {
   GpencilModifierData modifier;
-  /** Deformflag replaces armature->deformflag. */
+  /** #eArmature_DeformFlag use instead of #bArmature.deformflag. */
   short deformflag, multi;
   int _pad;
   struct Object *object;
-  /** Stored input of previous modifier, for vertexgroup blending. */
-  float *prevCos;
+  /** Stored input of previous modifier, for vertex-group blending. */
+  float (*vert_coords_prev)[3];
   /** MAX_VGROUP_NAME. */
   char vgname[64];
 
@@ -798,5 +799,3 @@ typedef enum eTextureGpencil_Mode {
   FILL = 1,
   STROKE_AND_FILL = 2,
 } eTextureGpencil_Mode;
-
-#endif /* __DNA_GPENCIL_MODIFIER_TYPES_H__ */

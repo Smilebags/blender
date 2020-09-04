@@ -21,10 +21,13 @@
  * \ingroup nodes
  */
 
-#ifndef __NOD_SHADER_H__
-#define __NOD_SHADER_H__
+#pragma once
 
 #include "BKE_node.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern struct bNodeTreeType *ntreeType_Shader;
 
@@ -78,6 +81,7 @@ void register_node_type_sh_object_info(void);
 void register_node_type_sh_fresnel(void);
 void register_node_type_sh_wireframe(void);
 void register_node_type_sh_wavelength(void);
+void register_node_type_sh_gaussian_spectrum(void);
 void register_node_type_sh_blackbody(void);
 void register_node_type_sh_blackbody_spectral(void);
 void register_node_type_sh_layer_weight(void);
@@ -129,6 +133,7 @@ void register_node_type_sh_output_aov(void);
 void register_node_type_sh_tex_image(void);
 void register_node_type_sh_tex_environment(void);
 void register_node_type_sh_tex_sky(void);
+void register_node_type_sh_tex_sky_spectral(void);
 void register_node_type_sh_tex_voronoi(void);
 void register_node_type_sh_tex_gradient(void);
 void register_node_type_sh_tex_magic(void);
@@ -142,4 +147,6 @@ void register_node_type_sh_tex_white_noise(void);
 
 void register_node_type_sh_custom_group(bNodeType *ntype);
 
+#ifdef __cplusplus
+}
 #endif

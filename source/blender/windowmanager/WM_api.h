@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  */
-#ifndef __WM_API_H__
-#define __WM_API_H__
+#pragma once
 
 /** \file
  * \ingroup wm
@@ -99,7 +98,7 @@ void WM_main(struct bContext *C) ATTR_NORETURN;
 
 void WM_init_splash(struct bContext *C);
 
-void WM_init_opengl(struct Main *bmain);
+void WM_init_opengl(void);
 
 void WM_check(struct bContext *C);
 void WM_reinit_gizmomap_all(struct Main *bmain);
@@ -579,6 +578,9 @@ const char *WM_operatortype_name(struct wmOperatorType *ot, struct PointerRNA *p
 char *WM_operatortype_description(struct bContext *C,
                                   struct wmOperatorType *ot,
                                   struct PointerRNA *properties);
+char *WM_operatortype_description_or_name(struct bContext *C,
+                                          struct wmOperatorType *ot,
+                                          struct PointerRNA *properties);
 
 /* wm_operator_utils.c */
 void WM_operator_type_modal_from_exec_for_object_edit_coords(struct wmOperatorType *ot);
@@ -593,6 +595,7 @@ void WM_uilisttype_free(void);
 /* wm_menu_type.c */
 void WM_menutype_init(void);
 struct MenuType *WM_menutype_find(const char *idname, bool quiet);
+void WM_menutype_iter(struct GHashIterator *ghi);
 bool WM_menutype_add(struct MenuType *mt);
 void WM_menutype_freelink(struct MenuType *mt);
 void WM_menutype_free(void);
@@ -743,8 +746,13 @@ void *WM_jobs_customdata_get(struct wmJob *);
 void WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);
 void WM_jobs_delay_start(struct wmJob *, double delay_time);
+
+typedef void (*wm_jobs_start_callback)(void *custom_data,
+                                       short *stop,
+                                       short *do_update,
+                                       float *progress);
 void WM_jobs_callbacks(struct wmJob *,
-                       void (*startjob)(void *, short *, short *, float *),
+                       wm_jobs_start_callback startjob,
                        void (*initjob)(void *),
                        void (*update)(void *),
                        void (*endjob)(void *));
@@ -898,5 +906,3 @@ bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __WM_API_H__ */

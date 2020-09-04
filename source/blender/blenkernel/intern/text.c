@@ -59,37 +59,9 @@
 #  include "BPY_extern.h"
 #endif
 
-/*
- * How Texts should work
- * --
- * A text should relate to a file as follows -
- * (Text *)->name should be the place where the
- *     file will or has been saved.
- *
- * (Text *)->flags has the following bits
- *     TXT_ISDIRTY - should always be set if the file in mem. differs from
- *                     the file on disk, or if there is no file on disk.
- *     TXT_ISMEM - should always be set if the Text has not been mapped to
- *                     a file, in which case (Text *)->name may be NULL or garbage.
- *     TXT_ISEXT - should always be set if the Text is not to be written into
- *                     the .blend
- *     TXT_ISSCRIPT - should be set if the user has designated the text
- *                     as a script. (NEW: this was unused, but now it is needed by
- *                     space handler script links (see header_view3d.c, for example)
- *
- * ->>> see also: /makesdna/DNA_text_types.h
- *
- * Display
- * --
- *
- * The st->top determines at what line the top of the text is displayed.
- * If the user moves the cursor the st containing that cursor should
- * be popped ... other st's retain their own top location.
- */
-
-/***/
-
-/****************************** Prototypes ************************/
+/* -------------------------------------------------------------------- */
+/** \name Prototypes
+ * \{ */
 
 static void txt_pop_first(Text *text);
 static void txt_pop_last(Text *text);
@@ -97,7 +69,11 @@ static void txt_delete_line(Text *text, TextLine *line);
 static void txt_delete_sel(Text *text);
 static void txt_make_dirty(Text *text);
 
-/****************************** Text Datablock ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Text Data-Block
+ * \{ */
 
 static void text_init_data(ID *id)
 {
@@ -106,9 +82,8 @@ static void text_init_data(ID *id)
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(text, id));
 
-  text->name = NULL;
+  text->filepath = NULL;
 
-  text->nlines = 1;
   text->flags = TXT_ISDIRTY | TXT_ISMEM;
   if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0) {
     text->flags |= TXT_TABSTOSPACES;
@@ -153,8 +128,8 @@ static void text_copy_data(Main *UNUSED(bmain),
   const Text *text_src = (Text *)id_src;
 
   /* File name can be NULL. */
-  if (text_src->name) {
-    text_dst->name = BLI_strdup(text_src->name);
+  if (text_src->filepath) {
+    text_dst->filepath = BLI_strdup(text_src->filepath);
   }
 
   text_dst->flags |= TXT_ISDIRTY;
@@ -186,7 +161,7 @@ static void text_free_data(ID *id)
 
   BKE_text_free_lines(text);
 
-  MEM_SAFE_FREE(text->name);
+  MEM_SAFE_FREE(text->filepath);
 #ifdef WITH_PYTHON
   BPY_text_free_code(text);
 #endif
@@ -207,9 +182,19 @@ IDTypeInfo IDType_ID_TXT = {
     .free_data = text_free_data,
     .make_local = NULL,
     .foreach_id = NULL,
+    .foreach_cache = NULL,
+
+    .blend_write = NULL,
+    .blend_read_data = NULL,
+    .blend_read_lib = NULL,
+    .blend_read_expand = NULL,
 };
 
-/***/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Text Add, Free, Validation
+ * \{ */
 
 /**
  * \note caller must handle `compiled` member.
@@ -308,12 +293,12 @@ static void cleanup_textline(TextLine *tl)
  */
 static void text_from_buf(Text *text, const unsigned char *buffer, const int len)
 {
-  int i, llen;
+  int i, llen, lines_count;
 
   BLI_assert(BLI_listbase_is_empty(&text->lines));
 
-  text->nlines = 0;
   llen = 0;
+  lines_count = 0;
   for (i = 0; i < len; i++) {
     if (buffer[i] == '\n') {
       TextLine *tmp;
@@ -331,7 +316,7 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
       cleanup_textline(tmp);
 
       BLI_addtail(&text->lines, tmp);
-      text->nlines++;
+      lines_count += 1;
 
       llen = 0;
       continue;
@@ -345,7 +330,7 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
    * - file is empty. in this case new line is needed to start editing from.
    * - last character in buffer is \n. in this case new line is needed to
    *   deal with newline at end of file. (see [#28087]) (sergey) */
-  if (llen != 0 || text->nlines == 0 || buffer[len - 1] == '\n') {
+  if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
     TextLine *tmp;
 
     tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
@@ -362,7 +347,7 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
     cleanup_textline(tmp);
 
     BLI_addtail(&text->lines, tmp);
-    text->nlines++;
+    /* lines_count += 1; */ /* UNUSED */
   }
 
   text->curl = text->sell = text->lines.first;
@@ -376,11 +361,11 @@ bool BKE_text_reload(Text *text)
   char filepath_abs[FILE_MAX];
   BLI_stat_t st;
 
-  if (!text->name) {
+  if (!text->filepath) {
     return false;
   }
 
-  BLI_strncpy(filepath_abs, text->name, FILE_MAX);
+  BLI_strncpy(filepath_abs, text->filepath, FILE_MAX);
   BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   buffer = BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len);
@@ -436,8 +421,8 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
   }
 
   if (is_internal == false) {
-    ta->name = MEM_mallocN(strlen(file) + 1, "text_name");
-    strcpy(ta->name, file);
+    ta->filepath = MEM_mallocN(strlen(file) + 1, "text_name");
+    strcpy(ta->filepath, file);
   }
   else {
     ta->flags |= TXT_ISMEM | TXT_ISDIRTY;
@@ -495,11 +480,11 @@ int BKE_text_file_modified_check(Text *text)
   int result;
   char file[FILE_MAX];
 
-  if (!text->name) {
+  if (!text->filepath) {
     return 0;
   }
 
-  BLI_strncpy(file, text->name, FILE_MAX);
+  BLI_strncpy(file, text->filepath, FILE_MAX);
   BLI_path_abs(file, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   if (!BLI_exists(file)) {
@@ -529,11 +514,11 @@ void BKE_text_file_modified_ignore(Text *text)
   int result;
   char file[FILE_MAX];
 
-  if (!text->name) {
+  if (!text->filepath) {
     return;
   }
 
-  BLI_strncpy(file, text->name, FILE_MAX);
+  BLI_strncpy(file, text->filepath, FILE_MAX);
   BLI_path_abs(file, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   if (!BLI_exists(file)) {
@@ -549,9 +534,11 @@ void BKE_text_file_modified_ignore(Text *text)
   text->mtime = st.st_mtime;
 }
 
-/*****************************/
-/* Editing utility functions */
-/*****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Editing Utility Functions
+ * \{ */
 
 static void make_new_line(TextLine *line, char *newline)
 {
@@ -696,9 +683,11 @@ static void txt_make_dirty(Text *text)
 #endif
 }
 
-/****************************/
-/* Cursor utility functions */
-/****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cursor Utility Functions
+ * \{ */
 
 static void txt_curs_cur(Text *text, TextLine ***linep, int **charp)
 {
@@ -722,9 +711,15 @@ bool txt_cursor_is_line_end(Text *text)
   return (text->selc == text->sell->len);
 }
 
-/*****************************/
-/* Cursor movement functions */
-/*****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cursor Movement Functions
+ *
+ * \note If the user moves the cursor the space containing that cursor should be popped
+ * See #txt_pop_first, #txt_pop_last
+ * Other space-types retain their own top location.
+ * \{ */
 
 void txt_move_up(Text *text, const bool sel)
 {
@@ -823,9 +818,8 @@ int txt_calc_tab_right(TextLine *tl, int ch)
 
     return i - ch;
   }
-  else {
-    return 0;
-  }
+
+  return 0;
 }
 
 void txt_move_left(Text *text, const bool sel)
@@ -1095,9 +1089,11 @@ void txt_move_to(Text *text, unsigned int line, unsigned int ch, const bool sel)
   }
 }
 
-/****************************/
-/* Text selection functions */
-/****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Text Selection Functions
+ * \{ */
 
 static void txt_curs_swap(Text *text)
 {
@@ -1293,6 +1289,8 @@ void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
   text->selc = BLI_str_utf8_offset_from_index(tol->line, endc);
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Buffer Conversion for Undo/Redo
  *
@@ -1393,9 +1391,9 @@ void txt_from_buf_for_undo(Text *text, const char *buf, int buf_len)
 
 /** \} */
 
-/***************************/
-/* Cut and paste functions */
-/***************************/
+/* -------------------------------------------------------------------- */
+/** \name Cut and Paste Functions
+ * \{ */
 
 char *txt_to_buf(Text *text, int *r_buf_strlen)
 {
@@ -1472,59 +1470,6 @@ char *txt_to_buf(Text *text, int *r_buf_strlen)
   }
 
   return buf;
-}
-
-int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
-{
-  TextLine *tl, *startl;
-  const char *s = NULL;
-
-  if (!text->curl || !text->sell) {
-    return 0;
-  }
-
-  txt_order_cursors(text, false);
-
-  tl = startl = text->sell;
-
-  if (match_case) {
-    s = strstr(&tl->line[text->selc], findstr);
-  }
-  else {
-    s = BLI_strcasestr(&tl->line[text->selc], findstr);
-  }
-  while (!s) {
-    tl = tl->next;
-    if (!tl) {
-      if (wrap) {
-        tl = text->lines.first;
-      }
-      else {
-        break;
-      }
-    }
-
-    if (match_case) {
-      s = strstr(tl->line, findstr);
-    }
-    else {
-      s = BLI_strcasestr(tl->line, findstr);
-    }
-    if (tl == startl) {
-      break;
-    }
-  }
-
-  if (s) {
-    int newl = txt_get_span(text->lines.first, tl);
-    int newc = (int)(s - tl->line);
-    txt_move_to(text, newl, newc, 0);
-    txt_move_to(text, newl, newc + strlen(findstr), 1);
-    return 1;
-  }
-  else {
-    return 0;
-  }
 }
 
 char *txt_sel_to_buf(Text *text, int *r_buf_strlen)
@@ -1670,9 +1615,69 @@ void txt_insert_buf(Text *text, const char *in_buffer)
   MEM_freeN(buffer);
 }
 
-/**************************/
-/* Line editing functions */
-/**************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Find String in Text
+ * \{ */
+
+int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
+{
+  TextLine *tl, *startl;
+  const char *s = NULL;
+
+  if (!text->curl || !text->sell) {
+    return 0;
+  }
+
+  txt_order_cursors(text, false);
+
+  tl = startl = text->sell;
+
+  if (match_case) {
+    s = strstr(&tl->line[text->selc], findstr);
+  }
+  else {
+    s = BLI_strcasestr(&tl->line[text->selc], findstr);
+  }
+  while (!s) {
+    tl = tl->next;
+    if (!tl) {
+      if (wrap) {
+        tl = text->lines.first;
+      }
+      else {
+        break;
+      }
+    }
+
+    if (match_case) {
+      s = strstr(tl->line, findstr);
+    }
+    else {
+      s = BLI_strcasestr(tl->line, findstr);
+    }
+    if (tl == startl) {
+      break;
+    }
+  }
+
+  if (s) {
+    int newl = txt_get_span(text->lines.first, tl);
+    int newc = (int)(s - tl->line);
+    txt_move_to(text, newl, newc, 0);
+    txt_move_to(text, newl, newc + strlen(findstr), 1);
+    return 1;
+  }
+
+  return 0;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Line Editing Functions
+ * \{ */
 
 void txt_split_curline(Text *text)
 {
@@ -1796,7 +1801,7 @@ void txt_delete_char(Text *text)
     txt_make_dirty(text);
     return;
   }
-  else if (text->curc == text->curl->len) { /* Appending two lines */
+  if (text->curc == text->curl->len) { /* Appending two lines */
     if (text->curl->next) {
       txt_combine_lines(text, text->curl, text->curl->next);
       txt_pop_sel(text);
@@ -1843,7 +1848,7 @@ void txt_backspace_char(Text *text)
     txt_make_dirty(text);
     return;
   }
-  else if (text->curc == 0) { /* Appending two lines */
+  if (text->curc == 0) { /* Appending two lines */
     if (!text->curl->prev) {
       return;
     }
@@ -2051,10 +2056,9 @@ static void txt_select_prefix(Text *text, const char *add, bool skip_blank_lines
       }
       break;
     }
-    else {
-      text->curl = text->curl->next;
-      num++;
-    }
+
+    text->curl = text->curl->next;
+    num++;
   }
 
   while (num > 0) {
@@ -2081,8 +2085,6 @@ static void txt_select_prefix(Text *text, const char *add, bool skip_blank_lines
 /**
  * Generic un-prefix operation, use for comment & indent.
  *
- * \param r_line_index_mask: List of lines that are already at indent level 0,
- * to store them later into the undo buffer.
  * \param require_all: When true, all non-empty lines must have this prefix.
  * Needed for comments where we might want to un-comment a block which contains some comments.
  *
@@ -2141,10 +2143,9 @@ static bool txt_select_unprefix(Text *text, const char *remove, const bool requi
       }
       break;
     }
-    else {
-      text->curl = text->curl->next;
-      num++;
-    }
+
+    text->curl = text->curl->next;
+    num++;
   }
 
   if (unindented_first) {
@@ -2254,9 +2255,8 @@ int txt_setcurr_tab_spaces(Text *text, int space)
     if (i == text->curc) {
       return i;
     }
-    else {
-      i++;
-    }
+
+    i++;
   }
   if (strstr(text->curl->line, word)) {
     /* if we find a ':' on this line, then add a tab but not if it is:
@@ -2271,7 +2271,7 @@ int txt_setcurr_tab_spaces(Text *text, int space)
       if (ch == '#') {
         break;
       }
-      else if (ch == ':') {
+      if (ch == ':') {
         is_indent = 1;
       }
       else if (ch != ' ' && ch != '\t') {
@@ -2294,9 +2294,11 @@ int txt_setcurr_tab_spaces(Text *text, int space)
   return i;
 }
 
-/*******************************/
-/* Character utility functions */
-/*******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Character Queries
+ * \{ */
 
 int text_check_bracket(const char ch)
 {
@@ -2308,7 +2310,7 @@ int text_check_bracket(const char ch)
     if (ch == opens[a]) {
       return a + 1;
     }
-    else if (ch == close[a]) {
+    if (ch == close[a]) {
       return -(a + 1);
     }
   }
@@ -2418,3 +2420,5 @@ int text_find_identifier_start(const char *str, int i)
   i++;
   return i;
 }
+
+/** \} */

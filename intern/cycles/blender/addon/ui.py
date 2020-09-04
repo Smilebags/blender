@@ -40,6 +40,13 @@ class CYCLES_PT_integrator_presets(PresetPanel, Panel):
     preset_add_operator = "render.cycles_integrator_preset_add"
     COMPAT_ENGINES = {'CYCLES'}
 
+class CYCLES_PT_camera_response_function_presets(PresetPanel, Panel):
+    bl_label = "Camera Response Function Presets"
+    preset_subdir = "cycles/camera_response_function"
+    preset_operator = "script.execute_preset"
+    preset_add_operator = "render.cycles_camera_response_funtion_preset_add"
+    COMPAT_ENGINES = {'CYCLES'}
+
 
 class CyclesButtonsPanel:
     bl_space_type = "PROPERTIES"
@@ -111,10 +118,6 @@ def show_device_active(context):
     if cscene.device != 'GPU':
         return True
     return context.preferences.addons[__package__].preferences.has_active_device()
-
-def show_optix_denoising(context):
-    # OptiX AI denoiser can be used when at least one device supports OptiX
-    return bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX'))
 
 
 def draw_samples_info(layout, context):
@@ -190,11 +193,6 @@ class CYCLES_RENDER_PT_sampling(CyclesButtonsPanel, Panel):
             col.prop(cscene, "aa_samples", text="Render")
             col.prop(cscene, "preview_aa_samples", text="Viewport")
 
-        # Viewport denoising is currently only supported with OptiX
-        if show_optix_denoising(context):
-            col = layout.column()
-            col.prop(cscene, "preview_denoising")
-
         if not use_branched_path(context):
             draw_samples_info(layout, context)
 
@@ -255,6 +253,44 @@ class CYCLES_RENDER_PT_sampling_adaptive(CyclesButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(cscene, "adaptive_threshold", text="Noise Threshold")
         col.prop(cscene, "adaptive_min_samples", text="Min Samples")
+
+
+class CYCLES_RENDER_PT_sampling_denoising(CyclesButtonsPanel, Panel):
+    bl_label = "Denoising"
+    bl_parent_id = "CYCLES_RENDER_PT_sampling"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        cscene = scene.cycles
+
+        heading = layout.column(align=True, heading="Render")
+        row = heading.row(align=True)
+        row.prop(cscene, "use_denoising", text="")
+        sub = row.row()
+
+        sub.active = cscene.use_denoising
+        for view_layer in scene.view_layers:
+            if view_layer.cycles.denoising_store_passes:
+                sub.active = True
+
+        sub.prop(cscene, "denoiser", text="")
+
+        heading = layout.column(align=False, heading="Viewport")
+        row = heading.row(align=True)
+        row.prop(cscene, "use_preview_denoising", text="")
+        sub = row.row()
+        sub.active = cscene.use_preview_denoising
+        sub.prop(cscene, "preview_denoiser", text="")
+
+        sub = heading.row(align=True)
+        sub.active = cscene.use_preview_denoising
+        sub.prop(cscene, "preview_denoising_start_sample", text="Start Sample")
+
 
 class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
     bl_label = "Advanced"
@@ -387,13 +423,6 @@ class CYCLES_RENDER_PT_hair(CyclesButtonsPanel, Panel):
     bl_label = "Hair"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw_header(self, context):
-        layout = self.layout
-        scene = context.scene
-        ccscene = scene.cycles_curves
-
-        layout.prop(ccscene, "use_curves", text="")
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -402,18 +431,10 @@ class CYCLES_RENDER_PT_hair(CyclesButtonsPanel, Panel):
         scene = context.scene
         ccscene = scene.cycles_curves
 
-        layout.active = ccscene.use_curves
-
         col = layout.column()
         col.prop(ccscene, "shape", text="Shape")
-        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
-            col.prop(ccscene, "cull_backfacing", text="Cull back-faces")
-        col.prop(ccscene, "primitive", text="Primitive")
-
-        if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
-            col.prop(ccscene, "resolution", text="Resolution")
-        elif ccscene.primitive == 'CURVE_SEGMENTS':
-            col.prop(ccscene, "subdivisions", text="Curve subdivisions")
+        if ccscene.shape == 'RIBBONS':
+            col.prop(ccscene, "subdivisions", text="Curve Subdivisions")
 
 
 class CYCLES_RENDER_PT_volumes(CyclesButtonsPanel, Panel):
@@ -562,6 +583,59 @@ class CYCLES_RENDER_PT_motion_blur_curve(CyclesButtonsPanel, Panel):
         row.operator("render.shutter_curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
 
+class CYCLES_RENDER_PT_spectral_rendering(CyclesButtonsPanel, Panel):
+    bl_label = "Spectral Rendering"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+
+class CYCLES_RENDER_PT_spectral_rendering_crf(CyclesButtonsPanel, Panel):
+    bl_label = "Camera Response Function"
+    bl_parent_id = "CYCLES_RENDER_PT_spectral_rendering"
+
+    def draw_header_preset(self, context):
+        CYCLES_PT_camera_response_function_presets.draw_panel_header(self.layout)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        rd = scene.render
+
+        col = layout.column()
+
+        col.template_curve_mapping(rd, "camera_response_function_curve", type='SPECTRUM')
+
+class CYCLES_RENDER_PT_spectral_rendering_wavelength_importance(CyclesButtonsPanel, Panel):
+    bl_label = "Custom Wavelength Importance"
+    bl_parent_id = "CYCLES_RENDER_PT_spectral_rendering"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        rd = context.scene.render
+
+        self.layout.prop(rd, "use_custom_wavelength_importance", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        rd = scene.render
+        layout.active = rd.use_custom_wavelength_importance
+
+        col = layout.column()
+
+        col.template_curve_mapping(rd, "wavelength_importance_curve", type='SPECTRUM')
+
+
 class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):
     bl_label = "Film"
     bl_options = {'DEFAULT_CLOSED'}
@@ -693,16 +767,20 @@ class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Pa
 
         col = layout.column()
 
-        if _cycles.with_embree:
-            row = col.row()
-            row.active = use_cpu(context)
-            row.prop(cscene, "use_bvh_embree")
+        use_embree = False
+        if use_cpu(context):
+            use_embree = _cycles.with_embree
+            if not use_embree:
+              sub = col.column(align=True)
+              sub.label(text="Cycles built without Embree support")
+              sub.label(text="CPU raytracing performance will be poor")
+
         col.prop(cscene, "debug_use_spatial_splits")
         sub = col.column()
-        sub.active = not cscene.use_bvh_embree or not _cycles.with_embree
+        sub.active = not use_embree
         sub.prop(cscene, "debug_use_hair_bvh")
         sub = col.column()
-        sub.active = not cscene.debug_use_spatial_splits and not cscene.use_bvh_embree
+        sub.active = not cscene.debug_use_spatial_splits and not use_embree
         sub.prop(cscene, "debug_bvh_time_steps")
 
 
@@ -741,11 +819,6 @@ class CYCLES_RENDER_PT_performance_viewport(CyclesButtonsPanel, Panel):
         col.prop(rd, "preview_pixel_size", text="Pixel Size")
         col.prop(cscene, "preview_start_resolution", text="Start Pixels")
 
-        if show_optix_denoising(context):
-            sub = col.row(align=True)
-            sub.active = cscene.preview_denoising != 'NONE'
-            sub.prop(cscene, "preview_denoising_start_sample", text="Denoising Start Sample")
-
 
 class CYCLES_RENDER_PT_filter(CyclesButtonsPanel, Panel):
     bl_label = "Filter"
@@ -769,10 +842,6 @@ class CYCLES_RENDER_PT_filter(CyclesButtonsPanel, Panel):
         col.prop(view_layer, "use_solid", text="Surfaces")
         col.prop(view_layer, "use_strand", text="Hair")
         col.prop(view_layer, "use_volumes", text="Volumes")
-        if with_freestyle:
-            sub = col.row(align=True)
-            sub.prop(view_layer, "use_freestyle", text="Freestyle")
-            sub.active = rd.use_freestyle
 
 
 class CYCLES_RENDER_PT_override(CyclesButtonsPanel, Panel):
@@ -968,12 +1037,17 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
     bl_context = "view_layer"
     bl_options = {'DEFAULT_CLOSED'}
 
+    @classmethod
+    def poll(cls, context):
+        cscene = context.scene.cycles
+        return CyclesButtonsPanel.poll(context) and cscene.use_denoising
+
     def draw_header(self, context):
         scene = context.scene
         view_layer = context.view_layer
         cycles_view_layer = view_layer.cycles
-        layout = self.layout
 
+        layout = self.layout
         layout.prop(cycles_view_layer, "use_denoising", text="")
 
     def draw(self, context):
@@ -984,18 +1058,18 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
         scene = context.scene
         view_layer = context.view_layer
         cycles_view_layer = view_layer.cycles
+        denoiser = scene.cycles.denoiser
 
-        layout.active = cycles_view_layer.use_denoising
+        layout.active = denoiser != 'NONE' and cycles_view_layer.use_denoising
 
         col = layout.column()
 
-        if show_optix_denoising(context):
-            col.prop(cycles_view_layer, "use_optix_denoising")
-            col.separator(factor=2.0)
-
-            if cycles_view_layer.use_optix_denoising:
-                col.prop(cycles_view_layer, "denoising_optix_input_passes")
-                return
+        if denoiser == 'OPTIX':
+            col.prop(cycles_view_layer, "denoising_optix_input_passes")
+            return
+        elif denoiser == 'OPENIMAGEDENOISE':
+            col.prop(cycles_view_layer, "denoising_openimagedenoise_input_passes")
+            return
 
         col.prop(cycles_view_layer, "denoising_radius", text="Radius")
 
@@ -1190,6 +1264,7 @@ class CYCLES_OBJECT_PT_motion_blur(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         rd = context.scene.render
         # scene = context.scene
@@ -1199,15 +1274,16 @@ class CYCLES_OBJECT_PT_motion_blur(CyclesButtonsPanel, Panel):
 
         layout.active = (rd.use_motion_blur and cob.use_motion_blur)
 
-        row = layout.row()
+        col = layout.column()
+        col.prop(cob, "motion_steps", text="Steps")
         if ob.type != 'CAMERA':
-            row.prop(cob, "use_deform_motion", text="Deformation")
-        row.prop(cob, "motion_steps", text="Steps")
+            col.prop(cob, "use_deform_motion", text="Deformation")
 
 
 def has_geometry_visibility(ob):
     return ob and ((ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT'}) or
                     (ob.instance_type == 'COLLECTION' and ob.instance_collection))
+
 
 class CYCLES_OBJECT_PT_shading(CyclesButtonsPanel, Panel):
     bl_label = "Shading"
@@ -1230,6 +1306,7 @@ class CYCLES_OBJECT_PT_shading(CyclesButtonsPanel, Panel):
         if has_geometry_visibility(ob):
             col = flow.column()
             col.prop(cob, "shadow_terminator_offset")
+
 
 class CYCLES_OBJECT_PT_visibility(CyclesButtonsPanel, Panel):
     bl_label = "Visibility"
@@ -1575,17 +1652,18 @@ class CYCLES_WORLD_PT_ray_visibility(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         world = context.world
         visibility = world.cycles_visibility
 
-        flow = layout.column_flow()
-
-        flow.prop(visibility, "camera")
-        flow.prop(visibility, "diffuse")
-        flow.prop(visibility, "glossy")
-        flow.prop(visibility, "transmission")
-        flow.prop(visibility, "scatter")
+        col = layout.column()
+        col.prop(visibility, "camera")
+        col.prop(visibility, "diffuse")
+        col.prop(visibility, "glossy")
+        col.prop(visibility, "transmission")
+        col.prop(visibility, "scatter")
 
 
 class CYCLES_WORLD_PT_settings(CyclesButtonsPanel, Panel):
@@ -1975,7 +2053,10 @@ class CYCLES_RENDER_PT_debug(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return CyclesButtonsPanel.poll(context) and bpy.app.debug_value == 256
+        prefs = bpy.context.preferences
+        return (CyclesButtonsPanel.poll(context)
+                and prefs.experimental.use_cycles_debug
+                and prefs.view.show_developer_ui)
 
     def draw(self, context):
         layout = self.layout
@@ -2007,6 +2088,7 @@ class CYCLES_RENDER_PT_debug(CyclesButtonsPanel, Panel):
         col = layout.column()
         col.label(text="OptiX Flags:")
         col.prop(cscene, "debug_optix_cuda_streams")
+        col.prop(cscene, "debug_optix_curves_api")
 
         col.separator()
 
@@ -2245,9 +2327,11 @@ def get_panels():
 classes = (
     CYCLES_PT_sampling_presets,
     CYCLES_PT_integrator_presets,
+    CYCLES_PT_camera_response_function_presets,
     CYCLES_RENDER_PT_sampling,
     CYCLES_RENDER_PT_sampling_sub_samples,
     CYCLES_RENDER_PT_sampling_adaptive,
+    CYCLES_RENDER_PT_sampling_denoising,
     CYCLES_RENDER_PT_sampling_advanced,
     CYCLES_RENDER_PT_light_paths,
     CYCLES_RENDER_PT_light_paths_max_bounces,
@@ -2265,6 +2349,9 @@ classes = (
     CYCLES_VIEW3D_PT_shading_render_pass,
     CYCLES_RENDER_PT_motion_blur,
     CYCLES_RENDER_PT_motion_blur_curve,
+    CYCLES_RENDER_PT_spectral_rendering,
+    CYCLES_RENDER_PT_spectral_rendering_crf,
+    # CYCLES_RENDER_PT_spectral_rendering_wavelength_importance,
     CYCLES_RENDER_PT_film,
     CYCLES_RENDER_PT_film_pixel_filter,
     CYCLES_RENDER_PT_film_transparency,

@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_MESH_MAPPING_H__
-#define __BKE_MESH_MAPPING_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -49,9 +48,6 @@ typedef struct UvMapVert {
   unsigned int poly_index;
   unsigned short loop_of_poly_index;
   bool separate;
-  /* Zero-ed by map creation, left for use by specific areas. Is not
-   * initialized to anything. */
-  unsigned char flag;
 } UvMapVert;
 
 /* UvElement stores per uv information so that we can quickly access information for a uv.
@@ -199,7 +195,7 @@ void BKE_mesh_loop_islands_clear(MeshIslandStore *island_store);
 void BKE_mesh_loop_islands_free(MeshIslandStore *island_store);
 void BKE_mesh_loop_islands_add(MeshIslandStore *islands,
                                const int item_num,
-                               int *item_indices,
+                               const int *item_indices,
                                const int num_island_items,
                                int *island_item_indices,
                                const int num_innercut_items,
@@ -258,5 +254,3 @@ int *BKE_mesh_calc_smoothgroups(const struct MEdge *medge,
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_MESH_MAPPING_H__ */

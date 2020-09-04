@@ -42,11 +42,14 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_particle.h"
 #include "BKE_screen.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
+
+#include "BLO_read_write.h"
 
 #include "RNA_access.h"
 
@@ -819,23 +822,22 @@ static void freeData(ModifierData *md)
   lmd->total_verts = 0;
 }
 
-static void panel_draw(const bContext *C, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *row;
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr;
   PointerRNA ob_ptr;
-  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  bool is_bind = RNA_boolean_get(&ptr, "is_bind");
-  bool has_vertex_group = RNA_string_length(&ptr, "vertex_group") != 0;
+  bool is_bind = RNA_boolean_get(ptr, "is_bind");
+  bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, &ptr, "iterations", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "iterations", 0, NULL, ICON_NONE);
 
-  modifier_vgroup_ui(layout, &ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
 
   uiItemS(layout);
 
@@ -846,12 +848,27 @@ static void panel_draw(const bContext *C, Panel *panel)
           ICON_NONE,
           "OBJECT_OT_laplaciandeform_bind");
 
-  modifier_panel_end(layout, &ptr);
+  modifier_panel_end(layout, ptr);
 }
 
 static void panelRegister(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_LaplacianDeform, panel_draw);
+}
+
+static void blendWrite(BlendWriter *writer, const ModifierData *md)
+{
+  LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
+
+  BLO_write_float3_array(writer, lmd->total_verts, lmd->vertexco);
+}
+
+static void blendRead(BlendDataReader *reader, ModifierData *md)
+{
+  LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
+
+  BLO_read_float3_array(reader, lmd->total_verts, &lmd->vertexco);
+  lmd->cache_system = NULL;
 }
 
 ModifierTypeInfo modifierType_LaplacianDeform = {
@@ -883,4 +900,6 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,
+    /* blendWrite */ blendWrite,
+    /* blendRead */ blendRead,
 };

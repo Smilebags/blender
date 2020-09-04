@@ -346,7 +346,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
         continue;
       }
 
-      else if (handler_base->poll == NULL || handler_base->poll(region, win->eventstate)) {
+      if (handler_base->poll == NULL || handler_base->poll(region, win->eventstate)) {
         wmEventHandler_Keymap *handler = (wmEventHandler_Keymap *)handler_base;
         wmKeyMap *keymap = WM_event_get_keymap_from_handler(wm, handler);
         if (keymap && WM_keymap_poll(C, keymap)) {
@@ -469,6 +469,34 @@ static struct MenuSearch_Data *menu_items_from_ui_create(
     }
   }
 
+  {
+    /* Exclude context menus because:
+     * - The menu items are available elsewhere (and will show up multiple times).
+     * - Menu items depend on exact context, making search results unpredictable
+     *   (exact number of items selected for example). See design doc T74158.
+     * There is one exception,
+     * as the outliner only exposes functionality via the context menu. */
+    GHashIterator iter;
+
+    for (WM_menutype_iter(&iter); (!BLI_ghashIterator_done(&iter));
+         (BLI_ghashIterator_step(&iter))) {
+      MenuType *mt = BLI_ghashIterator_getValue(&iter);
+      if (BLI_str_endswith(mt->idname, "_context_menu")) {
+        BLI_gset_add(menu_tagged, mt);
+      }
+    }
+    const char *idname_array[] = {
+        /* Add back some context menus. */
+        "OUTLINER_MT_context_menu",
+    };
+    for (int i = 0; i < ARRAY_SIZE(idname_array); i++) {
+      MenuType *mt = WM_menutype_find(idname_array[i], false);
+      if (mt != NULL) {
+        BLI_gset_remove(menu_tagged, mt, NULL);
+      }
+    }
+  }
+
   /* Collect contexts, one for each 'ui_type'. */
   struct MenuSearch_Context *wm_contexts = NULL;
 
@@ -507,7 +535,7 @@ static struct MenuSearch_Data *menu_items_from_ui_create(
         RNA_pointer_create(&screen->id, &RNA_Area, area, &ptr);
         const int space_type_ui = RNA_property_enum_get(&ptr, prop_ui_type);
 
-        int space_type_ui_index = RNA_enum_from_value(space_type_ui_items, space_type_ui);
+        const int space_type_ui_index = RNA_enum_from_value(space_type_ui_items, space_type_ui);
         if (space_type_ui_index == -1) {
           continue;
         }
@@ -924,7 +952,7 @@ static void menu_search_exec_fn(bContext *C, void *UNUSED(arg1), void *arg2)
     case MENU_SEARCH_TYPE_RNA: {
       PointerRNA *ptr = &item->rna.ptr;
       PropertyRNA *prop = item->rna.prop;
-      int index = item->rna.index;
+      const int index = item->rna.index;
       const int prop_type = RNA_property_type(prop);
       bool changed = false;
 
@@ -981,7 +1009,7 @@ static void menu_search_update_fn(const bContext *UNUSED(C),
     }
 
     if (index == words_len) {
-      if (!UI_search_item_add(items, item->drawwstr_full, item, item->icon, item->state)) {
+      if (!UI_search_item_add(items, item->drawwstr_full, item, item->icon, item->state, 0)) {
         break;
       }
     }
@@ -1103,7 +1131,7 @@ void UI_but_func_menu_search(uiBut *but)
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   /* When run from top-bar scan all areas in the current window. */
-  bool include_all_areas = (area && (area->spacetype == SPACE_TOPBAR));
+  const bool include_all_areas = (area && (area->spacetype == SPACE_TOPBAR));
   struct MenuSearch_Data *data = menu_items_from_ui_create(
       C, win, area, region, include_all_areas);
   UI_but_func_search_set(but,

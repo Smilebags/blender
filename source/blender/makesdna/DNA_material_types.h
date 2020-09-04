@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_MATERIAL_TYPES_H__
-#define __DNA_MATERIAL_TYPES_H__
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_defs.h"
@@ -112,7 +111,7 @@ typedef enum eMaterialGPencilStyle_Flag {
   /* protected from further editing */
   GP_MATERIAL_LOCKED = (1 << 2),
   /* do onion skinning */
-  GP_MATERIAL_ONIONSKIN = (1 << 3),
+  GP_MATERIAL_HIDE_ONIONSKIN = (1 << 3),
   /* clamp texture */
   GP_MATERIAL_TEX_CLAMP = (1 << 4),
   /* mix fill texture */
@@ -355,4 +354,3 @@ enum {
   GP_MATERIAL_FOLLOW_OBJ = 1,
   GP_MATERIAL_FOLLOW_FIXED = 2,
 };
-#endif

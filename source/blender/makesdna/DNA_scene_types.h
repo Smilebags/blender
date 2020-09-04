@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_SCENE_TYPES_H__
-#define __DNA_SCENE_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 
@@ -775,6 +774,10 @@ typedef struct RenderData {
 
   /* Motion blur shutter */
   struct CurveMapping mblur_shutter_curve;
+
+  /* Spectral Rendering */
+  struct CurveMapping camera_response_function_curve;
+  struct CurveMapping wavelength_importance_curve;
 } RenderData;
 
 /* RenderData.quality_flag */
@@ -1590,7 +1593,6 @@ typedef struct SceneEEVEE {
   float gi_irradiance_smoothing;
   float gi_glossy_clamp;
   float gi_filter_quality;
-  char _pad[4];
 
   float gi_cubemap_draw_size;
   float gi_irradiance_draw_size;
@@ -1628,8 +1630,11 @@ typedef struct SceneEEVEE {
   float bloom_radius;
   float bloom_clamp;
 
-  int motion_blur_samples;
+  int motion_blur_samples DNA_DEPRECATED;
+  int motion_blur_max;
+  int motion_blur_steps;
   float motion_blur_shutter;
+  float motion_blur_depth_scale;
 
   int shadow_method DNA_DEPRECATED;
   int shadow_cube_size;
@@ -1820,9 +1825,9 @@ typedef struct Scene {
 #define R_NO_OVERWRITE (1 << 22)   /* skip existing files */
 #define R_TOUCH (1 << 23)          /* touch files before rendering */
 #define R_SIMPLIFY (1 << 24)
-#define R_EDGE_FRS (1 << 25)        /* R_EDGE reserved for Freestyle */
-#define R_PERSISTENT_DATA (1 << 26) /* keep data around for re-render */
-#define R_MODE_UNUSED_27 (1 << 27)  /* cleared */
+#define R_EDGE_FRS (1 << 25)                     /* R_EDGE reserved for Freestyle */
+#define R_PERSISTENT_DATA (1 << 26)              /* keep data around for re-render */
+#define R_CUSTOM_WAVELENGTH_IMPORTANCE (1 << 27) /* Custom Wavelength Importance */
 
 /** #RenderData.seq_flag */
 enum {
@@ -2172,7 +2177,7 @@ typedef enum eSculptFlags {
 
   SCULPT_FLAG_UNUSED_6 = (1 << 6), /* cleared */
 
-  SCULPT_USE_OPENMP = (1 << 7),
+  SCULPT_FLAG_UNUSED_7 = (1 << 7), /* cleared */
   SCULPT_ONLY_DEFORM = (1 << 8),
   // SCULPT_SHOW_DIFFUSE = (1 << 9), // deprecated
 
@@ -2233,10 +2238,14 @@ enum {
 #define UVCALC_FILLHOLES (1 << 0)
 /** would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
 #define UVCALC_NO_ASPECT_CORRECT (1 << 1)
-/** adjust UV's while transforming to avoid distortion */
-#define UVCALC_TRANSFORM_CORRECT (1 << 2)
+/** Adjust UV's while transforming with Vert or Edge Slide. */
+#define UVCALC_TRANSFORM_CORRECT_SLIDE (1 << 2)
 /** Use mesh data after subsurf to compute UVs*/
 #define UVCALC_USESUBSURF (1 << 3)
+/** adjust UV's while transforming to avoid distortion */
+#define UVCALC_TRANSFORM_CORRECT (1 << 4)
+/** Keep equal values merged while correcting custom-data. */
+#define UVCALC_TRANSFORM_CORRECT_KEEP_CONNECTED (1 << 5)
 
 /* ToolSettings.uv_flag */
 #define UV_SYNC_SELECTION 1
@@ -2408,5 +2417,3 @@ enum {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DNA_SCENE_TYPES_H__ */

@@ -21,8 +21,7 @@
  * \ingroup editors
  */
 
-#ifndef __ED_OBJECT_H__
-#define __ED_OBJECT_H__
+#pragma once
 
 #include "BLI_compiler_attrs.h"
 #include "DNA_object_enums.h"
@@ -33,7 +32,6 @@ extern "C" {
 
 struct Base;
 struct Depsgraph;
-struct EnumPropertyItem;
 struct EnumPropertyItem;
 struct ID;
 struct Main;
@@ -59,10 +57,15 @@ struct wmWindowManager;
 
 /* object_edit.c */
 /* context.object */
-struct Object *ED_object_context(struct bContext *C);
+struct Object *ED_object_context(const struct bContext *C);
 /* context.object or context.active_object */
-struct Object *ED_object_active_context(struct bContext *C);
+struct Object *ED_object_active_context(const struct bContext *C);
 void ED_collection_hide_menu_draw(const struct bContext *C, struct uiLayout *layout);
+
+Object **ED_object_array_in_mode_or_selected(struct bContext *C,
+                                             bool (*filter_fn)(struct Object *ob, void *user_data),
+                                             void *filter_user_data,
+                                             uint *r_objects_len);
 
 /* object_utils.c */
 bool ED_object_calc_active_center_for_editmode(struct Object *obedit,
@@ -185,7 +188,7 @@ struct Base *ED_object_add_duplicate(struct Main *bmain,
                                      struct Scene *scene,
                                      struct ViewLayer *view_layer,
                                      struct Base *base,
-                                     int dupflag);
+                                     const eDupli_ID_Flags dupflag);
 
 void ED_object_parent(struct Object *ob,
                       struct Object *parent,
@@ -295,10 +298,6 @@ struct Object *ED_object_add_type(struct bContext *C,
                                   unsigned short local_view_bits)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 
-void ED_object_single_users(struct Main *bmain,
-                            struct Scene *scene,
-                            const bool full,
-                            const bool copy_groups);
 void ED_object_single_user(struct Main *bmain, struct Scene *scene, struct Object *ob);
 
 /* object motion paths */
@@ -367,9 +366,10 @@ struct ModifierData *ED_object_modifier_add(struct ReportList *reports,
                                             int type);
 bool ED_object_modifier_remove(struct ReportList *reports,
                                struct Main *bmain,
+                               struct Scene *scene,
                                struct Object *ob,
                                struct ModifierData *md);
-void ED_object_modifier_clear(struct Main *bmain, struct Object *ob);
+void ED_object_modifier_clear(struct Main *bmain, struct Scene *scene, struct Object *ob);
 bool ED_object_modifier_move_down(struct ReportList *reports,
                                   struct Object *ob,
                                   struct ModifierData *md);
@@ -381,7 +381,7 @@ bool ED_object_modifier_move_to_index(struct ReportList *reports,
                                       struct ModifierData *md,
                                       const int index);
 
-int ED_object_modifier_convert(struct ReportList *reports,
+bool ED_object_modifier_convert(struct ReportList *reports,
                                struct Main *bmain,
                                struct Depsgraph *depsgraph,
                                struct Scene *scene,
@@ -394,8 +394,11 @@ bool ED_object_modifier_apply(struct Main *bmain,
                               struct Scene *scene,
                               struct Object *ob,
                               struct ModifierData *md,
-                              int mode);
+                              int mode,
+                              bool keep_modifier);
 int ED_object_modifier_copy(struct ReportList *reports,
+                            struct Main *bmain,
+                            struct Scene *scene,
                             struct Object *ob,
                             struct ModifierData *md);
 
@@ -425,6 +428,10 @@ int ED_object_gpencil_modifier_move_down(struct ReportList *reports,
 int ED_object_gpencil_modifier_move_up(struct ReportList *reports,
                                        struct Object *ob,
                                        struct GpencilModifierData *md);
+bool ED_object_gpencil_modifier_move_to_index(struct ReportList *reports,
+                                              struct Object *ob,
+                                              struct GpencilModifierData *md,
+                                              const int index);
 int ED_object_gpencil_modifier_apply(struct Main *bmain,
                                      struct ReportList *reports,
                                      struct Depsgraph *depsgraph,
@@ -453,6 +460,10 @@ int ED_object_shaderfx_move_down(struct ReportList *reports,
 int ED_object_shaderfx_move_up(struct ReportList *reports,
                                struct Object *ob,
                                struct ShaderFxData *fx);
+bool ED_object_shaderfx_move_to_index(struct ReportList *reports,
+                                      struct Object *ob,
+                                      struct ShaderFxData *fx,
+                                      const int index);
 
 /* object_select.c */
 void ED_object_select_linked_by_id(struct bContext *C, struct ID *id);
@@ -485,7 +496,7 @@ struct XFormObjectData *ED_object_data_xform_create_ex(struct ID *id, bool is_ed
 struct XFormObjectData *ED_object_data_xform_create(struct ID *id);
 struct XFormObjectData *ED_object_data_xform_create_from_edit_mode(ID *id);
 
-void ED_object_data_xform_destroy(struct XFormObjectData *xod);
+void ED_object_data_xform_destroy(struct XFormObjectData *xod_base);
 
 void ED_object_data_xform_by_mat4(struct XFormObjectData *xod, const float mat[4][4]);
 
@@ -495,5 +506,3 @@ void ED_object_data_xform_tag_update(struct XFormObjectData *xod);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __ED_OBJECT_H__ */

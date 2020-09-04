@@ -482,18 +482,18 @@ static bool hook_op_edit_poll(bContext *C)
 
   if (obedit) {
     if (ED_operator_editmesh(C)) {
-      return 1;
+      return true;
     }
     if (ED_operator_editsurfcurve(C)) {
-      return 1;
+      return true;
     }
     if (ED_operator_editlattice(C)) {
-      return 1;
+      return true;
     }
-    // if (ED_operator_editmball(C)) return 1;
+    // if (ED_operator_editmball(C)) return true;
   }
 
-  return 0;
+  return false;
 }
 
 static Object *add_hook_object_new(
@@ -649,9 +649,7 @@ static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
@@ -690,9 +688,7 @@ static int object_add_hook_newob_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void OBJECT_OT_hook_add_newob(wmOperatorType *ot)

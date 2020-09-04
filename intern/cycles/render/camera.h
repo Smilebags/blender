@@ -86,6 +86,14 @@ class Camera : public Node {
    */
   float rolling_shutter_duration;
 
+  /* Spectral rendering */
+  bool use_custom_wavelength_importance;
+  array<float3> camera_response_function_curve;
+  array<float> wavelength_importance_curve;
+  size_t camera_response_function_table_offset;
+  size_t wavelength_importance_cdf_offset;
+  size_t wavelength_importance_offset;
+
   /* depth of field */
   float focaldistance;
   float aperturesize;

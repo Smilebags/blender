@@ -227,6 +227,9 @@ static void rna_Panel_unregister(Main *bmain, StructRNA *type)
                 }
               }
             }
+            /* The unregistered panel might have had a template that added instanced panels,
+             * so remove them just in case. They can be re-added on redraw anyway. */
+            UI_panels_free_instanced(NULL, region);
           }
         }
       }
@@ -400,6 +403,21 @@ static StructRNA *rna_Panel_refine(PointerRNA *ptr)
 {
   Panel *menu = (Panel *)ptr->data;
   return (menu->type && menu->type->rna_ext.srna) ? menu->type->rna_ext.srna : &RNA_Panel;
+}
+
+static StructRNA *rna_Panel_custom_data_typef(PointerRNA *ptr)
+{
+  Panel *panel = (Panel *)ptr->data;
+
+  return UI_panel_custom_data_get(panel)->type;
+}
+
+static PointerRNA rna_Panel_custom_data_get(PointerRNA *ptr)
+{
+  Panel *panel = (Panel *)ptr->data;
+
+  /* Because the panel custom data is general we can't refine the pointer type here. */
+  return *UI_panel_custom_data_get(panel);
 }
 
 /* UIList */
@@ -1290,7 +1308,7 @@ static void rna_def_panel(BlenderRNA *brna)
        0,
        "Instanced Panel",
        "Multiple panels with this type can be used as part of a list depending on data external "
-       "to the UI. Used to create panels for the modifiers and other stacks."},
+       "to the UI. Used to create panels for the modifiers and other stacks"},
       {PNL_LAYOUT_HEADER_EXPAND,
        "HEADER_LAYOUT_EXPAND",
        0,
@@ -1344,9 +1362,12 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, NULL, "drawname");
   RNA_def_property_ui_text(prop, "Text", "XXX todo");
 
-  prop = RNA_def_int(
-      srna, "list_panel_index", 0, 0, INT_MAX, "Instanced Panel Data Index", "", 0, INT_MAX);
-  RNA_def_property_int_sdna(prop, NULL, "runtime.list_index");
+  prop = RNA_def_property(srna, "custom_data", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Constraint");
+  RNA_def_property_pointer_sdna(prop, NULL, "runtime.custom_data_ptr");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Panel_custom_data_get", NULL, "rna_Panel_custom_data_typef", NULL);
+  RNA_def_property_ui_text(prop, "Custom Data", "Panel Data");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   /* registration */

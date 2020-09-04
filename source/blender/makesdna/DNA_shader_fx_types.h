@@ -18,8 +18,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_SHADER_FX_TYPES_H__
-#define __DNA_SHADER_FX_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -50,7 +49,7 @@ typedef enum ShaderFxMode {
   eShaderFxMode_Realtime = (1 << 0),
   eShaderFxMode_Render = (1 << 1),
   eShaderFxMode_Editmode = (1 << 2),
-  eShaderFxMode_Expanded = (1 << 3),
+  eShaderFxMode_Expanded_DEPRECATED = (1 << 3),
 } ShaderFxMode;
 
 typedef enum {
@@ -64,7 +63,8 @@ typedef struct ShaderFxData {
   int type, mode;
   int stackindex;
   short flag;
-  char _pad[2];
+  /* Expansion for shader effect panels and sub-panels. */
+  short ui_expand_flag;
   /** MAX_NAME. */
   char name[64];
 
@@ -171,6 +171,10 @@ typedef struct PixelShaderFxData {
   ShaderFxData_Runtime runtime;
 } PixelShaderFxData;
 
+typedef enum ePixelShaderFx_Flag {
+  FX_PIXEL_FILTER_NEAREST = (1 << 0),
+} ePixelShaderFx_Flag;
+
 typedef struct RimShaderFxData {
   ShaderFxData shaderfx;
   int offset[2];
@@ -245,4 +249,3 @@ typedef struct WaveShaderFxData {
   char _pad[4];
   ShaderFxData_Runtime runtime;
 } WaveShaderFxData;
-#endif /* __DNA_SHADER_FX_TYPES_H__ */

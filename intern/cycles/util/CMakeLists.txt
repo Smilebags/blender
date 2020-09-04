@@ -29,7 +29,7 @@ set(SRC
 )
 
 set(LIB
-
+  ${TBB_LIBRARIES}
 )
 
 if(WITH_CYCLES_STANDALONE)
@@ -88,7 +88,9 @@ set(SRC_HEADERS
   util_math_spectral_color.h
   util_md5.h
   util_murmurhash.h
+  util_openimagedenoise.h
   util_opengl.h
+  util_openvdb.h
   util_optimization.h
   util_param.h
   util_path.h
@@ -99,11 +101,9 @@ set(SRC_HEADERS
   util_rect.h
   util_set.h
   util_simd.h
-  util_sky_model.cpp
-  util_sky_model.h
-  util_sky_model_data.h
   util_avxf.h
   util_avxb.h
+  util_avxi.h
   util_semaphore.h
   util_sseb.h
   util_ssef.h
@@ -114,6 +114,7 @@ set(SRC_HEADERS
   util_string.h
   util_system.h
   util_task.h
+  util_tbb.h
   util_texture.h
   util_thread.h
   util_time.h

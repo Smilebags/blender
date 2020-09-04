@@ -13,8 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#ifndef __BKE_SHADER_FX_H__
-#define __BKE_SHADER_FX_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -28,6 +27,7 @@
 extern "C" {
 #endif
 
+struct ARegionType;
 struct ID;
 struct ListBase;
 struct ModifierUpdateDepsgraphContext;
@@ -157,11 +157,17 @@ typedef struct ShaderFxTypeInfo {
                         struct Object *ob,
                         ShaderFxIDWalkFunc walk,
                         void *userData);
+
+  /* Register the panel types for the effect's UI. */
+  void (*panelRegister)(struct ARegionType *region_type);
 } ShaderFxTypeInfo;
+
+#define SHADERFX_TYPE_PANEL_PREFIX "FX_PT_"
 
 /* Initialize  global data (type info and some common global storages). */
 void BKE_shaderfx_init(void);
 
+void BKE_shaderfxType_panel_id(ShaderFxType type, char *panel_id);
 const ShaderFxTypeInfo *BKE_shaderfx_get_info(ShaderFxType type);
 struct ShaderFxData *BKE_shaderfx_new(int type);
 void BKE_shaderfx_free_ex(struct ShaderFxData *fx, const int flag);
@@ -182,5 +188,3 @@ bool BKE_shaderfx_has_gpencil(struct Object *ob);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_SHADER_FX_H__ */
