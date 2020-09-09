@@ -1938,7 +1938,7 @@ void ui_draw_but_CURVE(
   float color_backdrop[4] = {0, 0, 0, 1};
 
   /* Draw the background. */
-  switch ((int)but->a1) {
+  switch (but_cumap->gradient_type) {
     case UI_GRAD_H: {
       /* Magic trigger for curve backgrounds. */
       const float col[3] = {0.0f, 0.0f, 0.0f}; /* Dummy argument. */
@@ -2003,13 +2003,15 @@ void ui_draw_but_CURVE(
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
   /* Draw the grid. */
-  switch ((int)but->a1) {
+  switch (but_cumap->gradient_type) {
     case UI_GRAD_H: {
       GPU_blend(GPU_BLEND_ALPHA);
       GPU_blend(GPU_BLEND_ALPHA);
+
       ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
       immUniformColor4fv(color_backdrop);
       ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
+
       GPU_blend(GPU_BLEND_NONE);
       break;
     }
@@ -2052,7 +2054,7 @@ void ui_draw_but_CURVE(
   /* sample option */
   if (cumap->flag & CUMA_DRAW_SAMPLE) {
     immBegin(GPU_PRIM_LINES, 2); /* will draw one of the following 3 lines */
-    if (but->a1 == UI_GRAD_H || but->a1 == UI_GRAD_SPECTRUM) {
+    if (ELEM(but_cumap->gradient_type, UI_GRAD_H, UI_GRAD_SPECTRUM)) {
       float tsample[3];
       float hsv[3];
       linearrgb_to_srgb_v3_v3(tsample, cumap->sample);
@@ -2117,15 +2119,17 @@ void ui_draw_but_CURVE(
   GPU_blend(GPU_BLEND_ALPHA);
 
   /* Curve filled. */
-  switch ((int)but->a1) {
+  switch (but_cumap->gradient_type) {
     case UI_GRAD_SPECTRUM: {
       uint8_t white[3] = {0xFF, 0xFF, 0xFF};
       immUniformColor3ubvAlpha(white, 128);
       break;
     }
-    default:
+
+    default: {
       immUniformColor3ubvAlpha(wcol->item, 128);
       break;
+    }
   }
 
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
@@ -2144,16 +2148,19 @@ void ui_draw_but_CURVE(
   /* Curve line. */
   GPU_line_width(1.0f);
   /* Curve filled. */
-  switch ((int)but->a1) {
+  switch (but_cumap->gradient_type) {
     case UI_GRAD_SPECTRUM: {
       uint8_t white[3] = {0xFF, 0xFF, 0xFF};
       immUniformColor3ubvAlpha(white, 255);
       break;
     }
-    default:
+
+    default: {
       immUniformColor3ubvAlpha(wcol->item, 255);
       break;
+    }
   }
+
   GPU_line_smooth(true);
   immBegin(GPU_PRIM_LINE_STRIP, (CM_TABLE + 1) + 2);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -2179,7 +2186,7 @@ void ui_draw_but_CURVE(
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
 
-  switch ((int)but->a1) {
+  switch (but_cumap->gradient_type) {
     case UI_GRAD_SPECTRUM: {
       uint8_t unselected[3] = {0xFF, 0xFF, 0xFF};
       uint8_t selected[3] = {0xFF, 0xA0, 0x28};
@@ -2187,6 +2194,7 @@ void ui_draw_but_CURVE(
       rgb_uchar_to_float(color_vert_select, selected);
       break;
     }
+
     default:
       rgb_uchar_to_float(color_backdrop, wcol->inner);
       UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);

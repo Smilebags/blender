@@ -60,13 +60,11 @@ GLImmediate::GLImmediate()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 
-#ifndef __APPLE__
-  if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
+  if (GLContext::debug_layer_support) {
     glObjectLabel(GL_VERTEX_ARRAY, vao_id_, -1, "VAO-Immediate");
     glObjectLabel(GL_BUFFER, buffer.vbo_id, -1, "VBO-ImmediateBuffer");
     glObjectLabel(GL_BUFFER, buffer_strict.vbo_id, -1, "VBO-ImmediateBufferStrict");
   }
-#endif
 }
 
 GLImmediate::~GLImmediate()
@@ -160,7 +158,7 @@ void GLImmediate::end(void)
   GL_CHECK_ERROR("Immediate Post-Unmap");
 
   if (vertex_len > 0) {
-    GPU_context_active_get()->state_manager->apply_state();
+    GLContext::get()->state_manager->apply_state();
 
     /* We convert the offset in vertex offset from the buffer's start.
      * This works because we added some padding to align the first vertex vertex.  */

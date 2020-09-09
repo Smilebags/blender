@@ -163,6 +163,7 @@ set(SRC
   intern/draw_instance_data.h
   intern/draw_manager.h
   intern/draw_manager_profiling.h
+  intern/draw_manager_testing.h
   intern/draw_manager_text.h
   intern/draw_view.h
   intern/smaa_textures.h
@@ -436,9 +437,9 @@ if(WITH_GTESTS)
     )
     set(TEST_INC
       "../../../intern/ghost/"
+      "../gpu/tests/"
     )
     set(TEST_LIB
-      bf_draw
     )
     include(GTestTesting)
     blender_add_test_lib(bf_draw_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")

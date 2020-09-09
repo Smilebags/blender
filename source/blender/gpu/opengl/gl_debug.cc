@@ -28,6 +28,10 @@
 #include "BLI_system.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_global.h"
+
+#include "GPU_platform.h"
+
 #include "glew-mx.h"
 
 #include "gl_context.hh"
@@ -36,6 +40,9 @@
 #include "gl_debug.hh"
 
 #include <stdio.h>
+
+/* Avoid too much NVidia buffer info in the output log. */
+#define TRIM_NVIDIA_BUFFER_INFO 1
 
 namespace blender::gpu::debug {
 
@@ -64,6 +71,13 @@ static void APIENTRY debug_callback(GLenum UNUSED(source),
                                     const GLvoid *UNUSED(userParm))
 {
   const char format[] = "GPUDebug: %s%s\033[0m\n";
+
+  if (TRIM_NVIDIA_BUFFER_INFO &&
+      GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
+      STREQLEN("Buffer detailed info", message, 20)) {
+    /** Supress buffer infos flooding the output. */
+    return;
+  }
 
   if (ELEM(severity, GL_DEBUG_SEVERITY_LOW, GL_DEBUG_SEVERITY_NOTIFICATION)) {
     if (VERBOSE) {
@@ -108,7 +122,7 @@ void init_gl_callbacks(void)
   char msg[256] = "";
   const char format[] = "Successfully hooked OpenGL debug callback using %s";
 
-  if (GLEW_VERSION_4_3 || GLEW_KHR_debug) {
+  if (GLContext::debug_layer_support) {
     SNPRINTF(msg, format, GLEW_VERSION_4_3 ? "OpenGL 4.3" : "KHR_debug extension");
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -179,14 +193,23 @@ void check_gl_error(const char *info)
 
 void check_gl_resources(const char *info)
 {
-  GLContext *ctx = static_cast<GLContext *>(GPU_context_active_get());
+  if (!(G.debug & G_DEBUG_GPU)) {
+    return;
+  }
+
+  GLContext *ctx = GLContext::get();
   ShaderInterface *interface = ctx->shader->interface;
   /* NOTE: This only check binding. To be valid, the bound ubo needs to
    * be big enough to feed the data range the shader awaits. */
   uint16_t ubo_needed = interface->enabled_ubo_mask_;
   ubo_needed &= ~ctx->bound_ubo_slots;
 
-  if (ubo_needed == 0) {
+  /* NOTE: This only check binding. To be valid, the bound texture needs to
+   * be the same format/target the shader expects. */
+  uint64_t tex_needed = interface->enabled_tex_mask_;
+  tex_needed &= ~GLContext::state_manager_active_get()->bound_texture_slots();
+
+  if (ubo_needed == 0 && tex_needed == 0) {
     return;
   }
 
@@ -200,6 +223,22 @@ void check_gl_resources(const char *info)
       debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
     }
   }
+
+  for (int i = 0; tex_needed != 0; i++, tex_needed >>= 1) {
+    if ((tex_needed & 1) != 0) {
+      const ShaderInput *tex_input = interface->texture_get(i);
+      const char *tex_name = interface->input_name_get(tex_input);
+      const char *sh_name = ctx->shader->name_get();
+      char msg[256];
+      SNPRINTF(msg, "Missing Texture bind at slot %d : %s > %s : %s", i, sh_name, tex_name, info);
+      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
+    }
+  }
+}
+
+void raise_gl_error(const char *info)
+{
+  debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, info, NULL);
 }
 
 /** \} */

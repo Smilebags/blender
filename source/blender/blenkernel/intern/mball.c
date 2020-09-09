@@ -433,21 +433,21 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
   }
 }
 
-/** \brief This function finds basic MetaBall.
+/** \brief This function finds the basis MetaBall.
  *
- * Basic meta-ball doesn't include any number at the end of
+ * Basis meta-ball doesn't include any number at the end of
  * its name. All meta-balls with same base of name can be
  * blended. meta-balls with different basic name can't be blended.
  *
  * \warning #BKE_mball_is_basis() can fail on returned object, see function docs for details.
  */
-Object *BKE_mball_basis_find(Scene *scene, Object *basis)
+Object *BKE_mball_basis_find(Scene *scene, Object *object)
 {
-  Object *bob = basis;
+  Object *bob = object;
   int basisnr, obnr;
   char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 
-  BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
+  BLI_split_name_num(basisname, &basisnr, object->id.name + 2, '.');
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
     LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
@@ -460,7 +460,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
            * that it has to have same base of its name. */
           if (STREQ(obname, basisname)) {
             if (obnr < basisnr) {
-              basis = ob;
+              object = ob;
               basisnr = obnr;
             }
           }
@@ -469,7 +469,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
     }
   }
 
-  return basis;
+  return object;
 }
 
 bool BKE_mball_minmax_ex(
@@ -484,7 +484,6 @@ bool BKE_mball_minmax_ex(
   LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
     if ((ml->flag & flag) == flag) {
       const float scale_mb = (ml->rad * 0.5f) * scale;
-      int i;
 
       if (obmat) {
         mul_v3_m4v3(centroid, obmat, &ml->x);
@@ -494,7 +493,7 @@ bool BKE_mball_minmax_ex(
       }
 
       /* TODO, non circle shapes cubes etc, probably nobody notices - campbell */
-      for (i = -1; i != 3; i += 2) {
+      for (int i = -1; i != 3; i += 2) {
         copy_v3_v3(vec, centroid);
         add_v3_fl(vec, scale_mb * i);
         minmax_v3v3_v3(min, max, vec);
