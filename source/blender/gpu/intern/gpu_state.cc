@@ -173,12 +173,15 @@ void GPU_line_width(float width)
 
 void GPU_point_size(float size)
 {
-  SET_MUTABLE_STATE(point_size, size * PIXELSIZE);
+  GPUStateManager *stack = Context::get()->state_manager;
+  auto &state = stack->mutable_state;
+  /* Keep the sign of point_size since it represents the enable state. */
+  state.point_size = size * ((state.point_size > 0.0) ? 1.0f : -1.0f);
 }
 
 /* Programmable point size
  * - shaders set their own point size when enabled
- * - use glPointSize when disabled */
+ * - use GPU_point_size when disabled */
 /* TODO remove and use program point size everywhere */
 void GPU_program_point_size(bool enable)
 {
