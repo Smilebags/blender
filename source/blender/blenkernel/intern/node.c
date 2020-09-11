@@ -439,7 +439,7 @@ void ntreeBlendWrite(BlendWriter *writer, bNodeTree *ntree)
     if (node->storage) {
       /* could be handlerized at some point, now only 1 exception still */
       if ((ntree->type == NTREE_SHADER) &&
-          ELEM(node->type, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB)) {
+          ELEM(node->type, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB, SH_NODE_CURVE_SPECTRUM)) {
         BKE_curvemapping_blend_write(writer, node->storage);
       }
       else if (ntree->type == NTREE_SHADER && (node->type == SH_NODE_SCRIPT)) {
@@ -599,6 +599,7 @@ void ntreeBlendReadData(BlendDataReader *reader, bNodeTree *ntree)
       switch (node->type) {
         case SH_NODE_CURVE_VEC:
         case SH_NODE_CURVE_RGB:
+        case SH_NODE_CURVE_SPECTRUM:
         case CMP_NODE_TIME:
         case CMP_NODE_CURVE_VEC:
         case CMP_NODE_CURVE_RGB:
