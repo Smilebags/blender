@@ -70,8 +70,8 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  float initial_offset = fmodf(path_state_rng_1D(kg, state, PRNG_WAVELENGTH),
-                               1.0f / CHANNELS_PER_RAY);
+  float initial_offset = lerp(
+      0.0f, 1.0f / CHANNELS_PER_RAY, path_state_rng_1D(kg, state, PRNG_WAVELENGTH));
   FOR_EACH_CHANNEL(i)
   {
     float current_channel_offset = initial_offset + (float)i / CHANNELS_PER_RAY;
