@@ -494,6 +494,16 @@ ccl_device_inline float3 pow(float3 v, float e)
   return make_float3(powf(v.x, e), powf(v.y, e), powf(v.z, e));
 }
 
+ccl_device_inline float3 pow(float3 v, float3 e)
+{
+  return make_float3(powf(v.x, e.x), powf(v.y, e.y), powf(v.z, e.z));
+}
+
+ccl_device_inline float3 expm1(float3 v)
+{
+  return make_float3(expm1f(v.x), expm1f(v.y), expm1f(v.z));
+}
+
 ccl_device_inline float3 exp(float3 v)
 {
   return make_float3(expf(v.x), expf(v.y), expf(v.z));
