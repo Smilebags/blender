@@ -543,7 +543,7 @@ ccl_device void kernel_branched_path_trace(
   if (ray.t != 0.0f) {
     kernel_branched_path_integrate(kg, rng_hash, sample, ray, buffer, &L);
 
-    /* TODO: Fixme! */
+    /* TODO(Spectral Cycles): Fixme! */
     SpectralColor t = make_spectral_color(0);
     kernel_write_result(kg, buffer, sample, &L, t);
   }

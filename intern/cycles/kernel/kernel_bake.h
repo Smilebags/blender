@@ -336,7 +336,7 @@ ccl_device void kernel_bake_evaluate(
         //   N = shader_bsdf_average_normal(kg, &sd);
         // }
 
-        /* TODO: Fixme! */
+        /* TODO(Spectral Cycles): Fixme! */
         /* encoding: normal = (2 * color) - 1 */
         // out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
       }
@@ -350,7 +350,7 @@ ccl_device void kernel_bake_evaluate(
       break;
     }
     case SHADER_EVAL_UV: {
-      /* TODO: Fixme! */
+      /* TODO(Spectral Cycles): Fixme! */
       //   out = primitive_uv(kg, &sd);
       break;
     }
@@ -388,7 +388,7 @@ ccl_device void kernel_bake_evaluate(
       break;
     }
     case SHADER_EVAL_SHADOW: {
-      /* TODO: Fixme! */
+      /* TODO(Spectral Cycles): Fixme! */
       //   out = make_float3(L.shadow.x, L.shadow.y, L.shadow.z);
       break;
     }
@@ -444,7 +444,7 @@ ccl_device void kernel_bake_evaluate(
 
   /* write output */
 
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   //   const float4 result = make_float4(out.x, out.y, out.z, 1.0f);
   const float4 result = make_float4(0.0f);
   kernel_write_pass_float4(output, result);
@@ -514,7 +514,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
   SpectralColor color = shader_background_eval(&sd);
 
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   /* write output */
   //   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
 }

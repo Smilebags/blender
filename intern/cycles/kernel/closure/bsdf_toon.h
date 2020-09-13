@@ -95,7 +95,7 @@ ccl_device SpectralColor bsdf_diffuse_toon_eval_reflect(const ShaderClosure *sc,
 
   SpectralColor eval = bsdf_toon_get_intensity(max_angle, smooth, angle);
 
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   //   if (eval.x > 0.0f) {
   if (true) {
     float sample_angle = bsdf_toon_get_sample_angle(max_angle, smooth);

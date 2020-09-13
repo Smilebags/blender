@@ -183,7 +183,7 @@ ccl_device_inline float longitudinal_scattering(
 /* Combine the three values using their luminances. */
 ccl_device_inline float4 combine_with_energy(KernelGlobals *kg, SpectralColor c)
 {
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   //   return make_float4(c.x, c.y, c.z, linear_rgb_to_gray(kg, c));
   //   return make_float4(c.x, c.y, c.z, 0.5f);
   return make_float4(0.0f);
@@ -356,7 +356,7 @@ ccl_device SpectralColor bsdf_principled_hair_eval(KernelGlobals *kg,
 
   *pdf = F.w;
 
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   // return float4_to_float3(F);
   return make_spectral_color(0.0f);
 }
@@ -474,7 +474,7 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals *kg,
   F += Ap[3] * Mp * Np;
   kernel_assert(isfinite_safe(float4_to_float3(F)));
 
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   // *eval = float4_to_float3(F);
   *pdf = F.w;
 
@@ -525,7 +525,7 @@ ccl_device_inline SpectralColor bsdf_principled_hair_sigma_from_reflectance(
 ccl_device_inline SpectralColor
 bsdf_principled_hair_sigma_from_concentration(const float eumelanin, const float pheomelanin)
 {
-  /* TODO: Fixme! */
+  /* TODO(Spectral Cycles): Fixme! */
   //   return eumelanin * make_float3(0.506f, 0.841f, 1.653f) +
   //          pheomelanin * make_float3(0.343f, 0.733f, 1.924f);
   return make_spectral_color(0.0f);

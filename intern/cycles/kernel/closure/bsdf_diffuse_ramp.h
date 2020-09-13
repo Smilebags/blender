@@ -47,6 +47,8 @@ static_assert(sizeof(ShaderClosure) >= sizeof(DiffuseRampBsdf), "DiffuseRampBsdf
 
 ccl_device SpectralColor bsdf_diffuse_ramp_get_color(const float3 colors[8], float pos)
 {
+  /* TODO(Spectral Cycles): Fix me! */
+
   //   int MAXCOLORS = 8;
 
   //   float npos = pos * (float)(MAXCOLORS - 1);
