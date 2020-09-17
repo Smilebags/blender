@@ -3267,7 +3267,7 @@ static const EnumPropertyItem *renderresult_layers_add_enum(RenderLayer *rl)
   while (rl) {
     tmp.identifier = rl->name;
     /* Little trick: using space char instead empty string
-     * makes the item selectable in the dropdown. */
+     * makes the item selectable in the drop-down. */
     if (rl->name[0] == '\0') {
       tmp.name = " ";
     }
@@ -3343,7 +3343,7 @@ static const EnumPropertyItem *renderresult_views_add_enum(RenderView *rv)
   while (rv) {
     tmp.identifier = rv->name;
     /* Little trick: using space char instead empty string
-     * makes the item selectable in the dropdown. */
+     * makes the item selectable in the drop-down. */
     if (rv->name[0] == '\0') {
       tmp.name = " ";
     }

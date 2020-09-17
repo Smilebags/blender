@@ -190,7 +190,7 @@ if(SYSTEMSTUBS_LIBRARY)
   list(APPEND PLATFORM_LINKLIBS SystemStubs)
 endif()
 
-set(PLATFORM_CFLAGS "-pipe -funsigned-char")
+set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -pipe -funsigned-char")
 set(PLATFORM_LINKFLAGS
   "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal -framework QuartzCore"
 )
@@ -413,6 +413,14 @@ if(WITH_GMP)
   if(NOT GMP_FOUND)
     set(WITH_GMP OFF)
     message(STATUS "GMP not found")
+  endif()
+endif()
+
+if(WITH_POTRACE)
+  find_package(Potrace)
+  if(NOT POTRACE_FOUND)
+    message(WARNING "potrace not found, disabling WITH_POTRACE")
+    set(WITH_POTRACE OFF)
   endif()
 endif()
 

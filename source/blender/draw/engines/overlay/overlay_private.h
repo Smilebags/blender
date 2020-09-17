@@ -127,7 +127,7 @@ typedef struct OVERLAY_PassList {
 typedef struct OVERLAY_ShadingData {
   /** Grid */
   float grid_axes[3], grid_distance;
-  float zplane_axes[3], grid_mesh_size;
+  float zplane_axes[3], grid_size[3];
   float grid_steps[8];
   float inv_viewport_size[2];
   float grid_line_size;
@@ -685,7 +685,8 @@ GPUShader *OVERLAY_shader_paint_wire(void);
 GPUShader *OVERLAY_shader_particle_dot(void);
 GPUShader *OVERLAY_shader_particle_shape(void);
 GPUShader *OVERLAY_shader_sculpt_mask(void);
-GPUShader *OVERLAY_shader_volume_velocity(bool use_needle);
+GPUShader *OVERLAY_shader_volume_velocity(bool use_needle, bool use_mac);
+GPUShader *OVERLAY_shader_volume_gridlines(bool color_with_flags, bool color_range);
 GPUShader *OVERLAY_shader_wireframe(bool custom_bias);
 GPUShader *OVERLAY_shader_wireframe_select(void);
 GPUShader *OVERLAY_shader_xray_fade(void);
