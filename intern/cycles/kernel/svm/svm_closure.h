@@ -245,7 +245,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
 
       /* sheen */
       if (diffuse_weight > CLOSURE_WEIGHT_CUTOFF && sheen > CLOSURE_WEIGHT_CUTOFF) {
-        /* TODO: Fixme! */
+        /* TODO(Spectral Cycles): Fixme! */
 
         // float m_cdlum = linear_rgb_to_gray(kg, base_color);
         float m_cdlum = 0.5f;
