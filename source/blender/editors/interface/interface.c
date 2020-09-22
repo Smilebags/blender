@@ -767,6 +767,38 @@ uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
   return but_new;
 }
 
+static bool ui_but_extra_icons_equals_old(const uiButExtraOpIcon *new_extra_icon,
+                                          const uiButExtraOpIcon *old_extra_icon)
+{
+  return (new_extra_icon->optype_params->optype == old_extra_icon->optype_params->optype) &&
+         (new_extra_icon->icon == old_extra_icon->icon);
+}
+
+static uiButExtraOpIcon *ui_but_extra_icon_find_old(const uiButExtraOpIcon *new_extra_icon,
+                                                    const uiBut *old_but)
+{
+  LISTBASE_FOREACH (uiButExtraOpIcon *, op_icon, &old_but->extra_op_icons) {
+    if (ui_but_extra_icons_equals_old(new_extra_icon, op_icon)) {
+      return op_icon;
+    }
+  }
+  return NULL;
+}
+
+static void ui_but_extra_icons_update_from_old_but(const uiBut *new_but, const uiBut *old_but)
+{
+  /* Specifically for keeping some state info for the active button. */
+  BLI_assert(old_but->active);
+
+  LISTBASE_FOREACH (uiButExtraOpIcon *, new_extra_icon, &new_but->extra_op_icons) {
+    uiButExtraOpIcon *old_extra_icon = ui_but_extra_icon_find_old(new_extra_icon, old_but);
+    /* Keep the highlighting state, and let handling update it later. */
+    if (old_extra_icon) {
+      new_extra_icon->highlighted = old_extra_icon->highlighted;
+    }
+  }
+}
+
 /**
  * \return true when \a but_p is set (only done for active buttons).
  */
@@ -854,6 +886,7 @@ static bool ui_but_update_from_old_block(const bContext *C,
     oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
     oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
 
+    ui_but_extra_icons_update_from_old_but(but, oldbut);
     SWAP(ListBase, but->extra_op_icons, oldbut->extra_op_icons);
 
     if (oldbut->type == UI_BTYPE_SEARCH_MENU) {
@@ -1605,6 +1638,7 @@ static PointerRNA *ui_but_extra_operator_icon_add_ptr(uiBut *but,
   WM_operator_properties_create_ptr(extra_op_icon->optype_params->opptr,
                                     extra_op_icon->optype_params->optype);
   extra_op_icon->optype_params->opcontext = opcontext;
+  extra_op_icon->highlighted = false;
 
   BLI_addtail(&but->extra_op_icons, extra_op_icon);
 
@@ -1810,6 +1844,11 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
 
   BLI_assert(block->active);
 
+  /* Extend button data. This needs to be done before the block updating. */
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
+    ui_but_predefined_extra_operator_icons_add(but);
+  }
+
   UI_block_update_from_old(C, block);
 
   /* inherit flags from 'old' buttons that was drawn here previous, based
@@ -1841,7 +1880,6 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
     if (UI_but_is_decorator(but)) {
       ui_but_anim_decorate_update_from_flag((uiButDecorator *)but);
     }
-    ui_but_predefined_extra_operator_icons_add(but);
 
 #ifndef NDEBUG
     ui_but_validate(but);
@@ -3304,9 +3342,6 @@ void ui_but_range_set_soft(uiBut *but)
       but->softmax = max_ff(but->softmax, value);
     }
   }
-  else {
-    BLI_assert(0);
-  }
 }
 
 /* ******************* Free ********************/
@@ -3937,37 +3972,44 @@ static uiBut *ui_but_alloc(const eButType type)
  */
 uiBut *ui_but_change_type(uiBut *but, eButType new_type)
 {
-  if (but->type != new_type) {
-    size_t alloc_size;
-    const char *alloc_str;
-    uiBut *insert_after_but = but->prev;
-    bool new_has_custom_type, old_has_custom_type;
+  if (but->type == new_type) {
+    /* Nothing to do. */
+    return but;
+  }
 
-    /* Remove old button address */
-    BLI_remlink(&but->block->buttons, but);
+  size_t alloc_size;
+  const char *alloc_str;
+  uiBut *insert_after_but = but->prev;
+  bool new_has_custom_type, old_has_custom_type;
 
-    ui_but_alloc_info(but->type, NULL, NULL, &old_has_custom_type);
-    ui_but_alloc_info(new_type, &alloc_size, &alloc_str, &new_has_custom_type);
+  /* Remove old button address */
+  BLI_remlink(&but->block->buttons, but);
 
-    if (new_has_custom_type || old_has_custom_type) {
-      const void *old_but_ptr = but;
-      /* Button may have pointer to a member within itself, this will have to be updated. */
-      const bool has_str_ptr_to_self = but->str == but->strdata;
+  ui_but_alloc_info(but->type, NULL, NULL, &old_has_custom_type);
+  ui_but_alloc_info(new_type, &alloc_size, &alloc_str, &new_has_custom_type);
 
-      but = MEM_recallocN_id(but, alloc_size, alloc_str);
-      but->type = new_type;
-      if (has_str_ptr_to_self) {
-        but->str = but->strdata;
-      }
+  if (new_has_custom_type || old_has_custom_type) {
+    const void *old_but_ptr = but;
+    /* Button may have pointer to a member within itself, this will have to be updated. */
+    const bool has_str_ptr_to_self = but->str == but->strdata;
+    const bool has_poin_ptr_to_self = but->poin == (char *)but;
 
-      BLI_insertlinkafter(&but->block->buttons, insert_after_but, but);
+    but = MEM_recallocN_id(but, alloc_size, alloc_str);
+    but->type = new_type;
+    if (has_str_ptr_to_self) {
+      but->str = but->strdata;
+    }
+    if (has_poin_ptr_to_self) {
+      but->poin = (char *)but;
+    }
 
-      if (but->layout) {
-        const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr, but);
-        BLI_assert(found_layout);
-        UNUSED_VARS_NDEBUG(found_layout);
-        ui_button_group_replace_but_ptr(but->layout, old_but_ptr, but);
-      }
+    BLI_insertlinkafter(&but->block->buttons, insert_after_but, but);
+
+    if (but->layout) {
+      const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr, but);
+      BLI_assert(found_layout);
+      UNUSED_VARS_NDEBUG(found_layout);
+      ui_button_group_replace_but_ptr(but->layout, old_but_ptr, but);
     }
   }
 

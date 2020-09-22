@@ -389,7 +389,7 @@ ccl_device void kernel_bake_evaluate(
     }
     case SHADER_EVAL_SHADOW: {
       /* TODO(Spectral Cycles): Fixme! */
-      //   out = make_float3(L.shadow.x, L.shadow.y, L.shadow.z);
+      //   out = L.shadow;
       break;
     }
     case SHADER_EVAL_DIFFUSE: {

@@ -1090,7 +1090,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
                                             Object *ob,
                                             const float radius)
 {
-  const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
+  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   float location[3], symm_rot_mat[4][4];
 
   for (int i = 0; i <= symm; i++) {
@@ -1744,7 +1744,7 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
     else if (brush->cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_RADIAL &&
              brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL) {
       /* Display the simulation limits if sculpting outside them. */
-      /* This does not makes much sense of plane fallof as the fallof is infinte or global. */
+      /* This does not makes much sense of plane falloff as the falloff is infinte or global. */
 
       if (len_v3v3(ss->cache->true_location, ss->cache->true_initial_location) >
           ss->cache->radius * (1.0f + brush->cloth_sim_limit)) {
@@ -1839,28 +1839,22 @@ static void paint_cursor_update_anchored_location(PaintCursorContext *pcontext)
 
 static void paint_cursor_setup_2D_drawing(PaintCursorContext *pcontext)
 {
+  GPU_line_width(2.0f);
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 2.0f * U.pixelsize);
+  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 }
 
 static void paint_cursor_setup_3D_drawing(PaintCursorContext *pcontext)
 {
+  GPU_line_width(2.0f);
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 2.0f * U.pixelsize);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 }
 
 static void paint_cursor_restore_drawing_state(void)

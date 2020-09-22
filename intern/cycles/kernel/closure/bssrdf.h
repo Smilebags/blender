@@ -425,6 +425,7 @@ ccl_device void bssrdf_sample(const ShaderClosure *sc, float xi, float *r, float
    * may be used if their radius was too small to handle as BSSRDF. */
   xi *= bssrdf->channels;
 
+  /* TODO(Spectral Cycles): Make sure this works correctly. */
   FOR_EACH_CHANNEL(i)
   {
     if (xi <= i + 1.0f) {

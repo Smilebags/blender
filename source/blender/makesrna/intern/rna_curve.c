@@ -1567,7 +1567,7 @@ static void rna_def_curve(BlenderRNA *brna)
        "OBJECT",
        0,
        "Object",
-       "Use an object for the section of the curve's bevel goemetry segment"},
+       "Use an object for the section of the curve's bevel geometry segment"},
       {CU_BEV_MODE_CURVE_PROFILE,
        "PROFILE",
        0,
@@ -1614,7 +1614,9 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Bevel Mode", "Determine how to build the curve's bevel geometry");
   RNA_def_property_enum_funcs(prop, NULL, "rna_Curve_bevel_mode_set", NULL);
-  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+  /* Use this update function so the curve profile is properly initialized when
+   * switching back to "Profile" mode after changing the resolution. */
+  RNA_def_property_update(prop, 0, "rna_Curve_bevel_resolution_update");
 
   prop = RNA_def_property(srna, "bevel_profile", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "CurveProfile");

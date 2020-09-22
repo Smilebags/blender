@@ -841,6 +841,7 @@ typedef struct TimeMarker {
   char name[64];
   unsigned int flag;
   struct Object *camera;
+  struct IDProperty *prop;
 } TimeMarker;
 
 /* *************************************************************** */

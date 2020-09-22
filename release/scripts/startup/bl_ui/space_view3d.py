@@ -152,47 +152,27 @@ class VIEW3D_HT_tool_header(Header):
             sub.scale_x = 0.6
             return row, sub
 
-        if mode_string == 'EDIT_MESH':
-            _row, sub = row_for_mirror()
-            sub.prop(context.object.data, "use_mirror_x", text="X", toggle=True)
-            sub.prop(context.object.data, "use_mirror_y", text="Y", toggle=True)
-            sub.prop(context.object.data, "use_mirror_z", text="Z", toggle=True)
-            tool_settings = context.tool_settings
-            layout.prop(tool_settings, "use_mesh_automerge", text="")
-        elif mode_string == 'EDIT_ARMATURE':
+        if mode_string == 'EDIT_ARMATURE':
             _row, sub = row_for_mirror()
             sub.prop(context.object.data, "use_mirror_x", text="X", toggle=True)
         elif mode_string == 'POSE':
             _row, sub = row_for_mirror()
             sub.prop(context.object.pose, "use_mirror_x", text="X", toggle=True)
-        elif mode_string == 'PAINT_WEIGHT':
+        elif mode_string in {'EDIT_MESH', 'PAINT_WEIGHT', 'SCULPT', 'PAINT_VERTEX'}:
+            # Mesh Modes, Use Mesh Symmetry
             row, sub = row_for_mirror()
-            wpaint = context.tool_settings.weight_paint
-            sub.prop(wpaint, "use_symmetry_x", text="X", toggle=True)
-            sub.prop(wpaint, "use_symmetry_y", text="Y", toggle=True)
-            sub.prop(wpaint, "use_symmetry_z", text="Z", toggle=True)
-            row.popover(panel="VIEW3D_PT_tools_weightpaint_symmetry_for_topbar", text="")
-        elif mode_string == 'SCULPT':
-            row, sub = row_for_mirror()
-            sculpt = context.tool_settings.sculpt
-            sub.prop(sculpt, "use_symmetry_x", text="X", toggle=True)
-            sub.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
-            sub.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
-            row.popover(panel="VIEW3D_PT_sculpt_symmetry_for_topbar", text="")
-        elif mode_string == 'PAINT_TEXTURE':
-            _row, sub = row_for_mirror()
-            ipaint = context.tool_settings.image_paint
-            sub.prop(ipaint, "use_symmetry_x", text="X", toggle=True)
-            sub.prop(ipaint, "use_symmetry_y", text="Y", toggle=True)
-            sub.prop(ipaint, "use_symmetry_z", text="Z", toggle=True)
-            # No need for a popover, the panel only has these options.
-        elif mode_string == 'PAINT_VERTEX':
-            row, sub = row_for_mirror()
-            vpaint = context.tool_settings.vertex_paint
-            sub.prop(vpaint, "use_symmetry_x", text="X", toggle=True)
-            sub.prop(vpaint, "use_symmetry_y", text="Y", toggle=True)
-            sub.prop(vpaint, "use_symmetry_z", text="Z", toggle=True)
-            row.popover(panel="VIEW3D_PT_tools_vertexpaint_symmetry_for_topbar", text="")
+            sub.prop(context.object.data, "use_mirror_x", text="X", toggle=True)
+            sub.prop(context.object.data, "use_mirror_y", text="Y", toggle=True)
+            sub.prop(context.object.data, "use_mirror_z", text="Z", toggle=True)
+            if mode_string == 'EDIT_MESH':
+                tool_settings = context.tool_settings
+                layout.prop(tool_settings, "use_mesh_automerge", text="")
+            elif mode_string == 'PAINT_WEIGHT':
+                row.popover(panel="VIEW3D_PT_tools_weightpaint_symmetry_for_topbar", text="")
+            elif mode_string == 'SCULPT':
+                row.popover(panel="VIEW3D_PT_sculpt_symmetry_for_topbar", text="")
+            elif mode_string == 'PAINT_VERTEX':
+                row.popover(panel="VIEW3D_PT_tools_vertexpaint_symmetry_for_topbar", text="")
 
         # Expand panels from the side-bar as popovers.
         popover_kw = {"space_type": 'VIEW_3D', "region_type": 'UI', "category": "Tool"}
@@ -2279,6 +2259,11 @@ class VIEW3D_MT_object(Menu):
             layout.operator_menu_enum("gpencil.convert", "type", text="Convert to")
         else:
             layout.operator_menu_enum("object.convert", "target")
+
+        # Potrace lib dependency
+        if bpy.app.build_options.potrace:
+            layout.separator()
+            layout.operator("gpencil.trace_image")
 
         layout.separator()
 
@@ -5720,7 +5705,12 @@ class VIEW3D_PT_shading_lighting(Panel):
 
                 split = layout.split(factor=0.9)
                 col = split.column()
-                col.prop(shading, "studiolight_rotate_z", text="Rotation")
+
+                row = col.row()
+                row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
+                row = row.row()
+                row.prop(shading, "studiolight_rotate_z", text="Rotation")
+
                 col.prop(shading, "studiolight_intensity")
                 col.prop(shading, "studiolight_background_alpha")
                 col.prop(shading, "studiolight_background_blur")
@@ -6116,6 +6106,12 @@ class VIEW3D_PT_overlay_geometry(Panel):
         col.active = display_all
 
         col.prop(overlay, "show_face_orientation")
+        row = col.row(align=True)
+
+        row.prop(overlay, "show_fade_inactive", text="")
+        sub = row.row()
+        sub.active = overlay.show_fade_inactive
+        sub.prop(overlay, "fade_inactive_alpha", text="Fade Inactive Geometry")
 
         # sub.prop(overlay, "show_onion_skins")
 
