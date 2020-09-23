@@ -309,6 +309,9 @@ ccl_device void kernel_bake_evaluate(
   state.sample = sample;
   state.num_samples = num_samples;
   state.min_ray_pdf = FLT_MAX;
+  generate_wavelengths(kg, &state, &state.wavelengths);
+
+  SpectralColor wavelengths = state.wavelengths;
 
   /* Light passes if we need more than color. */
   PathRadiance L;
@@ -317,7 +320,7 @@ ccl_device void kernel_bake_evaluate(
   if (kernel_data.bake.pass_filter & ~BAKE_FILTER_COLOR)
     compute_light_pass(kg, &sd, &L, rng_hash, pass_filter, sample);
 
-  SpectralColor out = make_spectral_color(0.0f);
+  float3 out = make_float3(0.0f, 0.0f, 0.0f);
 
   ShaderEvalType type = (ShaderEvalType)kernel_data.bake.type;
   switch (type) {
@@ -331,80 +334,87 @@ ccl_device void kernel_bake_evaluate(
       }
 
       if (type == SHADER_EVAL_NORMAL) {
-        // float3 N = sd.N;
-        // if (sd.flag & SD_HAS_BUMP) {
-        //   N = shader_bsdf_average_normal(kg, &sd);
-        // }
+        float3 N = sd.N;
+        if (sd.flag & SD_HAS_BUMP) {
+          N = shader_bsdf_average_normal(kg, &sd);
+        }
 
-        /* TODO(Spectral Cycles): Fixme! */
         /* encoding: normal = (2 * color) - 1 */
-        // out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
+        out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
       }
       else if (type == SHADER_EVAL_ROUGHNESS) {
         float roughness = shader_bsdf_average_roughness(&sd);
-        out = make_spectral_color(roughness);
+        out = make_float3(roughness, roughness, roughness);
       }
       else {
-        out = shader_emissive_eval(&sd);
+        out = wavelength_intensities_to_linear(kg, shader_emissive_eval(&sd), wavelengths);
       }
       break;
     }
     case SHADER_EVAL_UV: {
-      /* TODO(Spectral Cycles): Fixme! */
-      //   out = primitive_uv(kg, &sd);
+      out = primitive_uv(kg, &sd);
       break;
     }
 #  ifdef __PASSES__
     /* light passes */
     case SHADER_EVAL_AO: {
-      out = L.ao;
+      out = wavelength_intensities_to_linear(kg, L.ao, wavelengths);
       break;
     }
     case SHADER_EVAL_COMBINED: {
       if ((pass_filter & BAKE_FILTER_COMBINED) == BAKE_FILTER_COMBINED) {
         float alpha;
-        out = path_radiance_clamp_and_sum(kg, &L, &alpha);
+        out = wavelength_intensities_to_linear(
+            kg, path_radiance_clamp_and_sum(kg, &L, &alpha), wavelengths);
         break;
       }
 
       if ((pass_filter & BAKE_FILTER_DIFFUSE_DIRECT) == BAKE_FILTER_DIFFUSE_DIRECT)
-        out += L.direct_diffuse;
+        out += wavelength_intensities_to_linear(kg, L.direct_diffuse, wavelengths);
       if ((pass_filter & BAKE_FILTER_DIFFUSE_INDIRECT) == BAKE_FILTER_DIFFUSE_INDIRECT)
-        out += L.indirect_diffuse;
+        out += wavelength_intensities_to_linear(kg, L.indirect_diffuse, wavelengths);
 
       if ((pass_filter & BAKE_FILTER_GLOSSY_DIRECT) == BAKE_FILTER_GLOSSY_DIRECT)
-        out += L.direct_glossy;
+        out += wavelength_intensities_to_linear(kg, L.direct_glossy, wavelengths);
       if ((pass_filter & BAKE_FILTER_GLOSSY_INDIRECT) == BAKE_FILTER_GLOSSY_INDIRECT)
-        out += L.indirect_glossy;
+        out += wavelength_intensities_to_linear(kg, L.indirect_glossy, wavelengths);
 
       if ((pass_filter & BAKE_FILTER_TRANSMISSION_DIRECT) == BAKE_FILTER_TRANSMISSION_DIRECT)
-        out += L.direct_transmission;
+        out += wavelength_intensities_to_linear(kg, L.direct_transmission, wavelengths);
       if ((pass_filter & BAKE_FILTER_TRANSMISSION_INDIRECT) == BAKE_FILTER_TRANSMISSION_INDIRECT)
-        out += L.indirect_transmission;
+        out += wavelength_intensities_to_linear(kg, L.indirect_transmission, wavelengths);
 
       if ((pass_filter & BAKE_FILTER_EMISSION) != 0)
-        out += L.emission;
+        out += wavelength_intensities_to_linear(kg, L.emission, wavelengths);
 
       break;
     }
     case SHADER_EVAL_SHADOW: {
-      /* TODO(Spectral Cycles): Fixme! */
-      //   out = L.shadow;
+      out = wavelength_intensities_to_linear(kg, L.shadow, wavelengths);
       break;
     }
     case SHADER_EVAL_DIFFUSE: {
-      out = kernel_bake_evaluate_direct_indirect(
-          kg, &sd, &state, L.direct_diffuse, L.indirect_diffuse, type, pass_filter);
+      out = wavelength_intensities_to_linear(
+          kg,
+          kernel_bake_evaluate_direct_indirect(
+              kg, &sd, &state, L.direct_diffuse, L.indirect_diffuse, type, pass_filter),
+          wavelengths);
       break;
     }
     case SHADER_EVAL_GLOSSY: {
-      out = kernel_bake_evaluate_direct_indirect(
-          kg, &sd, &state, L.direct_glossy, L.indirect_glossy, type, pass_filter);
+      out = wavelength_intensities_to_linear(
+          kg,
+          kernel_bake_evaluate_direct_indirect(
+              kg, &sd, &state, L.direct_glossy, L.indirect_glossy, type, pass_filter),
+          wavelengths);
       break;
     }
     case SHADER_EVAL_TRANSMISSION: {
-      out = kernel_bake_evaluate_direct_indirect(
-          kg, &sd, &state, L.direct_transmission, L.indirect_transmission, type, pass_filter);
+      out = wavelength_intensities_to_linear(
+          kg,
+          kernel_bake_evaluate_direct_indirect(
+              kg, &sd, &state, L.direct_transmission, L.indirect_transmission, type, pass_filter),
+          wavelengths);
       break;
     }
 #  endif
@@ -432,21 +442,18 @@ ccl_device void kernel_bake_evaluate(
       /* evaluate */
       int path_flag = 0; /* we can't know which type of BSDF this is for */
       shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
-      out = shader_background_eval(&sd);
+      out = wavelength_intensities_to_linear(kg, shader_background_eval(&sd), wavelengths);
       break;
     }
     default: {
       /* no real shader, returning the position of the verts for debugging */
-      //   out = normalize(P);
+      out = normalize(P);
       break;
     }
   }
 
   /* write output */
-
-  /* TODO(Spectral Cycles): Fixme! */
-  //   const float4 result = make_float4(out.x, out.y, out.z, 1.0f);
-  const float4 result = make_float4(0.0f);
+  const float4 result = make_float4(out.x, out.y, out.z, 1.0f);
   kernel_write_pass_float4(output, result);
 }
 
@@ -487,6 +494,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
 {
   ShaderData sd;
   PathState state = {0};
+  generate_wavelengths(kg, &state, &state.wavelengths);
   uint4 in = input[i];
 
   /* setup ray */
@@ -512,11 +520,11 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   /* evaluate */
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
-  SpectralColor color = shader_background_eval(&sd);
+  float3 color = wavelength_intensities_to_linear(
+      kg, shader_background_eval(&sd), state.wavelengths);
 
-  /* TODO(Spectral Cycles): Fixme! */
   /* write output */
-  //   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
+  output[i] += make_float4(color.x, color.y, color.z, 0.0f);
 }
 
 CCL_NAMESPACE_END

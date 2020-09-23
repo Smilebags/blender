@@ -18,6 +18,23 @@
 
 CCL_NAMESPACE_BEGIN
 
+ccl_device_inline void generate_wavelengths(KernelGlobals *kg,
+                                            ccl_addr_space PathState *state,
+                                            SpectralColor *r_wavelengths)
+{
+  float initial_offset = lerp(
+      0.0f, 1.0f / CHANNELS_PER_RAY, path_state_rng_1D(kg, state, PRNG_WAVELENGTH));
+  FOR_EACH_CHANNEL(i)
+  {
+    float current_channel_offset = initial_offset + (float)i / CHANNELS_PER_RAY;
+    float biased_wavelength = lookup_table_read(kg,
+                                                current_channel_offset,
+                                                kernel_data.cam.wavelength_importance_cdf_offset,
+                                                WAVELENGTH_IMPORTANCE_TABLE_SIZE);
+    (*r_wavelengths)[i] = biased_wavelength;
+  }
+}
+
 ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        ShaderData *stack_sd,
                                        ccl_addr_space PathState *state,
@@ -70,17 +87,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  float initial_offset = lerp(
-      0.0f, 1.0f / CHANNELS_PER_RAY, path_state_rng_1D(kg, state, PRNG_WAVELENGTH));
-  FOR_EACH_CHANNEL(i)
-  {
-    float current_channel_offset = initial_offset + (float)i / CHANNELS_PER_RAY;
-    float biased_wavelength = lookup_table_read(kg,
-                                                current_channel_offset,
-                                                kernel_data.cam.wavelength_importance_cdf_offset,
-                                                WAVELENGTH_IMPORTANCE_TABLE_SIZE);
-    state->wavelengths[i] = biased_wavelength;
-  }
+  generate_wavelengths(kg, state, &state->wavelengths);
 }
 
 ccl_device_inline void path_state_next(KernelGlobals *kg,
