@@ -18,10 +18,11 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void generate_wavelengths(KernelGlobals *kg,
-                                            ccl_addr_space PathState *state,
-                                            SpectralColor *r_wavelengths)
+ccl_device_inline SpectralColor generate_wavelengths(KernelGlobals *kg,
+                                                     const ccl_addr_space PathState *state)
 {
+  SpectralColor result;
+
   float initial_offset = lerp(
       0.0f, 1.0f / CHANNELS_PER_RAY, path_state_rng_1D(kg, state, PRNG_WAVELENGTH));
   FOR_EACH_CHANNEL(i)
@@ -31,8 +32,10 @@ ccl_device_inline void generate_wavelengths(KernelGlobals *kg,
                                                 current_channel_offset,
                                                 kernel_data.cam.wavelength_importance_cdf_offset,
                                                 WAVELENGTH_IMPORTANCE_TABLE_SIZE);
-    (*r_wavelengths)[i] = biased_wavelength;
+    result[i] = biased_wavelength;
   }
+
+  return result;
 }
 
 ccl_device_inline void path_state_init(KernelGlobals *kg,
@@ -87,7 +90,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
   }
 #endif
 
-  generate_wavelengths(kg, state, &state->wavelengths);
+  state->wavelengths = generate_wavelengths(kg, state);
 }
 
 ccl_device_inline void path_state_next(KernelGlobals *kg,

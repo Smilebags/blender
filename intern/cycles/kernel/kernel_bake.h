@@ -309,7 +309,7 @@ ccl_device void kernel_bake_evaluate(
   state.sample = sample;
   state.num_samples = num_samples;
   state.min_ray_pdf = FLT_MAX;
-  generate_wavelengths(kg, &state, &state.wavelengths);
+  state.wavelengths = generate_wavelengths(kg, &state);
 
   SpectralColor wavelengths = state.wavelengths;
 
@@ -494,7 +494,8 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
 {
   ShaderData sd;
   PathState state = {0};
-  generate_wavelengths(kg, &state, &state.wavelengths);
+  /* TODO(Spectral Cycles): Looks like Sobol generator cannot be used here, causes crash. */
+  //   state.wavelengths = generate_wavelengths(kg, &state);
   uint4 in = input[i];
 
   /* setup ray */
