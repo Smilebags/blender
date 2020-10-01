@@ -521,8 +521,13 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   /* evaluate */
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
-  float3 color = wavelength_intensities_to_linear(
-      kg, shader_background_eval(&sd), state.wavelengths);
+
+  /* TODO(Spectral Cycles): Looks like CMFs and other kernel tables are not available here, causes
+   * crash. */
+  //   float3 color = wavelength_intensities_to_linear(
+  //       kg, shader_background_eval(&sd), state.wavelengths);
+
+  float3 color = make_float3(0.0f, 1.0f, 0.0f);
 
   /* write output */
   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
