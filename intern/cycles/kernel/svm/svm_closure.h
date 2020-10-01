@@ -59,6 +59,7 @@ ccl_device void svm_node_glass_setup(
 
 ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
                                       ShaderData *sd,
+                                      PathState *state,
                                       float *stack,
                                       uint4 node,
                                       ShaderType shader_type,
@@ -245,10 +246,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
 
       /* sheen */
       if (diffuse_weight > CLOSURE_WEIGHT_CUTOFF && sheen > CLOSURE_WEIGHT_CUTOFF) {
-        /* TODO(Spectral Cycles): Fixme! */
-
-        // float m_cdlum = linear_rgb_to_gray(kg, base_color);
-        float m_cdlum = 0.5f;
+        float m_cdlum = spectral_color_to_linear_rgb_to_gray(kg, base_color, state->wavelengths);
         SpectralColor m_ctint = m_cdlum > 0.0f ? base_color / m_cdlum :
                                                  make_spectral_color(
                                                      1.0f);  // normalize lum. to isolate hue+sat
@@ -295,10 +293,8 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
             bsdf->alpha_x = r2 / aspect;
             bsdf->alpha_y = r2 * aspect;
 
-            /* TODO(Spectral Cycles): Fixme! */
-            // float m_cdlum = 0.3f * base_color.x + 0.6f * base_color.y +
-            //                 0.1f * base_color.z;  // luminance approx.
-            float m_cdlum = 0.0f;
+            float m_cdlum = spectral_color_to_linear_rgb_to_gray(
+                kg, base_color, state->wavelengths);
             SpectralColor m_ctint = m_cdlum > 0.0f ?
                                         base_color / m_cdlum :
                                         make_spectral_color(

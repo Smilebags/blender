@@ -662,6 +662,14 @@ ccl_device SpectralColor linear_to_wavelength_intensities(RGBColor rgb, Spectral
   return intensities;
 }
 
+ccl_device float spectral_color_to_linear_rgb_to_gray(KernelGlobals *kg,
+                                                      SpectralColor c,
+                                                      SpectralColor wavelengths)
+{
+  return dot(wavelength_intensities_to_linear(kg, c, wavelengths),
+             float4_to_float3(kernel_data.film.rgb_to_y));
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __KERNEL_COLOR_H__ */
