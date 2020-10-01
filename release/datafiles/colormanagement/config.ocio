@@ -5,15 +5,15 @@ strictparsing: true
 luma: [0.256225, 0.678179, 0.0655957]
 
 roles:
-  color_picking: sRGB Colourspace
-  color_timing: sRGB Colourspace
-  compositing_log: sRGB Colourspace
-  data: Float Data
-  default: sRGB Colourspace
-  matte_paint: sRGB Colourspace
+  color_picking: sRGB
+  color_timing: sRGB
+  compositing_log: sRGB
+  data: Non-Color
+  default: sRGB
+  matte_paint: sRGB
   reference: Linear
   scene_linear: Linear
-  texture_paint: sRGB Colourspace
+  texture_paint: sRGB
   xyz: Linear XYZ IE
 
   # Specifed by OCIO, not used in Blender
@@ -27,7 +27,7 @@ displays:
   sRGB-Like Commodity Display:
     - !<View> {name: Display Native, colorspace: BT.709 2.2 CCTF Colourspace}
   sRGB Display:
-    - !<View> {name: Display Native, colorspace: sRGB Colourspace}
+    - !<View> {name: Display Native, colorspace: sRGB}
 
 active_displays: [sRGB-Like Commodity Display, sRGB Display]
 active_views: [Display Native]
@@ -45,7 +45,7 @@ colorspaces:
     allocationvars: [-12.4739, 12.5261]
 
   - !<ColorSpace>
-    name: sRGB Colourspace
+    name: sRGB
     family: Colourspace
     equalitygroup: ""
     bitdepth: 32f
@@ -109,17 +109,12 @@ colorspaces:
     from_reference: !<MatrixTransform> {matrix: [0.496921, 0.33909, 0.163989, 0, 0.256225, 0.678179, 0.0655957, 0, 0.0232932, 0.11303, 0.863677, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
-    name: Float Data
-    family: Data
-    equalitygroup: ""
-    bitdepth: 32f
+    name: Non-Color
+    family: raw
     description: |
-      Filmic false color view transform
-    isdata: false
-    allocation: lg2
-    allocationvars: [-12.473931188, 12.526068812]
-    from_reference: !<GroupTransform>
-        children:
-            - !<ColorSpaceTransform> {src: Linear, dst: Filmic Log}
-            - !<MatrixTransform> {matrix: [0.2126729, 0.7151521, 0.0721750, 0, 0.2126729, 0.7151521, 0.0721750, 0, 0.2126729, 0.7151521, 0.0721750, 0, 0, 0, 0, 1]}
-            - !<FileTransform> {src: filmic_false_color.spi3d, interpolation: best}
+        Color space used for images which contains non-color data (i,e, normal maps)
+    equalitygroup:
+    bitdepth: 32f
+    isdata: true
+    allocation: uniform
+    allocationvars: [0, 1]
