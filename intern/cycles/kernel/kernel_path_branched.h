@@ -367,11 +367,14 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 #    endif /* __SUBSURFACE__ */
 
 ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
+                                               PathState *state,
                                                uint rng_hash,
                                                int sample,
                                                Ray ray,
                                                ccl_global float *buffer,
-                                               PathRadiance *L)
+                                               PathRadiance *L,
+                                               ShaderData *emission_sd,
+                                               ShaderData *indirect_sd)
 {
   /* initialize */
   SpectralColor throughput = make_spectral_color(1.0f);
@@ -380,13 +383,6 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
 
   /* shader data memory used for both volumes and surfaces, saves stack space */
   ShaderData sd;
-  /* shader data used by emission, shadows, volume stacks, indirect path */
-  ShaderDataTinyStorage emission_sd_storage;
-  ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  ShaderData indirect_sd;
-
-  PathState state;
-  path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray);
 
   /* Main Loop
    * Here we only handle transparency intersections from the camera ray.
@@ -395,17 +391,17 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
   for (;;) {
     /* Find intersection with objects in scene. */
     Intersection isect;
-    bool hit = kernel_path_scene_intersect(kg, &state, &ray, &isect, L);
+    bool hit = kernel_path_scene_intersect(kg, state, &ray, &isect, L);
 
 #    ifdef __VOLUME__
     /* Volume integration. */
     kernel_branched_path_volume(
-        kg, &sd, &state, &ray, &throughput, &isect, hit, &indirect_sd, emission_sd, L);
+        kg, &sd, state, &ray, &throughput, &isect, hit, indirect_sd, emission_sd, L);
 #    endif /* __VOLUME__ */
 
     /* Shade background. */
     if (!hit) {
-      kernel_path_background(kg, &state, &ray, throughput, &sd, buffer, L);
+      kernel_path_background(kg, state, &ray, throughput, &sd, buffer, L);
       break;
     }
 
@@ -417,26 +413,26 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
     if (!(sd.flag & SD_HAS_ONLY_VOLUME)) {
 #    endif
 
-      shader_eval_surface(kg, &sd, &state, buffer, state.flag);
+      shader_eval_surface(kg, &sd, state, buffer, state->flag);
       shader_merge_closures(&sd);
 
       /* Apply shadow catcher, holdout, emission. */
-      if (!kernel_path_shader_apply(kg, &sd, &state, &ray, throughput, emission_sd, L, buffer)) {
+      if (!kernel_path_shader_apply(kg, &sd, state, &ray, throughput, emission_sd, L, buffer)) {
         break;
       }
 
       /* transparency termination */
-      if (state.flag & PATH_RAY_TRANSPARENT) {
+      if (state->flag & PATH_RAY_TRANSPARENT) {
         /* path termination. this is a strange place to put the termination, it's
          * mainly due to the mixed in MIS that we use. gives too many unneeded
          * shader evaluations, only need emission if we are going to terminate */
-        float probability = path_state_continuation_probability(kg, &state, throughput);
+        float probability = path_state_continuation_probability(kg, state, throughput);
 
         if (probability == 0.0f) {
           break;
         }
         else if (probability != 1.0f) {
-          float terminate = path_state_rng_1D(kg, &state, PRNG_TERMINATE);
+          float terminate = path_state_rng_1D(kg, state, PRNG_TERMINATE);
 
           if (terminate >= probability)
             break;
@@ -446,13 +442,13 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
       }
 
 #    ifdef __DENOISING_FEATURES__
-      kernel_update_denoising_features(kg, &sd, &state, L);
+      kernel_update_denoising_features(kg, &sd, state, L);
 #    endif
 
 #    ifdef __AO__
       /* ambient occlusion */
       if (kernel_data.integrator.use_ambient_occlusion) {
-        kernel_branched_path_ao(kg, &sd, emission_sd, L, &state, throughput);
+        kernel_branched_path_ao(kg, &sd, emission_sd, L, state, throughput);
       }
 #    endif /* __AO__ */
 
@@ -460,17 +456,17 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
       /* bssrdf scatter to a different location on the same object */
       if (sd.flag & SD_BSSRDF) {
         kernel_branched_path_subsurface_scatter(
-            kg, &sd, &indirect_sd, emission_sd, L, &state, &ray, throughput);
+            kg, &sd, indirect_sd, emission_sd, L, state, &ray, throughput);
       }
 #    endif /* __SUBSURFACE__ */
 
-      PathState hit_state = state;
+      PathState hit_state = *state;
 
 #    ifdef __EMISSION__
       /* direct light */
       if (kernel_data.integrator.use_direct_light) {
         int all = (kernel_data.integrator.sample_all_lights_direct) ||
-                  (state.flag & PATH_RAY_SHADOW_CATCHER);
+                  (state->flag & PATH_RAY_SHADOW_CATCHER);
         kernel_branched_path_surface_connect_light(
             kg, &sd, emission_sd, &hit_state, throughput, 1.0f, L, all);
       }
@@ -478,7 +474,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
 
       /* indirect light */
       kernel_branched_path_surface_indirect_light(
-          kg, &sd, &indirect_sd, emission_sd, throughput, 1.0f, &hit_state, L);
+          kg, &sd, indirect_sd, emission_sd, throughput, 1.0f, &hit_state, L);
 
       /* continue in case of transparency */
       throughput *= shader_bsdf_transparency(kg, &sd);
@@ -487,12 +483,12 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
         break;
 
       /* Update Path State */
-      path_state_next(kg, &state, LABEL_TRANSPARENT);
+      path_state_next(kg, state, LABEL_TRANSPARENT);
 
 #    ifdef __VOLUME__
     }
     else {
-      if (!path_state_volume_next(kg, &state)) {
+      if (!path_state_volume_next(kg, state)) {
         break;
       }
     }
@@ -509,7 +505,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
 
 #    ifdef __VOLUME__
     /* enter/exit volume */
-    kernel_volume_stack_enter_exit(kg, &sd, state.volume_stack);
+    kernel_volume_stack_enter_exit(kg, &sd, state->volume_stack);
 #    endif /* __VOLUME__ */
   }
 }
@@ -540,12 +536,18 @@ ccl_device void kernel_branched_path_trace(
   /* integrate */
   PathRadiance L;
 
-  if (ray.t != 0.0f) {
-    kernel_branched_path_integrate(kg, rng_hash, sample, ray, buffer, &L);
+  /* shader data used by emission, shadows, volume stacks, indirect path */
+  ShaderDataTinyStorage emission_sd_storage;
+  ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+  ShaderData indirect_sd;
 
-    /* TODO(Spectral Cycles): Fixme! */
-    SpectralColor t = make_spectral_color(0);
-    kernel_write_result(kg, buffer, sample, &L, t);
+  PathState state;
+  path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray);
+
+  if (ray.t != 0.0f) {
+    kernel_branched_path_integrate(
+        kg, &state, rng_hash, sample, ray, buffer, &L, emission_sd, &indirect_sd);
+    kernel_write_result(kg, buffer, sample, &L, state.wavelengths);
   }
 }
 
