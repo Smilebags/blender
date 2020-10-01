@@ -295,6 +295,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
             bsdf->alpha_x = r2 / aspect;
             bsdf->alpha_y = r2 * aspect;
 
+            /* TODO(Spectral Cycles): Fixme! */
             // float m_cdlum = 0.3f * base_color.x + 0.6f * base_color.y +
             //                 0.1f * base_color.z;  // luminance approx.
             float m_cdlum = 0.0f;
