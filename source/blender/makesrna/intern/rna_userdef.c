@@ -582,8 +582,8 @@ static void rna_UserDef_weight_color_update(Main *bmain, Scene *scene, PointerRN
 
 static void rna_UserDef_viewport_lights_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  /* if all lights are off gpu_draw resets them all, [#27627]
-   * so disallow them all to be disabled */
+  /* If all lights are off gpu_draw resets them all, see: T27627,
+   * so disallow them all to be disabled. */
   if (U.light_param[0].flag == 0 && U.light_param[1].flag == 0 && U.light_param[2].flag == 0 &&
       U.light_param[3].flag == 0) {
     SolidLight *light = ptr->data;
@@ -5779,8 +5779,10 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "tablet_api", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, tablet_api);
-  RNA_def_property_ui_text(
-      prop, "Tablet API", "Select the tablet API to use for pressure sensitivity");
+  RNA_def_property_ui_text(prop,
+                           "Tablet API",
+                           "Select the tablet API to use for pressure sensitivity (restart "
+                           "Blender for changes to take effect)");
   RNA_def_property_update(prop, 0, "rna_userdef_tablet_api_update");
 
 #  ifdef WITH_INPUT_NDOF

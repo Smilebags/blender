@@ -1687,6 +1687,7 @@ struct Panel *UI_panel_begin(struct ARegion *region,
                              bool *r_open);
 void UI_panel_end(const struct ARegion *region, uiBlock *block, int width, int height, bool open);
 
+bool UI_panel_is_active(const struct Panel *panel);
 void UI_panel_label_offset(struct uiBlock *block, int *r_x, int *r_y);
 int UI_panel_size_y(const struct Panel *panel);
 bool UI_panel_is_dragging(const struct Panel *panel);
@@ -1718,7 +1719,8 @@ struct PointerRNA *UI_region_panel_custom_data_under_cursor(const struct bContex
 void UI_panel_custom_data_set(struct Panel *panel, struct PointerRNA *custom_data);
 
 /* Polyinstantiated panels for representing a list of data. */
-struct Panel *UI_panel_add_instanced(struct ARegion *region,
+struct Panel *UI_panel_add_instanced(const struct bContext *C,
+                                     struct ARegion *region,
                                      struct ListBase *panels,
                                      char *panel_idname,
                                      struct PointerRNA *custom_data);
@@ -1726,8 +1728,6 @@ void UI_panels_free_instanced(const struct bContext *C, struct ARegion *region);
 
 #define INSTANCED_PANEL_UNIQUE_STR_LEN 4
 void UI_list_panel_unique_str(struct Panel *panel, char *r_name);
-
-void UI_panel_set_expand_from_list_data(const struct bContext *C, struct Panel *panel);
 
 typedef void (*uiListPanelIDFromDataFunc)(void *data_link, char *r_idname);
 bool UI_panel_list_matches_data(struct ARegion *region,

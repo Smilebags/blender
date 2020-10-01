@@ -1259,6 +1259,21 @@ class _defs_sculpt:
         )
 
     @ToolDef.from_fn
+    def mask_line():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("paint.mask_line_gesture")
+            layout.prop(props, "use_front_faces_only", expand=False)
+
+        return dict(
+            idname="builtin.line_mask",
+            label="Line Mask",
+            icon="ops.sculpt.line_mask",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
     def face_set_box():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("sculpt.face_set_box_gesture")
@@ -1272,6 +1287,7 @@ class _defs_sculpt:
             keymap=(),
             draw_settings=draw_settings,
         )
+
 
     @ToolDef.from_fn
     def face_set_lasso():
@@ -1308,6 +1324,15 @@ class _defs_sculpt:
             keymap=(),
         )
 
+    @ToolDef.from_fn
+    def project_line():
+        return dict(
+            idname="builtin.line_project",
+            label="Line Project",
+            icon="ops.sculpt.line_project",
+            widget=None,
+            keymap=(),
+        )
 
     @ToolDef.from_fn
     def mesh_filter():
@@ -2653,6 +2678,13 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             ),
             _defs_sculpt.hide_border,
             lambda context: (
+                (_defs_sculpt.mask_line,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
+            lambda context: (
                 (_defs_sculpt.face_set_box,)
                 if context is None or (
                         context.preferences.view.show_developer_ui and
@@ -2675,6 +2707,13 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             ),
             lambda context: (
                 (_defs_sculpt.trim_lasso,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
+            lambda context: (
+                (_defs_sculpt.project_line,)
                 if context is None or (
                         context.preferences.view.show_developer_ui and
                         context.preferences.experimental.use_tools_missing_icons)
