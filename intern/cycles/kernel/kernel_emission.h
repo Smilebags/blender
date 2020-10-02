@@ -130,7 +130,7 @@ ccl_device_noinline_cpu bool direct_emission(KernelGlobals *kg,
 
 #ifdef __VOLUME__
   if (sd->prim != PRIM_NONE)
-    shader_bsdf_eval(kg, sd, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
+    shader_bsdf_eval(kg, sd, state, ls->D, eval, ls->pdf, ls->shader & SHADER_USE_MIS);
   else {
     float bsdf_pdf;
     shader_volume_phase_eval(kg, sd, ls->D, eval, &bsdf_pdf);

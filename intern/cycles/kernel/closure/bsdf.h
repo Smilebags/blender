@@ -111,6 +111,7 @@ ccl_device_inline float shift_cos_in(float cos_in, const float frequency_multipl
 
 ccl_device_inline int bsdf_sample(KernelGlobals *kg,
                                   ShaderData *sd,
+                                  ccl_addr_space PathState *state,
                                   const ShaderClosure *sc,
                                   float randu,
                                   float randv,
@@ -484,6 +485,7 @@ ccl_device_inline
     SpectralColor
     bsdf_eval(KernelGlobals *kg,
               ShaderData *sd,
+              ccl_addr_space PathState *state,
               const ShaderClosure *sc,
               const float3 omega_in,
               float *pdf)

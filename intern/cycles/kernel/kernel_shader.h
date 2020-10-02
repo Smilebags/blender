@@ -552,6 +552,7 @@ ccl_device_inline void shader_prepare_closures(ShaderData *sd, ccl_addr_space Pa
 
 ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
                                                ShaderData *sd,
+                                               ccl_addr_space PathState *state,
                                                const float3 omega_in,
                                                float *pdf,
                                                const ShaderClosure *skip_sc,
@@ -566,7 +567,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
 
     if (sc != skip_sc && CLOSURE_IS_BSDF(sc->type)) {
       float bsdf_pdf = 0.0f;
-      SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
+      SpectralColor eval = bsdf_eval(kg, sd, state, sc, omega_in, &bsdf_pdf);
 
       if (bsdf_pdf != 0.0f) {
         bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, 1.0f);
@@ -583,6 +584,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg,
 #ifdef __BRANCHED_PATH__
 ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
                                                         ShaderData *sd,
+                                                        ccl_addr_space PathState *state,
                                                         const float3 omega_in,
                                                         BsdfEval *result_eval,
                                                         float light_pdf,
@@ -592,7 +594,7 @@ ccl_device_inline void _shader_bsdf_multi_eval_branched(KernelGlobals *kg,
     const ShaderClosure *sc = &sd->closure[i];
     if (CLOSURE_IS_BSDF(sc->type)) {
       float bsdf_pdf = 0.0f;
-      SpectralColor eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
+      SpectralColor eval = bsdf_eval(kg, sd, state, sc, omega_in, &bsdf_pdf);
       if (bsdf_pdf != 0.0f) {
         float mis_weight = use_mis ? power_heuristic(light_pdf, bsdf_pdf) : 1.0f;
         bsdf_eval_accum(result_eval, sc->type, eval * sc->weight, mis_weight);
@@ -610,6 +612,7 @@ ccl_device_inline
     void
     shader_bsdf_eval(KernelGlobals *kg,
                      ShaderData *sd,
+                     ccl_addr_space PathState *state,
                      const float3 omega_in,
                      BsdfEval *eval,
                      float light_pdf,
@@ -622,12 +625,12 @@ ccl_device_inline
 
 #ifdef __BRANCHED_PATH__
   if (kernel_data.integrator.branched)
-    _shader_bsdf_multi_eval_branched(kg, sd, omega_in, eval, light_pdf, use_mis);
+    _shader_bsdf_multi_eval_branched(kg, sd, state, omega_in, eval, light_pdf, use_mis);
   else
 #endif
   {
     float pdf;
-    _shader_bsdf_multi_eval(kg, sd, omega_in, &pdf, NULL, eval, 0.0f, 0.0f);
+    _shader_bsdf_multi_eval(kg, sd, state, omega_in, &pdf, NULL, eval, 0.0f, 0.0f);
     if (use_mis) {
       float weight = power_heuristic(light_pdf, pdf);
       bsdf_eval_mis(eval, weight);
@@ -738,6 +741,7 @@ ccl_device_inline const ShaderClosure *shader_bssrdf_pick(ShaderData *sd,
 
 ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
                                          ShaderData *sd,
+                                         ccl_addr_space PathState *state,
                                          float randu,
                                          float randv,
                                          BsdfEval *bsdf_eval,
@@ -760,14 +764,15 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
   SpectralColor eval = make_spectral_color(0.0f);
 
   *pdf = 0.0f;
-  label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+  label = bsdf_sample(kg, sd, state, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
     bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
 
     if (sd->num_closure > 1) {
       float sweight = sc->sample_weight;
-      _shader_bsdf_multi_eval(kg, sd, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight);
+      _shader_bsdf_multi_eval(
+          kg, sd, state, *omega_in, pdf, sc, bsdf_eval, *pdf * sweight, sweight);
     }
   }
 
@@ -776,6 +781,7 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
 
 ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
                                           ShaderData *sd,
+                                          ccl_addr_space PathState *state,
                                           const ShaderClosure *sc,
                                           float randu,
                                           float randv,
@@ -790,7 +796,7 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg,
   SpectralColor eval = make_spectral_color(0.0f);
 
   *pdf = 0.0f;
-  label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+  label = bsdf_sample(kg, sd, state, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
   if (*pdf != 0.0f) {
     bsdf_eval_init(bsdf_eval, sc->type, eval * sc->weight, kernel_data.film.use_light_pass);
