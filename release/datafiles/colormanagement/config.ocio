@@ -29,7 +29,7 @@ displays:
   sRGB Display:
     - !<View> {name: Display Native, colorspace: sRGB}
 
-active_displays: [sRGB-Like Commodity Display, sRGB Display]
+active_displays: [sRGB Display, sRGB-Like Commodity Display]
 active_views: [Display Native]
 
 colorspaces:
