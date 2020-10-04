@@ -807,7 +807,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
             float eumelanin = melanin * (1.0f - melanin_redness);
             float pheomelanin = melanin * melanin_redness;
             SpectralColor melanin_sigma = bsdf_principled_hair_sigma_from_concentration(
-                eumelanin, pheomelanin);
+                eumelanin, pheomelanin, state->wavelengths);
 
             /* Optional tint. */
             SpectralColor tint = stack_load_spectral(stack, tint_ofs);
@@ -825,7 +825,8 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg,
           default: {
             /* Fallback to brownish hair, same as defaults for melanin. */
             kernel_assert(!"Invalid Principled Hair parametrization!");
-            bsdf->sigma = bsdf_principled_hair_sigma_from_concentration(0.0f, 0.8054375f);
+            bsdf->sigma = bsdf_principled_hair_sigma_from_concentration(
+                0.0f, 0.8054375f, state->wavelengths);
             break;
           }
         }

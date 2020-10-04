@@ -395,8 +395,17 @@ ccl_device_inline int bsdf_sample(KernelGlobals *kg,
                                             pdf);
       break;
     case CLOSURE_BSDF_HAIR_PRINCIPLED_ID:
-      label = bsdf_principled_hair_sample(
-          kg, sc, sd, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+      label = bsdf_principled_hair_sample(kg,
+                                          sc,
+                                          sd,
+                                          randu,
+                                          randv,
+                                          eval,
+                                          omega_in,
+                                          &domega_in->dx,
+                                          &domega_in->dy,
+                                          pdf,
+                                          state->wavelengths);
       break;
 #  ifdef __PRINCIPLED__
     case CLOSURE_BSDF_PRINCIPLED_DIFFUSE_ID:
@@ -557,7 +566,7 @@ ccl_device_inline
         eval = bsdf_glossy_toon_eval_reflect(sc, sd->I, omega_in, pdf);
         break;
       case CLOSURE_BSDF_HAIR_PRINCIPLED_ID:
-        eval = bsdf_principled_hair_eval(kg, sd, sc, omega_in, pdf);
+        eval = bsdf_principled_hair_eval(kg, sd, sc, omega_in, pdf, state->wavelengths);
         break;
       case CLOSURE_BSDF_HAIR_REFLECTION_ID:
         eval = bsdf_hair_reflection_eval_reflect(sc, sd->I, omega_in, pdf);
@@ -650,7 +659,7 @@ ccl_device_inline
         eval = bsdf_glossy_toon_eval_transmit(sc, sd->I, omega_in, pdf);
         break;
       case CLOSURE_BSDF_HAIR_PRINCIPLED_ID:
-        eval = bsdf_principled_hair_eval(kg, sd, sc, omega_in, pdf);
+        eval = bsdf_principled_hair_eval(kg, sd, sc, omega_in, pdf, state->wavelengths);
         break;
       case CLOSURE_BSDF_HAIR_REFLECTION_ID:
         eval = bsdf_hair_reflection_eval_transmit(sc, sd->I, omega_in, pdf);

@@ -180,15 +180,6 @@ ccl_device_inline float longitudinal_scattering(
   }
 }
 
-/* Combine the three values using their luminances. */
-ccl_device_inline float4 combine_with_energy(KernelGlobals *kg, SpectralColor c)
-{
-  /* TODO(Spectral Cycles): Fixme! */
-  //   return make_float4(c.x, c.y, c.z, linear_rgb_to_gray(kg, c));
-  //   return make_float4(c.x, c.y, c.z, 0.5f);
-  return make_float4(0.0f);
-}
-
 #  ifdef __HAIR__
 /* Set up the hair closure. */
 ccl_device int bsdf_principled_hair_setup(ShaderData *sd, PrincipledHairBSDF *bsdf)
@@ -232,31 +223,40 @@ ccl_device int bsdf_principled_hair_setup(ShaderData *sd, PrincipledHairBSDF *bs
 #  endif /* __HAIR__ */
 
 /* Given the Fresnel term and transmittance, generate the attenuation terms for each bounce. */
-ccl_device_inline void hair_attenuation(KernelGlobals *kg, float f, SpectralColor T, float4 *Ap)
+ccl_device_inline void hair_attenuation(KernelGlobals *kg,
+                                        float f,
+                                        SpectralColor T,
+                                        float *Apf,
+                                        SpectralColor *Ap,
+                                        SpectralColor wavelengths)
 {
   /* Primary specular (R). */
-  Ap[0] = make_float4(f, f, f, f);
+  Apf[0] = f;
+  Ap[0] = make_spectral_color(f);
 
   /* Transmission (TT). */
   SpectralColor col = sqr(1.0f - f) * T;
-  Ap[1] = combine_with_energy(kg, col);
+  Apf[1] = spectral_color_to_linear_rgb_to_gray(kg, col, wavelengths);
+  Ap[1] = col;
 
   /* Secondary specular (TRT). */
   col *= T * f;
-  Ap[2] = combine_with_energy(kg, col);
+  Apf[2] = spectral_color_to_linear_rgb_to_gray(kg, col, wavelengths);
+  Ap[2] = col;
 
   /* Residual component (TRRT+). */
   col *= safe_divide(T * f, make_spectral_color(1.0f) - T * f);
-  Ap[3] = combine_with_energy(kg, col);
+  Apf[3] = spectral_color_to_linear_rgb_to_gray(kg, col, wavelengths);
+  Ap[3] = col;
 
   /* Normalize sampling weights. */
-  float totweight = Ap[0].w + Ap[1].w + Ap[2].w + Ap[3].w;
+  float totweight = Apf[0] + Apf[1] + Apf[2] + Apf[3];
   float fac = safe_divide(1.0f, totweight);
 
-  Ap[0].w *= fac;
-  Ap[1].w *= fac;
-  Ap[2].w *= fac;
-  Ap[3].w *= fac;
+  Apf[0] *= fac;
+  Apf[1] *= fac;
+  Apf[2] *= fac;
+  Apf[3] *= fac;
 }
 
 /* Given the tilt angle, generate the rotated theta_i for the different bounces. */
@@ -285,7 +285,8 @@ ccl_device SpectralColor bsdf_principled_hair_eval(KernelGlobals *kg,
                                                    const ShaderData *sd,
                                                    const ShaderClosure *sc,
                                                    const float3 omega_in,
-                                                   float *pdf)
+                                                   float *pdf,
+                                                   SpectralColor wavelengths)
 {
   kernel_assert(isfinite_safe(sd->P) && isfinite_safe(sd->ray_length));
 
@@ -315,8 +316,10 @@ ccl_device SpectralColor bsdf_principled_hair_eval(KernelGlobals *kg,
   float gamma_t = safe_asinf(sin_gamma_t);
 
   SpectralColor T = exp(-bsdf->sigma * (2.0f * cos_gamma_t / cos_theta_t));
-  float4 Ap[4];
-  hair_attenuation(kg, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Ap);
+  float Apf[4];
+  SpectralColor Ap[4];
+  hair_attenuation(
+      kg, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Apf, Ap, wavelengths);
 
   float sin_theta_i = wi.x;
   float cos_theta_i = cos_from_sin(sin_theta_i);
@@ -327,38 +330,40 @@ ccl_device SpectralColor bsdf_principled_hair_eval(KernelGlobals *kg,
   float angles[6];
   hair_alpha_angles(sin_theta_i, cos_theta_i, bsdf->alpha, angles);
 
-  float4 F;
+  SpectralColor eval = make_spectral_color(0.0f);
   float Mp, Np;
+
+  *pdf = 0.0f;
 
   /* Primary specular (R). */
   Mp = longitudinal_scattering(angles[0], angles[1], sin_theta_o, cos_theta_o, bsdf->m0_roughness);
   Np = azimuthal_scattering(phi, 0, bsdf->s, gamma_o, gamma_t);
-  F = Ap[0] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  *pdf += Apf[0] * Mp * Np;
+  eval += Ap[0] * Mp * Np;
+  kernel_assert(isfinite_safe(eval));
 
   /* Transmission (TT). */
   Mp = longitudinal_scattering(angles[2], angles[3], sin_theta_o, cos_theta_o, 0.25f * bsdf->v);
   Np = azimuthal_scattering(phi, 1, bsdf->s, gamma_o, gamma_t);
-  F += Ap[1] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  *pdf += Apf[1] * Mp * Np;
+  eval += Ap[1] * Mp * Np;
+  kernel_assert(isfinite_safe(eval));
 
   /* Secondary specular (TRT). */
   Mp = longitudinal_scattering(angles[4], angles[5], sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = azimuthal_scattering(phi, 2, bsdf->s, gamma_o, gamma_t);
-  F += Ap[2] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  *pdf += Apf[2] * Mp * Np;
+  eval += Ap[2] * Mp * Np;
+  kernel_assert(isfinite_safe(eval));
 
   /* Residual component (TRRT+). */
   Mp = longitudinal_scattering(sin_theta_i, cos_theta_i, sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = M_1_2PI_F;
-  F += Ap[3] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  *pdf += Apf[3] * Mp * Np;
+  eval += Ap[3] * Mp * Np;
+  kernel_assert(isfinite_safe(eval));
 
-  *pdf = F.w;
-
-  /* TODO(Spectral Cycles): Fixme! */
-  // return float4_to_float3(F);
-  return make_spectral_color(0.0f);
+  return eval;
 }
 
 /* Sampling function for the hair shader. */
@@ -371,7 +376,8 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals *kg,
                                            float3 *omega_in,
                                            float3 *domega_in_dx,
                                            float3 *domega_in_dy,
-                                           float *pdf)
+                                           float *pdf,
+                                           SpectralColor wavelengths)
 {
   PrincipledHairBSDF *bsdf = (PrincipledHairBSDF *)sc;
 
@@ -404,15 +410,17 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals *kg,
   float gamma_t = safe_asinf(sin_gamma_t);
 
   SpectralColor T = exp(-bsdf->sigma * (2.0f * cos_gamma_t / cos_theta_t));
-  float4 Ap[4];
-  hair_attenuation(kg, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Ap);
+  float Apf[4];
+  SpectralColor Ap[4];
+  hair_attenuation(
+      kg, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Apf, Ap, wavelengths);
 
   int p = 0;
   for (; p < 3; p++) {
-    if (u[0].x < Ap[p].w) {
+    if (u[0].x < Apf[p]) {
       break;
     }
-    u[0].x -= Ap[p].w;
+    u[0].x -= Apf[p];
   }
 
   float v = bsdf->v;
@@ -447,36 +455,40 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals *kg,
 
   hair_alpha_angles(sin_theta_i, cos_theta_i, bsdf->alpha, angles);
 
-  float4 F;
+  SpectralColor F = make_spectral_color(0.0f);
   float Mp, Np;
+
+  *pdf = 0.0f;
 
   /* Primary specular (R). */
   Mp = longitudinal_scattering(angles[0], angles[1], sin_theta_o, cos_theta_o, bsdf->m0_roughness);
   Np = azimuthal_scattering(phi, 0, bsdf->s, gamma_o, gamma_t);
-  F = Ap[0] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  *pdf += Apf[0] * Mp * Np;
+  F += Ap[0] * Mp * Np;
+  kernel_assert(isfinite_safe(F));
 
   /* Transmission (TT). */
   Mp = longitudinal_scattering(angles[2], angles[3], sin_theta_o, cos_theta_o, 0.25f * bsdf->v);
   Np = azimuthal_scattering(phi, 1, bsdf->s, gamma_o, gamma_t);
+  *pdf += Apf[1] * Mp * Np;
   F += Ap[1] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  kernel_assert(isfinite_safe(F));
 
   /* Secondary specular (TRT). */
   Mp = longitudinal_scattering(angles[4], angles[5], sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = azimuthal_scattering(phi, 2, bsdf->s, gamma_o, gamma_t);
+  *pdf += Apf[2] * Mp * Np;
   F += Ap[2] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  kernel_assert(isfinite_safe(F));
 
   /* Residual component (TRRT+). */
   Mp = longitudinal_scattering(sin_theta_i, cos_theta_i, sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = M_1_2PI_F;
+  *pdf += Apf[3] * Mp * Np;
   F += Ap[3] * Mp * Np;
-  kernel_assert(isfinite_safe(float4_to_float3(F)));
+  kernel_assert(isfinite_safe(F));
 
-  /* TODO(Spectral Cycles): Fixme! */
-  // *eval = float4_to_float3(F);
-  *pdf = F.w;
+  *eval = F;
 
   *omega_in = X * sin_theta_i + Y * cos_theta_i * cosf(phi_i) + Z * cos_theta_i * sinf(phi_i);
 
@@ -522,13 +534,15 @@ ccl_device_inline SpectralColor bsdf_principled_hair_sigma_from_reflectance(
   return sigma * sigma;
 }
 
-ccl_device_inline SpectralColor
-bsdf_principled_hair_sigma_from_concentration(const float eumelanin, const float pheomelanin)
+ccl_device_inline SpectralColor bsdf_principled_hair_sigma_from_concentration(
+    const float eumelanin, const float pheomelanin, const SpectralColor wavelengths)
 {
-  /* TODO(Spectral Cycles): Fixme! */
-  //   return eumelanin * make_float3(0.506f, 0.841f, 1.653f) +
-  //          pheomelanin * make_float3(0.343f, 0.733f, 1.924f);
-  return make_spectral_color(0.0f);
+  /* TODO(Spectral Cycles): Use real spectral data. */
+  const RGBColor eumelanin_c = make_float3(0.506f, 0.841f, 1.653f);
+  const RGBColor pheomelanin_c = make_float3(0.343f, 0.733f, 1.924f);
+
+  return eumelanin * linear_to_wavelength_intensities(eumelanin_c, wavelengths) +
+         pheomelanin * linear_to_wavelength_intensities(pheomelanin_c, wavelengths);
 }
 
 CCL_NAMESPACE_END
