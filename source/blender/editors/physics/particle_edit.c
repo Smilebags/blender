@@ -21,7 +21,6 @@
  * \ingroup edphys
  */
 
-#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5391,11 +5390,6 @@ static int clear_edited_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-static int clear_edited_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-  return WM_operator_confirm_message(C, op, "Lose changes done in particle mode? (no undo)");
-}
-
 void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 {
   /* identifiers */
@@ -5406,7 +5400,6 @@ void PARTICLE_OT_edited_clear(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = clear_edited_exec;
   ot->poll = particle_edit_toggle_poll;
-  ot->invoke = clear_edited_invoke;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

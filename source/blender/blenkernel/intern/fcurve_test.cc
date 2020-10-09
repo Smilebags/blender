@@ -210,4 +210,102 @@ TEST(evaluate_fcurve, ExtrapolationBezierKeys)
   BKE_fcurve_free(fcu);
 }
 
+TEST(fcurve_subdivide, BKE_bezt_subdivide_handles)
+{
+  FCurve *fcu = BKE_fcurve_create();
+
+  /* Insert two keyframes and set handles to something non-default. */
+  EXPECT_EQ(insert_vert_fcurve(fcu, 1.0f, 0.0f, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NO_USERPREF), 0);
+  EXPECT_EQ(insert_vert_fcurve(fcu, 13.0f, 2.0f, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NO_USERPREF), 1);
+
+  fcu->bezt[0].h1 = fcu->bezt[0].h2 = HD_FREE;
+  fcu->bezt[0].vec[0][0] = -5.0f;
+  fcu->bezt[0].vec[0][1] = 0.0f;
+  fcu->bezt[0].vec[2][0] = 2.0f;
+  fcu->bezt[0].vec[2][1] = 4.0f;
+
+  fcu->bezt[1].h1 = fcu->bezt[1].h2 = HD_FREE;
+  fcu->bezt[1].vec[0][0] = 13.0f;
+  fcu->bezt[1].vec[0][1] = -2.0f;
+  fcu->bezt[1].vec[2][0] = 16.0f;
+  fcu->bezt[1].vec[2][1] = -3.0f;
+
+  /* Create new keyframe point with defaults from insert_vert_fcurve(). */
+  BezTriple beztr;
+  const float x = 7.375f;  // at this X-coord, the FCurve should evaluate to 1.000f.
+  const float y = 1.000f;
+  beztr.vec[0][0] = x - 1.0f;
+  beztr.vec[0][1] = y;
+  beztr.vec[1][0] = x;
+  beztr.vec[1][1] = y;
+  beztr.vec[2][0] = x + 1.0f;
+  beztr.vec[2][1] = y;
+  beztr.h1 = beztr.h2 = HD_AUTO_ANIM;
+  beztr.ipo = BEZT_IPO_BEZ;
+
+  /* This should update the existing handles as well as the new BezTriple. */
+  float y_delta;
+  BKE_bezt_subdivide_handles(&beztr, &fcu->bezt[0], &fcu->bezt[1], &y_delta);
+
+  EXPECT_FLOAT_EQ(y_delta, 0.0f);
+
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[0][0], -5.0f);  // Left handle should not be touched.
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[0][1], 0.0f);
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[1][0], 1.0f);  // Coordinates should not be touched.
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[1][1], 0.0f);
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[2][0], 1.5f);  // Right handle should be updated.
+  EXPECT_FLOAT_EQ(fcu->bezt[0].vec[2][1], 2.0f);
+
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[0][0], 13.0f);  // Left handle should be updated.
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[0][1], 0.0f);
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[1][0], 13.0f);  // Coordinates should not be touched.
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[1][1], 2.0f);
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[2][0], 16.0f);  // Right handle should not be touched
+  EXPECT_FLOAT_EQ(fcu->bezt[1].vec[2][1], -3.0f);
+
+  EXPECT_FLOAT_EQ(beztr.vec[0][0], 4.5f);  // Left handle should be updated.
+  EXPECT_FLOAT_EQ(beztr.vec[0][1], 1.5f);
+  EXPECT_FLOAT_EQ(beztr.vec[1][0], 7.375f);  // Coordinates should not be touched.
+  EXPECT_FLOAT_EQ(beztr.vec[1][1], 1.0f);
+  EXPECT_FLOAT_EQ(beztr.vec[2][0], 10.250);  // Right handle should be updated.
+  EXPECT_FLOAT_EQ(beztr.vec[2][1], 0.5);
+
+  BKE_fcurve_free(fcu);
+}
+
+TEST(fcurve_active_keyframe, ActiveKeyframe)
+{
+  FCurve *fcu = BKE_fcurve_create();
+
+  /* There should be no active keyframe with no points. */
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), FCURVE_ACTIVE_KEYFRAME_NONE);
+
+  /* Check that adding new points sets the active index. */
+  EXPECT_EQ(insert_vert_fcurve(fcu, 1.0f, 7.5f, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NO_USERPREF), 0);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), 0);
+  EXPECT_EQ(insert_vert_fcurve(fcu, 8.0f, 15.0f, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NO_USERPREF), 1);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), 1);
+  EXPECT_EQ(insert_vert_fcurve(fcu, 14.0f, 8.2f, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NO_USERPREF), 2);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), 2);
+
+  /* Check clearing the index. */
+  BKE_fcurve_active_keyframe_set(fcu, NULL);
+  EXPECT_EQ(fcu->active_keyframe_index, FCURVE_ACTIVE_KEYFRAME_NONE);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), FCURVE_ACTIVE_KEYFRAME_NONE);
+
+  /* Check a "normal" action. */
+  BKE_fcurve_active_keyframe_set(fcu, &fcu->bezt[2]);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), 2);
+
+  /* Check out of bounds. */
+  BKE_fcurve_active_keyframe_set(fcu, fcu->bezt - 20);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), FCURVE_ACTIVE_KEYFRAME_NONE);
+
+  /* Check out of bounds again. */
+  BKE_fcurve_active_keyframe_set(fcu, fcu->bezt + 4);
+  EXPECT_EQ(BKE_fcurve_active_keyframe_index(fcu), FCURVE_ACTIVE_KEYFRAME_NONE);
+
+  BKE_fcurve_free(fcu);
+}
+
 }  // namespace blender::bke::tests

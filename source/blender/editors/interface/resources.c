@@ -362,6 +362,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_VERTEX_SELECT:
           cp = ts->vertex_select;
           break;
+        case TH_VERTEX_ACTIVE:
+          cp = ts->vertex_active;
+          break;
         case TH_VERTEX_BEVEL:
           cp = ts->vertex_bevel;
           break;
@@ -1498,19 +1501,4 @@ void UI_make_axis_color(const uchar src_col[3], uchar dst_col[3], const char axi
       BLI_assert(0);
       break;
   }
-}
-
-/* patching UserDef struct and Themes */
-void init_userdef_do_versions(void)
-{
-  BLO_version_defaults_userpref_blend(&U);
-
-  if (STREQ(U.tempdir, "/")) {
-    BKE_tempdir_system_init(U.tempdir);
-  }
-
-  /* Not versioning, just avoid errors. */
-#ifndef WITH_CYCLES
-  BKE_addon_remove_safe(&U.addons, "cycles");
-#endif
 }

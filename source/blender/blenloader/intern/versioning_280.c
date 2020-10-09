@@ -1201,7 +1201,7 @@ static void do_version_fcurve_hide_viewport_fix(struct ID *UNUSED(id),
                                                 struct FCurve *fcu,
                                                 void *UNUSED(user_data))
 {
-  if (!STREQ(fcu->rna_path, "hide")) {
+  if (fcu->rna_path == NULL || !STREQ(fcu->rna_path, "hide")) {
     return;
   }
 
@@ -1747,7 +1747,7 @@ void do_versions_after_linking_280(Main *bmain, ReportList *UNUSED(reports))
    *
    * \note Be sure to check when bumping the version:
    * - #blo_do_versions_280 in this file.
-   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
+   * - "versioning_userdef.c", #blo_do_versions_userdef
    * - "versioning_userdef.c", #do_versions_theme
    *
    * \note Keep this message at the bottom of the function.
@@ -5092,7 +5092,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
    *
    * \note Be sure to check when bumping the version:
    * - #do_versions_after_linking_280 in this file.
-   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
+   * - "versioning_userdef.c", #blo_do_versions_userdef
    * - "versioning_userdef.c", #do_versions_theme
    *
    * \note Keep this message at the bottom of the function.

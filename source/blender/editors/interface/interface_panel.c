@@ -132,7 +132,6 @@ static bool panel_type_context_poll(ARegion *region,
 
 static void panel_title_color_get(const Panel *panel,
                                   const bool show_background,
-                                  const bool use_search_color,
                                   const bool region_search_filter_active,
                                   uchar r_color[4])
 {
@@ -146,16 +145,11 @@ static void panel_title_color_get(const Panel *panel,
 
   const bool search_match = UI_panel_matches_search_filter(panel);
 
-  if (region_search_filter_active && use_search_color && search_match) {
-    UI_GetThemeColor4ubv(TH_MATCH, r_color);
-  }
-  else {
-    UI_GetThemeColor4ubv(TH_TITLE, r_color);
-    if (region_search_filter_active && !search_match) {
-      r_color[0] *= 0.5;
-      r_color[1] *= 0.5;
-      r_color[2] *= 0.5;
-    }
+  UI_GetThemeColor4ubv(TH_TITLE, r_color);
+  if (region_search_filter_active && !search_match) {
+    r_color[0] *= 0.5;
+    r_color[1] *= 0.5;
+    r_color[2] *= 0.5;
   }
 }
 
@@ -199,10 +193,11 @@ static bool panel_active_animation_changed(ListBase *lb,
   return false;
 }
 
-static bool panels_need_realign(ScrArea *area, ARegion *region, Panel **r_panel_animation)
+/**
+ * \return True if the properties editor switch tabs since the last layout pass.
+ */
+static bool properties_space_needs_realign(ScrArea *area, ARegion *region)
 {
-  *r_panel_animation = NULL;
-
   if (area->spacetype == SPACE_PROPERTIES && region->regiontype == RGN_TYPE_WINDOW) {
     SpaceProperties *sbuts = area->spacedata.first;
 
@@ -210,10 +205,15 @@ static bool panels_need_realign(ScrArea *area, ARegion *region, Panel **r_panel_
       return true;
     }
   }
-  else if (area->spacetype == SPACE_IMAGE && region->regiontype == RGN_TYPE_PREVIEW) {
-    return true;
-  }
-  else if (area->spacetype == SPACE_FILE && region->regiontype == RGN_TYPE_CHANNELS) {
+
+  return false;
+}
+
+static bool panels_need_realign(ScrArea *area, ARegion *region, Panel **r_panel_animation)
+{
+  *r_panel_animation = NULL;
+
+  if (properties_space_needs_realign(area, region)) {
     return true;
   }
 
@@ -690,6 +690,8 @@ Panel *UI_panel_begin(
     panel->type = pt;
   }
 
+  panel->runtime.block = block;
+
   /* Do not allow closed panels without headers! Else user could get "disappeared" UI! */
   if ((pt->flag & PNL_NO_HEADER) && (panel->flag & PNL_CLOSED)) {
     panel->flag &= ~PNL_CLOSED;
@@ -744,6 +746,47 @@ Panel *UI_panel_begin(
   return panel;
 }
 
+/**
+ * Create the panel header button group, used to mark which buttons are part of
+ * panel headers for later panel search handling. Should be called before adding
+ * buttons for the panel's header layout.
+ */
+void UI_panel_header_buttons_begin(Panel *panel)
+{
+  uiBlock *block = panel->runtime.block;
+
+  ui_block_new_button_group(block, UI_BUTTON_GROUP_LOCK | UI_BUTTON_GROUP_PANEL_HEADER);
+}
+
+/**
+ * Allow new button groups to be created after the header group.
+ */
+void UI_panel_header_buttons_end(Panel *panel)
+{
+  uiBlock *block = panel->runtime.block;
+
+  /* There should always be the button group created in #UI_panel_header_buttons_begin. */
+  BLI_assert(!BLI_listbase_is_empty(&block->button_groups));
+
+  uiButtonGroup *button_group = block->button_groups.last;
+
+  button_group->flag &= ~UI_BUTTON_GROUP_LOCK;
+
+  /* Repurpose the first "header" button group if it is empty, in case the first button added to
+   * the panel doesn't add a new group (if the button is created directly rather than through an
+   * interface layout call). */
+  if (BLI_listbase_count(&block->button_groups) == 1 &&
+      BLI_listbase_is_empty(&button_group->buttons)) {
+    button_group->flag &= ~UI_BUTTON_GROUP_PANEL_HEADER;
+  }
+  else {
+    /* We should still always add a new button group. Although this results in many empty groups,
+     * without it, new buttons not protected with a #ui_block_new_button_group call would end up
+     * in the panel header group. */
+    ui_block_new_button_group(block, 0);
+  }
+}
+
 static float panel_region_offset_x_get(const ARegion *region)
 {
   if (UI_panel_category_is_visible(region)) {
@@ -752,22 +795,23 @@ static float panel_region_offset_x_get(const ARegion *region)
     }
   }
 
-  return 0;
+  return 0.0f;
 }
 
-void UI_panel_end(const ARegion *region, uiBlock *block, int width, int height, bool open)
+/**
+ * Starting from the "block size" set in #UI_panel_end, calculate the full size
+ * of the panel including the subpanel headers and buttons.
+ */
+static void panel_calculate_size_recursive(ARegion *region, Panel *panel)
 {
-  Panel *panel = block->panel;
+  int width = panel->blocksizex;
+  int height = panel->blocksizey;
 
-  /* Set panel size excluding children. */
-  panel->blocksizex = width;
-  panel->blocksizey = height;
-
-  /* Compute total panel size including children. */
-  LISTBASE_FOREACH (Panel *, pachild, &panel->children) {
-    if (pachild->runtime_flag & PANEL_ACTIVE) {
-      width = max_ii(width, pachild->sizex);
-      height += get_panel_real_size_y(pachild);
+  LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
+    if (child_panel->runtime_flag & PANEL_ACTIVE) {
+      panel_calculate_size_recursive(region, child_panel);
+      width = max_ii(width, child_panel->sizex);
+      height += get_panel_real_size_y(child_panel);
     }
   }
 
@@ -785,7 +829,7 @@ void UI_panel_end(const ARegion *region, uiBlock *block, int width, int height, 
     if (width != 0) {
       panel->sizex = width;
     }
-    if (height != 0 || open) {
+    if (height != 0 || !(panel->flag & PNL_CLOSED)) {
       panel->sizey = height;
     }
 
@@ -800,6 +844,14 @@ void UI_panel_end(const ARegion *region, uiBlock *block, int width, int height, 
       panel->runtime_flag |= PANEL_ANIM_ALIGN;
     }
   }
+}
+
+void UI_panel_end(Panel *panel, int width, int height)
+{
+  /* Store the size of the buttons layout in the panel. The actual panel size
+   * (including subpanels) is calculated in #UI_panels_end. */
+  panel->blocksizex = width;
+  panel->blocksizey = height;
 }
 
 static void ui_offset_panel_block(uiBlock *block)
@@ -852,12 +904,14 @@ bool UI_panel_matches_search_filter(const Panel *panel)
 /**
  * Expands a panel if it was tagged as having a result by property search, otherwise collapses it.
  */
-static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, Panel *panel)
+static void panel_set_expansion_from_seach_filter_recursive(const bContext *C,
+                                                            Panel *panel,
+                                                            const bool use_animation)
 {
   if (!(panel->type->flag & PNL_NO_HEADER)) {
     short start_flag = panel->flag;
     SET_FLAG_FROM_TEST(panel->flag, !UI_panel_matches_search_filter(panel), PNL_CLOSED);
-    if (start_flag != panel->flag) {
+    if (use_animation && start_flag != panel->flag) {
       panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
     }
   }
@@ -865,7 +919,7 @@ static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, P
   /* If the panel is filtered (removed) we need to check that its children are too. */
   LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
     if (child_panel->runtime_flag & PANEL_ACTIVE) {
-      panel_set_expansion_from_seach_filter_recursive(C, child_panel);
+      panel_set_expansion_from_seach_filter_recursive(C, child_panel, use_animation);
     }
   }
 }
@@ -874,11 +928,63 @@ static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, P
  * Uses the panel's search filter flag to set its expansion, activating animation if it was closed
  * or opened. Note that this can't be set too often, or manual interaction becomes impossible.
  */
-void UI_panels_set_expansion_from_seach_filter(const bContext *C, ARegion *region)
+static void region_panels_set_expansion_from_seach_filter(const bContext *C,
+                                                          ARegion *region,
+                                                          const bool use_animation)
 {
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->runtime_flag & PANEL_ACTIVE) {
-      panel_set_expansion_from_seach_filter_recursive(C, panel);
+      panel_set_expansion_from_seach_filter_recursive(C, panel, use_animation);
+    }
+  }
+  set_panels_list_data_expand_flag(C, region);
+}
+
+/**
+ * Hide buttons in invisible layouts, which are created because in order to search,
+ * buttons must be added for all panels, even panels that will end up closed.
+ */
+static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *parent_panel)
+{
+  uiBlock *block = panel->runtime.block;
+  BLI_assert(block != NULL);
+  BLI_assert(block->active);
+  if (parent_panel != NULL && parent_panel->flag & PNL_CLOSED) {
+    /* The parent panel is closed, so this panel can be completely removed. */
+    UI_block_set_search_only(block, true);
+    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
+      but->flag |= UI_HIDDEN;
+    }
+  }
+  else if (panel->flag & PNL_CLOSED) {
+    /* If subpanels have no search results but the parent panel does, then the parent panel open
+     * and the subpanels will close. In that case there must be a way to hide the buttons in the
+     * panel but keep the header buttons. */
+    LISTBASE_FOREACH (uiButtonGroup *, button_group, &block->button_groups) {
+      if (button_group->flag & UI_BUTTON_GROUP_PANEL_HEADER) {
+        continue;
+      }
+      LISTBASE_FOREACH (LinkData *, link, &button_group->buttons) {
+        uiBut *but = link->data;
+        but->flag |= UI_HIDDEN;
+      }
+    }
+  }
+
+  LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
+    if (child_panel->runtime_flag & PANEL_ACTIVE) {
+      BLI_assert(child_panel->runtime.block != NULL);
+      panel_remove_invisible_layouts_recursive(child_panel, panel);
+    }
+  }
+}
+
+static void region_panels_remove_invisible_layouts(ARegion *region)
+{
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel->runtime_flag & PANEL_ACTIVE) {
+      BLI_assert(panel->runtime.block != NULL);
+      panel_remove_invisible_layouts_recursive(panel, NULL);
     }
   }
 }
@@ -965,8 +1071,7 @@ static void ui_draw_aligned_panel_header(const uiStyle *style,
 
   /* Draw text labels. */
   uchar col_title[4];
-  panel_title_color_get(
-      panel, show_background, is_subpanel, region_search_filter_active, col_title);
+  panel_title_color_get(panel, show_background, region_search_filter_active, col_title);
   col_title[3] = 255;
 
   rcti hrect = *rect;
@@ -1084,7 +1189,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
   /* draw optional pin icon */
   if (show_pin && (block->panel->flag & PNL_PIN)) {
     uchar col_title[4];
-    panel_title_color_get(panel, show_background, false, region_search_filter_active, col_title);
+    panel_title_color_get(panel, show_background, region_search_filter_active, col_title);
 
     GPU_blend(GPU_BLEND_ALPHA);
     UI_icon_draw_ex(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect),
@@ -1199,7 +1304,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
     BLI_rctf_scale(&itemrect, 0.25f);
 
     uchar col_title[4];
-    panel_title_color_get(panel, show_background, false, region_search_filter_active, col_title);
+    panel_title_color_get(panel, show_background, region_search_filter_active, col_title);
     float tria_color[4];
     rgb_uchar_to_float(tria_color, col_title);
     tria_color[3] = 1.0f;
@@ -1219,128 +1324,8 @@ void ui_draw_aligned_panel(const uiStyle *style,
 /** \name Category Drawing (Tabs)
  * \{ */
 
-static void imm_buf_append(
-    float vbuf[][2], uchar cbuf[][3], float x, float y, const uchar col[3], int *index)
-{
-  ARRAY_SET_ITEMS(vbuf[*index], x, y);
-  ARRAY_SET_ITEMS(cbuf[*index], UNPACK3(col));
-  (*index)++;
-}
-
-/* Based on UI_draw_roundbox, check on making a version which allows us to skip some sides. */
-static void ui_panel_category_draw_tab(bool filled,
-                                       float minx,
-                                       float miny,
-                                       float maxx,
-                                       float maxy,
-                                       float rad,
-                                       const int roundboxtype,
-                                       const bool use_highlight,
-                                       const bool use_shadow,
-                                       const bool use_flip_x,
-                                       const uchar highlight_fade[3],
-                                       const uchar col[3])
-{
-  float vec[4][2] = {{0.195, 0.02}, {0.55, 0.169}, {0.831, 0.45}, {0.98, 0.805}};
-
-  for (int a = 0; a < 4; a++) {
-    mul_v2_fl(vec[a], rad);
-  }
-
-  uint vert_len = 0;
-  if (use_highlight) {
-    vert_len += (roundboxtype & UI_CNR_TOP_RIGHT) ? 6 : 1;
-    vert_len += (roundboxtype & UI_CNR_TOP_LEFT) ? 6 : 1;
-  }
-  if (use_highlight && !use_shadow) {
-    vert_len++;
-  }
-  else {
-    vert_len += (roundboxtype & UI_CNR_BOTTOM_RIGHT) ? 6 : 1;
-    vert_len += (roundboxtype & UI_CNR_BOTTOM_LEFT) ? 6 : 1;
-  }
-  /* Maximum size. */
-  float vbuf[24][2];
-  uchar cbuf[24][3];
-  int buf_index = 0;
-
-  /* Start right-top corner. */
-  if (use_highlight) {
-    if (roundboxtype & UI_CNR_TOP_RIGHT) {
-      imm_buf_append(vbuf, cbuf, maxx, maxy - rad, col, &buf_index);
-      for (int a = 0; a < 4; a++) {
-        imm_buf_append(vbuf, cbuf, maxx - vec[a][1], maxy - rad + vec[a][0], col, &buf_index);
-      }
-      imm_buf_append(vbuf, cbuf, maxx - rad, maxy, col, &buf_index);
-    }
-    else {
-      imm_buf_append(vbuf, cbuf, maxx, maxy, col, &buf_index);
-    }
-
-    /* Left top-corner. */
-    if (roundboxtype & UI_CNR_TOP_LEFT) {
-      imm_buf_append(vbuf, cbuf, minx + rad, maxy, col, &buf_index);
-      for (int a = 0; a < 4; a++) {
-        imm_buf_append(vbuf, cbuf, minx + rad - vec[a][0], maxy - vec[a][1], col, &buf_index);
-      }
-      imm_buf_append(vbuf, cbuf, minx, maxy - rad, col, &buf_index);
-    }
-    else {
-      imm_buf_append(vbuf, cbuf, minx, maxy, col, &buf_index);
-    }
-  }
-
-  if (use_highlight && !use_shadow) {
-    imm_buf_append(
-        vbuf, cbuf, minx, miny + rad, highlight_fade ? col : highlight_fade, &buf_index);
-  }
-  else {
-    /* Left bottom-corner. */
-    if (roundboxtype & UI_CNR_BOTTOM_LEFT) {
-      imm_buf_append(vbuf, cbuf, minx, miny + rad, col, &buf_index);
-      for (int a = 0; a < 4; a++) {
-        imm_buf_append(vbuf, cbuf, minx + vec[a][1], miny + rad - vec[a][0], col, &buf_index);
-      }
-      imm_buf_append(vbuf, cbuf, minx + rad, miny, col, &buf_index);
-    }
-    else {
-      imm_buf_append(vbuf, cbuf, minx, miny, col, &buf_index);
-    }
-
-    /* Right-bottom corner. */
-    if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
-      imm_buf_append(vbuf, cbuf, maxx - rad, miny, col, &buf_index);
-      for (int a = 0; a < 4; a++) {
-        imm_buf_append(vbuf, cbuf, maxx - rad + vec[a][0], miny + vec[a][1], col, &buf_index);
-      }
-      imm_buf_append(vbuf, cbuf, maxx, miny + rad, col, &buf_index);
-    }
-    else {
-      imm_buf_append(vbuf, cbuf, maxx, miny, col, &buf_index);
-    }
-  }
-
-  if (use_flip_x) {
-    const float midx = (minx + maxx) / 2.0f;
-    for (int i = 0; i < buf_index; i++) {
-      vbuf[i][0] = midx - (vbuf[i][0] - midx);
-    }
-  }
-
-  GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
-
-  immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
-  immBegin(filled ? GPU_PRIM_TRI_FAN : GPU_PRIM_LINE_STRIP, vert_len);
-  for (int i = 0; i < buf_index; i++) {
-    immAttr3ubv(color, cbuf[i]);
-    immVertex2fv(pos, vbuf[i]);
-  }
-  immEnd();
-  immUnbindProgram();
-}
+#define TABS_PADDING_BETWEEN_FACTOR 4.0f
+#define TABS_PADDING_TEXT_FACTOR 6.0f
 
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
@@ -1356,17 +1341,17 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   short fstyle_points = fstyle->points;
   const float aspect = ((uiBlock *)region->uiblocks.first)->aspect;
   const float zoom = 1.0f / aspect;
-  const int px = max_ii(1, round_fl_to_int(U.pixelsize));
-  const int px_x_sign = is_left ? px : -px;
+  const int px = U.pixelsize;
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const float dpi_fac = UI_DPI_FAC;
   /* Padding of tabs around text. */
-  const int tab_v_pad_text = round_fl_to_int((2 + ((px * 3) * dpi_fac)) * zoom);
+  const int tab_v_pad_text = round_fl_to_int(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom) + 2 * px;
   /* Padding between tabs. */
-  const int tab_v_pad = round_fl_to_int((4 + (2 * px * dpi_fac)) * zoom);
-  const float tab_curve_radius = ((px * 3) * dpi_fac) * zoom;
-  /* We flip the tab drawing, so always use these flags. */
-  const int roundboxtype = UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT;
+  const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
+  bTheme *btheme = UI_GetTheme();
+  const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
+  const int roundboxtype = is_left ? (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) :
+                                     (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
   bool is_alpha;
   bool do_scaletabs = false;
 #ifdef USE_FLAT_INACTIVE
@@ -1388,28 +1373,18 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   /* Tab colors. */
   uchar theme_col_tab_bg[4];
-  uchar theme_col_tab_active[3];
-  uchar theme_col_tab_inactive[3];
-
-  /* Secondary theme colors. */
-  uchar theme_col_tab_outline[3];
-  uchar theme_col_tab_divider[3]; /* Line that divides tabs from the main region. */
-  uchar theme_col_tab_highlight[3];
-  uchar theme_col_tab_highlight_inactive[3];
+  float theme_col_tab_active[4];
+  float theme_col_tab_inactive[4];
+  float theme_col_tab_outline[4];
 
   UI_GetThemeColor4ubv(TH_BACK, theme_col_back);
   UI_GetThemeColor3ubv(TH_TEXT, theme_col_text);
   UI_GetThemeColor3ubv(TH_TEXT_HI, theme_col_text_hi);
 
   UI_GetThemeColor4ubv(TH_TAB_BACK, theme_col_tab_bg);
-  UI_GetThemeColor3ubv(TH_TAB_ACTIVE, theme_col_tab_active);
-  UI_GetThemeColor3ubv(TH_TAB_INACTIVE, theme_col_tab_inactive);
-  UI_GetThemeColor3ubv(TH_TAB_OUTLINE, theme_col_tab_outline);
-
-  interp_v3_v3v3_uchar(theme_col_tab_divider, theme_col_back, theme_col_tab_outline, 0.3f);
-  interp_v3_v3v3_uchar(theme_col_tab_highlight, theme_col_back, theme_col_text_hi, 0.2f);
-  interp_v3_v3v3_uchar(
-      theme_col_tab_highlight_inactive, theme_col_tab_inactive, theme_col_text_hi, 0.12f);
+  UI_GetThemeColor4fv(TH_TAB_ACTIVE, theme_col_tab_active);
+  UI_GetThemeColor4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
+  UI_GetThemeColor4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
@@ -1431,7 +1406,6 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   /* Calculate tab rectangle and check if we need to scale down. */
   LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->panels_category) {
-
     rcti *rct = &pc_dyn->rect;
     const char *category_id = pc_dyn->idname;
     const char *category_id_draw = IFACE_(category_id);
@@ -1489,11 +1463,6 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   immUnbindProgram();
 
-  const int divider_xmin = is_left ? (v2d->mask.xmin + (category_tabs_width - px)) :
-                                     (v2d->mask.xmax - category_tabs_width) + px;
-  const int divider_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) :
-                                     (v2d->mask.xmax - (category_tabs_width + px)) + px;
-
   LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->panels_category) {
     const rcti *rct = &pc_dyn->rect;
     const char *category_id = pc_dyn->idname;
@@ -1509,63 +1478,59 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     GPU_blend(GPU_BLEND_ALPHA);
 
 #ifdef USE_FLAT_INACTIVE
+    /* Draw line between inactive tabs. */
+    if (is_active == false && is_active_prev == false && pc_dyn->prev) {
+      pos = GPU_vertformat_attr_add(
+          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+      immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+      immUniformColor3fvAlpha(theme_col_tab_outline, 0.3f);
+      immRecti(pos,
+               is_left ? v2d->mask.xmin + (category_tabs_width / 5) :
+                         v2d->mask.xmax - (category_tabs_width / 5),
+               rct->ymax + px,
+               is_left ? (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5) :
+                         (v2d->mask.xmax - category_tabs_width) + (category_tabs_width / 5),
+               rct->ymax + (px * 3));
+      immUnbindProgram();
+    }
+
+    is_active_prev = is_active;
+
     if (is_active)
 #endif
     {
-      const bool use_flip_x = !is_left;
-      ui_panel_category_draw_tab(true,
-                                 rct->xmin,
-                                 rct->ymin,
-                                 rct->xmax,
-                                 rct->ymax,
-                                 tab_curve_radius - px,
-                                 roundboxtype,
-                                 true,
-                                 true,
-                                 use_flip_x,
-                                 NULL,
-                                 is_active ? theme_col_tab_active : theme_col_tab_inactive);
+      /* Draw filled rectangle and outline for tab. */
+      UI_draw_roundbox_corner_set(roundboxtype);
+      UI_draw_roundbox_4fv(true,
+                           rct->xmin,
+                           rct->ymin,
+                           rct->xmax,
+                           rct->ymax,
+                           tab_curve_radius,
+                           is_active ? theme_col_tab_active : theme_col_tab_inactive);
+      UI_draw_roundbox_4fv(false,
+                           rct->xmin,
+                           rct->ymin,
+                           rct->xmax,
+                           rct->ymax,
+                           tab_curve_radius,
+                           theme_col_tab_outline);
 
-      /* Tab outline. */
-      ui_panel_category_draw_tab(false,
-                                 rct->xmin - px_x_sign,
-                                 rct->ymin - px,
-                                 rct->xmax - px_x_sign,
-                                 rct->ymax + px,
-                                 tab_curve_radius,
-                                 roundboxtype,
-                                 true,
-                                 true,
-                                 use_flip_x,
-                                 NULL,
-                                 theme_col_tab_outline);
-
-      /* Tab highlight (3d look). */
-      ui_panel_category_draw_tab(false,
-                                 rct->xmin,
-                                 rct->ymin,
-                                 rct->xmax,
-                                 rct->ymax,
-                                 tab_curve_radius,
-                                 roundboxtype,
-                                 true,
-                                 false,
-                                 use_flip_x,
-                                 is_active ? theme_col_back : theme_col_tab_inactive,
-                                 is_active ? theme_col_tab_highlight :
-                                             theme_col_tab_highlight_inactive);
-    }
-
-    /* Tab black-line. */
-    if (!is_active) {
+      /* Disguise the outline on one side to join the tab to the panel. */
       pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-      immUniformColor3ubv(theme_col_tab_divider);
-      immRecti(pos, divider_xmin, rct->ymin - tab_v_pad, divider_xmax, rct->ymax + tab_v_pad);
+      immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
+      immRecti(pos,
+               is_left ? rct->xmax - px : rct->xmin,
+               rct->ymin + px,
+               is_left ? rct->xmax : rct->xmin + px,
+               rct->ymax - px);
       immUnbindProgram();
     }
+
+    /* Tab titles. */
 
     if (do_scaletabs) {
       category_draw_len = BLF_width_to_strlen(
@@ -1573,44 +1538,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     }
 
     BLF_position(fontid, rct->xmax - text_v_ofs, rct->ymin + tab_v_pad_text, 0.0f);
-
-    /* Tab titles. */
-
-    /* Draw white shadow to give text more depth. */
     BLF_color3ubv(fontid, theme_col_text);
-
-    /* Main tab title. */
     BLF_draw(fontid, category_id_draw, category_draw_len);
 
     GPU_blend(GPU_BLEND_NONE);
-
-    /* Tab black-line remaining (last tab). */
-    pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    if (pc_dyn->prev == NULL) {
-      immUniformColor3ubv(theme_col_tab_divider);
-      immRecti(pos, divider_xmin, rct->ymax + px, divider_xmax, v2d->mask.ymax);
-    }
-    if (pc_dyn->next == NULL) {
-      immUniformColor3ubv(theme_col_tab_divider);
-      immRecti(pos, divider_xmin, 0, divider_xmax, rct->ymin);
-    }
-
-#ifdef USE_FLAT_INACTIVE
-    /* Draw line between inactive tabs. */
-    if (is_active == false && is_active_prev == false && pc_dyn->prev) {
-      immUniformColor3ubv(theme_col_tab_divider);
-      immRecti(pos,
-               v2d->mask.xmin + (category_tabs_width / 5),
-               rct->ymax + px,
-               (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5),
-               rct->ymax + (px * 3));
-    }
-
-    is_active_prev = is_active;
-#endif
-    immUnbindProgram();
 
     /* Not essential, but allows events to be handled right up to the region edge (T38171). */
     if (is_left) {
@@ -1628,9 +1559,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   if (fstyle->kerning == 1) {
     BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
   }
-
-#undef USE_FLAT_INACTIVE
 }
+
+#undef TABS_PADDING_BETWEEN_FACTOR
+#undef TABS_PADDING_TEXT_FACTOR
 
 /** \} */
 
@@ -1946,12 +1878,24 @@ void UI_panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
 
   region_panels_set_expansion_from_list_data(C, region);
 
-  /* Update panel expansion based on property search results. */
-  if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
-    /* Don't use the last update from the deactivation, or all the panels will be left closed. */
-    if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
-      UI_panels_set_expansion_from_seach_filter(C, region);
-      set_panels_list_data_expand_flag(C, region);
+  if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
+    /* Update panel expansion based on property search results. Keep this inside the check
+     * for an active search filter, or all panels will be left closed when a search ends. */
+    if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
+      region_panels_set_expansion_from_seach_filter(C, region, true);
+    }
+    else if (properties_space_needs_realign(area, region)) {
+      region_panels_set_expansion_from_seach_filter(C, region, false);
+    }
+
+    /* Clean up the extra panels and buttons created for searching. */
+    region_panels_remove_invisible_layouts(region);
+  }
+
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel->runtime_flag & PANEL_ACTIVE) {
+      BLI_assert(panel->runtime.block != NULL);
+      panel_calculate_size_recursive(region, panel);
     }
   }
 

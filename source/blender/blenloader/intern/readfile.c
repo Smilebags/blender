@@ -766,7 +766,7 @@ static void switch_endian_bh8(BHead8 *bhead)
   }
 }
 
-static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, int do_endian_swap)
+static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, bool do_endian_swap)
 {
   BHead4 *bhead4 = (BHead4 *)bhead;
   int64_t old;
@@ -859,7 +859,7 @@ static BHeadN *get_bhead(FileData *fd)
           }
 
           if (fd->flags & FD_FLAGS_POINTSIZE_DIFFERS) {
-            bh4_from_bh8(&bhead, &bhead8, (fd->flags & FD_FLAGS_SWITCH_ENDIAN));
+            bh4_from_bh8(&bhead, &bhead8, (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0);
           }
           else {
             /* MIN2 is only to quiet '-Warray-bounds' compiler warning. */
@@ -2509,6 +2509,32 @@ static void direct_link_ipo(BlendDataReader *reader, Ipo *ipo)
     BLO_read_data_address(reader, &icu->bezt);
     BLO_read_data_address(reader, &icu->bp);
     BLO_read_data_address(reader, &icu->driver);
+
+    /* Undo generic endian switching. */
+    if (BLO_read_requires_endian_switch(reader)) {
+      BLI_endian_switch_int16(&icu->blocktype);
+      if (icu->driver != NULL) {
+
+        /* Undo generic endian switching. */
+        if (BLO_read_requires_endian_switch(reader)) {
+          BLI_endian_switch_int16(&icu->blocktype);
+          if (icu->driver != NULL) {
+            BLI_endian_switch_int16(&icu->driver->blocktype);
+          }
+        }
+      }
+
+      /* Undo generic endian switching. */
+      if (BLO_read_requires_endian_switch(reader)) {
+        BLI_endian_switch_int16(&ipo->blocktype);
+        BLI_endian_switch_int16(&icu->driver->blocktype);
+      }
+    }
+  }
+
+  /* Undo generic endian switching. */
+  if (BLO_read_requires_endian_switch(reader)) {
+    BLI_endian_switch_int16(&ipo->blocktype);
   }
 }
 
@@ -6885,9 +6911,7 @@ static void link_global(FileData *fd, BlendFileData *bfd)
 /** \name Versioning
  * \{ */
 
-/* initialize userdef with non-UI dependency stuff */
-/* other initializers (such as theme color defaults) go to resources.c */
-static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
+static void do_versions_userdef(FileData *UNUSED(fd), BlendFileData *bfd)
 {
   UserDef *user = bfd->user;
 
@@ -6895,19 +6919,7 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
     return;
   }
 
-  if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "WalkNavigation", "walk_navigation")) {
-    user->walk_navigation.mouse_speed = 1.0f;
-    user->walk_navigation.walk_speed = 2.5f; /* m/s */
-    user->walk_navigation.walk_speed_factor = 5.0f;
-    user->walk_navigation.view_height = 1.6f;   /* m */
-    user->walk_navigation.jump_height = 0.4f;   /* m */
-    user->walk_navigation.teleport_time = 0.2f; /* s */
-  }
-
-  /* tablet pressure threshold */
-  if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "float", "pressure_threshold_max")) {
-    user->pressure_threshold_max = 1.0f;
-  }
+  blo_do_versions_userdef(user);
 }
 
 static void do_versions(FileData *fd, Library *lib, Main *main)

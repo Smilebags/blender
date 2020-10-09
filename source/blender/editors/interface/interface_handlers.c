@@ -21,7 +21,6 @@
  * \ingroup edinterface
  */
 
-#include <assert.h>
 #include <ctype.h>
 #include <float.h>
 #include <limits.h>
@@ -4999,7 +4998,7 @@ static int ui_do_but_NUM(
     }
 
     /* XXX hardcoded keymap check.... */
-    if (type == MOUSEPAN && event->alt) {
+    if (type == MOUSEPAN && event->ctrl) {
       /* allow accumulating values, otherwise scrolling gets preference */
       retval = WM_UI_HANDLER_BREAK;
     }
@@ -5311,7 +5310,7 @@ static int ui_do_but_SLI(
     }
 
     /* XXX hardcoded keymap check.... */
-    if (type == MOUSEPAN && event->alt) {
+    if (type == MOUSEPAN && event->ctrl) {
       /* allow accumulating values, otherwise scrolling gets preference */
       retval = WM_UI_HANDLER_BREAK;
     }
@@ -6213,7 +6212,7 @@ static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
       CLAMP(hsv[2], hsv_but->but.softmin, hsv_but->but.softmax);
       break;
     default:
-      assert(!"invalid hsv type");
+      BLI_assert(!"invalid hsv type");
       break;
   }
 
@@ -7580,7 +7579,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
   }
 
   if (but->flag & UI_BUT_DISABLED) {
-    return WM_UI_HANDLER_CONTINUE;
+    return WM_UI_HANDLER_BREAK;
   }
 
   switch (but->type) {

@@ -99,7 +99,7 @@ void Node::set(const SocketType &input, float value)
 
 void Node::set(const SocketType &input, float2 value)
 {
-  assert(input.type == SocketType::FLOAT);
+  assert(input.type == SocketType::POINT2);
   set_if_different(input, value);
 }
 
@@ -166,7 +166,7 @@ void Node::set(const SocketType &input, array<float> &value)
 
 void Node::set(const SocketType &input, array<float2> &value)
 {
-  assert(input.type == SocketType::FLOAT_ARRAY);
+  assert(input.type == SocketType::POINT2_ARRAY);
   set_if_different(input, value);
 }
 
@@ -190,7 +190,7 @@ void Node::set(const SocketType &input, array<Transform> &value)
 
 void Node::set(const SocketType &input, array<Node *> &value)
 {
-  assert(input.type == SocketType::TRANSFORM_ARRAY);
+  assert(input.type == SocketType::NODE_ARRAY);
   set_if_different(input, value);
 }
 
