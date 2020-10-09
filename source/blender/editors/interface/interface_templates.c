@@ -4259,7 +4259,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
     }
   }
   else if (labeltype == 's') {
-    sub = uiLayoutRow(row, true);
+    /* Spectral. */
+    uiLayout *sub = uiLayoutRow(row, true);
     uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
 
     if (cumap->cm[2].curve) {
