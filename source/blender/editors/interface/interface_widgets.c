@@ -3251,6 +3251,10 @@ void ui_hsvcube_pos_from_vals(
       /* exception only for value strip - use the range set in but->min/max */
       y = (hsv[2] - hsv_but->but.softmin) / (hsv_but->but.softmax - hsv_but->but.softmin);
       break;
+    case UI_GRAD_SPECTRUM:
+      /* This case should be handled in the `ui_draw_gradient_spectrum` function. */
+      BLI_assert(false);
+      break;
   }
 
   /* cursor */
