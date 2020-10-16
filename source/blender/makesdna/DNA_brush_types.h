@@ -27,10 +27,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_texture_types.h" /* for MTex */
 
-//#ifndef MAX_MTEX // XXX Not used?
-//#define MAX_MTEX  18
-//#endif
-
 struct CurveMapping;
 struct Image;
 struct MTex;
@@ -572,9 +568,11 @@ typedef struct Brush {
   char gpencil_sculpt_tool;
   /** Active grease pencil weight tool. */
   char gpencil_weight_tool;
-  char _pad1[2];
+  char _pad1[6];
 
   float autosmooth_factor;
+
+  float tilt_strength_factor;
 
   float topology_rake_factor;
 
