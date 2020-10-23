@@ -2110,7 +2110,7 @@ class VIEW3D_MT_add(Menu):
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
         if context.preferences.experimental.use_new_hair_type:
             layout.operator("object.hair_add", text="Hair", icon='OUTLINER_OB_HAIR')
-        if context.preferences.experimental.use_new_particle_system:
+        if context.preferences.experimental.use_new_point_cloud_type:
             layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", icon='OUTLINER_OB_VOLUME')
         layout.operator_menu_enum("object.gpencil_add", "type", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
@@ -2292,7 +2292,7 @@ class VIEW3D_MT_object_animation(Menu):
         layout.separator()
 
         layout.operator("nla.bake", text="Bake Action...")
-        layout.operator("gpencil.mesh_bake", text="Bake Mesh to Grease Pencil...")
+        layout.operator("gpencil.bake_mesh_animation", text="Bake Mesh to Grease Pencil...")
 
 
 class VIEW3D_MT_object_rigid_body(Menu):
@@ -2691,8 +2691,6 @@ class VIEW3D_MT_object_quick_effects(Menu):
         layout.operator("object.quick_explode")
         layout.operator("object.quick_smoke")
         layout.operator("object.quick_liquid")
-        if context.preferences.experimental.use_new_particle_system:
-            layout.operator("object.quick_particles")
 
 
 class VIEW3D_MT_object_showhide(Menu):
@@ -3003,7 +3001,10 @@ class VIEW3D_MT_mask(Menu):
         props.mode = 'VALUE'
         props.value = 0
 
-        props = layout.operator("view3d.select_box", text="Box Mask")
+        props = layout.operator("paint.mask_box_gesture", text="Box Mask")
+        props.mode = 'VALUE'
+        props.value = 0
+
         props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
 
         layout.separator()
@@ -5549,7 +5550,7 @@ class VIEW3D_PT_object_type_visibility(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "View Object Types"
-    bl_ui_units_x = 6
+    bl_ui_units_x = 7
 
     def draw(self, context):
         layout = self.layout
@@ -5559,6 +5560,7 @@ class VIEW3D_PT_object_type_visibility(Panel):
         view = context.space_data
 
         layout.label(text="Object Types Visibility")
+        layout.separator()
         col = layout.column()
 
         attr_object_types = (
@@ -5933,6 +5935,7 @@ class VIEW3D_PT_gizmo_display(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Gizmo"
+    bl_ui_units_x = 8
 
     def draw(self, context):
         layout = self.layout
@@ -5942,6 +5945,7 @@ class VIEW3D_PT_gizmo_display(Panel):
 
         col = layout.column()
         col.label(text="Viewport Gizmos")
+        col.separator()
 
         col.active = view.show_gizmo
         colsub = col.column()
