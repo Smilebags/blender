@@ -2217,7 +2217,9 @@ void ConvertNode::compile(SVMCompiler &compiler)
   ShaderInput *in = inputs[0];
   ShaderOutput *out = outputs[0];
 
-  if (from == SocketType::COLOR && to == SocketType::SPECTRAL) {
+  if ((from == SocketType::COLOR || from == SocketType::VECTOR || from == SocketType::NORMAL ||
+       from == SocketType::POINT) &&
+      to == SocketType::SPECTRAL) {
     compiler.add_node(NODE_RGB_TO_SPECTRUM, compiler.stack_assign(in), compiler.stack_assign(out));
     return;
   }
@@ -5774,6 +5776,7 @@ NODE_DEFINE(GaussianSpectrumNode)
 
   SOCKET_IN_FLOAT(wavelength, "Wavelength", 500.0f);
   SOCKET_IN_FLOAT(width, "Width", 5.0f);
+  SOCKET_IN_BOOLEAN(normalize, "Normalize", false);
   SOCKET_OUT_SPECTRAL(color, "Spectrum");
 
   return type;
@@ -6268,18 +6271,19 @@ SpectrumMathNode::SpectrumMathNode() : ShaderNode(node_type)
 
 void SpectrumMathNode::compile(SVMCompiler &compiler)
 {
-  ShaderInput *value1_in = input("Value1");
-  ShaderInput *value2_in = input("Value2");
-  ShaderOutput *value_out = output("Value");
+  ShaderInput *spectrum1_in = input("Spectrum1");
+  ShaderInput *spectrum2_in = input("Spectrum2");
+  ShaderOutput *spectrum_out = output("Spectrum");
 
-  int value1_stack_offset = compiler.stack_assign(value1_in);
-  int value2_stack_offset = compiler.stack_assign(value2_in);
-  int value_stack_offset = compiler.stack_assign(value_out);
+  int spectrum1_stack_offset = compiler.stack_assign(spectrum1_in);
+  int spectrum2_stack_offset = compiler.stack_assign(spectrum2_in);
+  int spectrum_stack_offset = compiler.stack_assign(spectrum_out);
 
-  compiler.add_node(NODE_SPECTRUM_MATH,
-                    spectrum_math_type,
-                    compiler.encode_uchar4(value1_stack_offset, value2_stack_offset, use_clamp),
-                    value_stack_offset);
+  compiler.add_node(
+      NODE_SPECTRUM_MATH,
+      spectrum_math_type,
+      compiler.encode_uchar4(spectrum1_stack_offset, spectrum2_stack_offset, use_clamp),
+      spectrum_stack_offset);
 }
 
 void SpectrumMathNode::compile(OSLCompiler &compiler)
