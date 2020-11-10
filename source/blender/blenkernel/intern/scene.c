@@ -1030,6 +1030,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   BKE_previewimg_blend_write(writer, sce->preview);
   BKE_curvemapping_curves_blend_write(writer, &sce->r.mblur_shutter_curve);
+  BKE_curvemapping_curves_blend_write(writer, &sce->r.camera_response_function_curve);
+  BKE_curvemapping_curves_blend_write(writer, &sce->r.wavelength_importance_curve);
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
     BKE_view_layer_blend_write(writer, view_layer);
@@ -1352,6 +1354,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, sce->preview);
 
   BKE_curvemapping_blend_read(reader, &sce->r.mblur_shutter_curve);
+  BKE_curvemapping_blend_read(reader, &sce->r.camera_response_function_curve);
+  BKE_curvemapping_blend_read(reader, &sce->r.wavelength_importance_curve);
 
 #ifdef USE_COLLECTION_COMPAT_28
   /* this runs before the very first doversion */
