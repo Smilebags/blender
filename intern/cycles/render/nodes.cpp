@@ -959,7 +959,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   else
     assert(false);
 
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "sky_type");
   compiler.parameter("theta", sunsky.theta);
   compiler.parameter("phi", sunsky.phi);
   compiler.parameter_color("radiance",
@@ -1088,7 +1088,7 @@ void GradientTextureNode::compile(OSLCompiler &compiler)
 {
   tex_mapping.compile(compiler);
 
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "gradient_type");
   compiler.add(this, "node_gradient_texture");
 }
 
@@ -1498,7 +1498,7 @@ void MusgraveTextureNode::compile(OSLCompiler &compiler)
 {
   tex_mapping.compile(compiler);
 
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "musgrave_type");
   compiler.parameter(this, "dimensions");
   compiler.add(this, "node_musgrave_texture");
 }
@@ -1598,7 +1598,7 @@ void WaveTextureNode::compile(OSLCompiler &compiler)
 {
   tex_mapping.compile(compiler);
 
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "wave_type");
   compiler.parameter(this, "bands_direction");
   compiler.parameter(this, "rings_direction");
   compiler.parameter(this, "profile");
@@ -2044,7 +2044,7 @@ void MappingNode::compile(SVMCompiler &compiler)
 
 void MappingNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "mapping_type");
   compiler.add(this, "node_mapping");
 }
 
@@ -5015,7 +5015,7 @@ void MixNode::compile(SVMCompiler &compiler)
 
 void MixNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "mix_type");
   compiler.parameter(this, "use_clamp");
   compiler.add(this, "node_mix");
 }
@@ -6003,7 +6003,7 @@ void MapRangeNode::compile(SVMCompiler &compiler)
 
 void MapRangeNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "range_type");
   compiler.add(this, "node_map_range");
 }
 
@@ -6064,7 +6064,7 @@ void ClampNode::compile(SVMCompiler &compiler)
 
 void ClampNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "clamp_type");
   compiler.add(this, "node_clamp");
 }
 
@@ -6231,7 +6231,7 @@ void MathNode::compile(SVMCompiler &compiler)
 
 void MathNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "math_type");
   compiler.add(this, "node_math");
 }
 /* Spectrum Math */
@@ -6399,7 +6399,7 @@ void VectorMathNode::compile(SVMCompiler &compiler)
 
 void VectorMathNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "math_type");
   compiler.add(this, "node_vector_math");
 }
 
@@ -6455,7 +6455,7 @@ void VectorRotateNode::compile(SVMCompiler &compiler)
 
 void VectorRotateNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "rotate_type");
   compiler.parameter(this, "invert");
   compiler.add(this, "node_vector_rotate");
 }
@@ -6502,7 +6502,7 @@ void VectorTransformNode::compile(SVMCompiler &compiler)
 
 void VectorTransformNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "type");
+  compiler.parameter(this, "transform_type");
   compiler.parameter(this, "convert_from");
   compiler.parameter(this, "convert_to");
   compiler.add(this, "node_vector_transform");

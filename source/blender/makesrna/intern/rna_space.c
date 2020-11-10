@@ -2347,8 +2347,8 @@ static void rna_SpaceClipEditor_lock_selection_update(Main *UNUSED(bmain),
 {
   SpaceClip *sc = (SpaceClip *)(ptr->data);
 
-  sc->xlockof = 0.f;
-  sc->ylockof = 0.f;
+  sc->xlockof = 0.0f;
+  sc->ylockof = 0.0f;
 }
 
 static void rna_SpaceClipEditor_view_type_update(Main *UNUSED(bmain),
@@ -5175,15 +5175,6 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
                            "(Action and Shape Key Editors only)");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
 
-  prop = RNA_def_property(srna, "show_group_colors", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SACTION_NODRAWGCOLORS);
-  RNA_def_property_ui_text(
-      prop,
-      "Show Group Colors",
-      "Display groups and channels with colors matching their corresponding groups "
-      "(pose bones only currently)");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
-
   prop = RNA_def_property(srna, "show_interpolation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SACTION_SHOW_INTERPOLATION);
   RNA_def_property_ui_text(prop,
@@ -5349,14 +5340,6 @@ static void rna_def_space_graph(BlenderRNA *brna)
                            "Use High Quality Display",
                            "Display F-Curves using Anti-Aliasing and other fancy effects "
                            "(disable for better performance)");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
-
-  prop = RNA_def_property(srna, "show_group_colors", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SIPO_NODRAWGCOLORS);
-  RNA_def_property_ui_text(
-      prop,
-      "Show Group Colors",
-      "Display groups and channels with colors matching their corresponding groups");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
 
   prop = RNA_def_property(srna, "show_markers", PROP_BOOLEAN, PROP_NONE);

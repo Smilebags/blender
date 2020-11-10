@@ -33,7 +33,6 @@ typedef struct ImFileType {
   void (*exit)(void);
 
   int (*is_a)(const unsigned char *buf);
-  int (*is_a_filepath)(const char *filepath);
   int (*ftype)(const struct ImFileType *type, const struct ImBuf *ibuf);
   struct ImBuf *(*load)(const unsigned char *mem,
                         size_t size,
@@ -119,7 +118,7 @@ struct ImBuf *imb_bmp_decode(const unsigned char *mem,
 int imb_savebmp(struct ImBuf *ibuf, const char *filepath, int flags);
 
 /* cineon */
-int imb_is_cineon(const unsigned char *buf);
+int imb_is_a_cineon(const unsigned char *buf);
 int imb_save_cineon(struct ImBuf *buf, const char *filepath, int flags);
 struct ImBuf *imb_load_cineon(const unsigned char *mem,
                               size_t size,
@@ -127,7 +126,7 @@ struct ImBuf *imb_load_cineon(const unsigned char *mem,
                               char colorspace[IM_MAX_SPACE]);
 
 /* dpx */
-int imb_is_dpx(const unsigned char *buf);
+int imb_is_a_dpx(const unsigned char *buf);
 int imb_save_dpx(struct ImBuf *buf, const char *filepath, int flags);
 struct ImBuf *imb_load_dpx(const unsigned char *mem,
                            size_t size,
