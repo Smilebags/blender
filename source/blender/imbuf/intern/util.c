@@ -120,85 +120,73 @@ const char *imb_ext_audio[] = {
 /* Increased from 32 to 64 because of the bitmaps header size. */
 #define HEADER_SIZE 64
 
-static bool imb_ispic_read_header_from_filename(const char *name, unsigned char buf[HEADER_SIZE])
+static ssize_t imb_ispic_read_header_from_filepath(const char *filepath,
+                                                   unsigned char buf[HEADER_SIZE])
 {
   BLI_stat_t st;
   int fp;
 
-  BLI_assert(!BLI_path_is_rel(name));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
   if (UTIL_DEBUG) {
-    printf("%s: loading %s\n", __func__, name);
+    printf("%s: loading %s\n", __func__, filepath);
   }
 
-  if (BLI_stat(name, &st) == -1) {
-    return false;
+  if (BLI_stat(filepath, &st) == -1) {
+    return -1;
   }
   if (((st.st_mode) & S_IFMT) != S_IFREG) {
-    return false;
+    return -1;
   }
 
-  if ((fp = BLI_open(name, O_BINARY | O_RDONLY, 0)) == -1) {
-    return false;
+  if ((fp = BLI_open(filepath, O_BINARY | O_RDONLY, 0)) == -1) {
+    return -1;
   }
 
-  memset(buf, 0, HEADER_SIZE);
-  if (read(fp, buf, HEADER_SIZE) <= 0) {
-    close(fp);
-    return false;
-  }
+  const ssize_t size = read(fp, buf, HEADER_SIZE);
 
   close(fp);
-  return true;
+  return size;
 }
 
-int IMB_ispic_type_from_memory(const unsigned char *mem, const size_t mem_size)
+int IMB_ispic_type_from_memory(const unsigned char *buf, const size_t buf_size)
 {
-  unsigned char buf_static[HEADER_SIZE];
-  const unsigned char *buf;
-
-  if (mem_size >= HEADER_SIZE) {
-    buf = buf_static;
-  }
-  else {
-    memset(buf_static, 0, HEADER_SIZE);
-    memcpy(buf_static, mem, mem_size);
-    buf = buf_static;
-  }
-
   for (const ImFileType *type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
-    if (type->is_a) {
-      if (type->is_a(buf)) {
+    if (type->is_a != NULL) {
+      if (type->is_a(buf, buf_size)) {
         return type->filetype;
       }
     }
   }
 
-  return 0;
+  return IMB_FTYPE_NONE;
 }
 
-int IMB_ispic_type(const char *name)
+int IMB_ispic_type(const char *filepath)
 {
   unsigned char buf[HEADER_SIZE];
-  if (!imb_ispic_read_header_from_filename(name, buf)) {
-    return false;
+  const ssize_t buf_size = imb_ispic_read_header_from_filepath(filepath, buf);
+  if (buf_size <= 0) {
+    return IMB_FTYPE_NONE;
   }
-  return IMB_ispic_type_from_memory(buf, HEADER_SIZE);
+  return IMB_ispic_type_from_memory(buf, (size_t)buf_size);
 }
 
-bool IMB_ispic_type_matches(const char *name, int filetype)
+bool IMB_ispic_type_matches(const char *filepath, int filetype)
 {
   unsigned char buf[HEADER_SIZE];
-  if (!imb_ispic_read_header_from_filename(name, buf)) {
+  const ssize_t buf_size = imb_ispic_read_header_from_filepath(filepath, buf);
+  if (buf_size <= 0) {
     return false;
   }
 
-  for (const ImFileType *type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
-    if (type->filetype == filetype) {
-      /* Requesting to load a type that can't check it's own header doesn't make sense.
-       * Keep the check for developers. */
-      BLI_assert(type->is_a != NULL);
-      return type->is_a ? type->is_a(buf) : false;
+  const ImFileType *type = IMB_file_type_from_ftype(filetype);
+  if (type != NULL) {
+    /* Requesting to load a type that can't check it's own header doesn't make sense.
+     * Keep the check for developers. */
+    BLI_assert(type->is_a != NULL);
+    if (type->is_a != NULL) {
+      return type->is_a(buf, (size_t)buf_size);
     }
   }
   return false;
@@ -206,17 +194,17 @@ bool IMB_ispic_type_matches(const char *name, int filetype)
 
 #undef HEADER_SIZE
 
-bool IMB_ispic(const char *name)
+bool IMB_ispic(const char *filepath)
 {
-  return (IMB_ispic_type(name) != 0);
+  return (IMB_ispic_type(filepath) != IMB_FTYPE_NONE);
 }
 
-static int isavi(const char *name)
+static bool isavi(const char *filepath)
 {
 #ifdef WITH_AVI
-  return AVI_is_avi(name);
+  return AVI_is_avi(filepath);
 #else
-  (void)name;
+  (void)filepath;
   return false;
 #endif
 }
@@ -275,7 +263,7 @@ const char *IMB_ffmpeg_last_error(void)
   return ffmpeg_last_error;
 }
 
-static int isffmpeg(const char *filename)
+static int isffmpeg(const char *filepath)
 {
   AVFormatContext *pFormatCtx = NULL;
   unsigned int i;
@@ -283,7 +271,7 @@ static int isffmpeg(const char *filename)
   AVCodec *pCodec;
   AVCodecContext *pCodecCtx;
 
-  if (BLI_path_extension_check_n(filename,
+  if (BLI_path_extension_check_n(filepath,
                                  ".swf",
                                  ".jpg",
                                  ".jp2",
@@ -300,7 +288,7 @@ static int isffmpeg(const char *filename)
     return 0;
   }
 
-  if (avformat_open_input(&pFormatCtx, filename, NULL, NULL) != 0) {
+  if (avformat_open_input(&pFormatCtx, filepath, NULL, NULL) != 0) {
     if (UTIL_DEBUG) {
       fprintf(stderr, "isffmpeg: av_open_input_file failed\n");
     }
@@ -316,7 +304,7 @@ static int isffmpeg(const char *filename)
   }
 
   if (UTIL_DEBUG) {
-    av_dump_format(pFormatCtx, 0, filename, 0);
+    av_dump_format(pFormatCtx, 0, filepath, 0);
   }
 
   /* Find the first video stream */
@@ -355,83 +343,82 @@ static int isffmpeg(const char *filename)
 }
 #endif
 
-int imb_get_anim_type(const char *name)
+int imb_get_anim_type(const char *filepath)
 {
-  int type;
   BLI_stat_t st;
 
-  BLI_assert(!BLI_path_is_rel(name));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
   if (UTIL_DEBUG) {
-    printf("%s: %s\n", __func__, name);
+    printf("%s: %s\n", __func__, filepath);
   }
 
 #ifndef _WIN32
 #  ifdef WITH_FFMPEG
   /* stat test below fails on large files > 4GB */
-  if (isffmpeg(name)) {
+  if (isffmpeg(filepath)) {
     return ANIM_FFMPEG;
   }
 #  endif
-  if (BLI_stat(name, &st) == -1) {
+  if (BLI_stat(filepath, &st) == -1) {
     return 0;
   }
   if (((st.st_mode) & S_IFMT) != S_IFREG) {
     return 0;
   }
 
-  if (isavi(name)) {
+  if (isavi(filepath)) {
     return ANIM_AVI;
   }
 
-  if (ismovie(name)) {
+  if (ismovie(filepath)) {
     return ANIM_MOVIE;
   }
-#else
-  if (BLI_stat(name, &st) == -1) {
+#else /* !_WIN32 */
+  if (BLI_stat(filepath, &st) == -1) {
     return 0;
   }
   if (((st.st_mode) & S_IFMT) != S_IFREG) {
     return 0;
   }
 
-  if (ismovie(name)) {
+  if (ismovie(filepath)) {
     return ANIM_MOVIE;
   }
 #  ifdef WITH_FFMPEG
-  if (isffmpeg(name)) {
+  if (isffmpeg(filepath)) {
     return ANIM_FFMPEG;
   }
 #  endif
 
-  if (isavi(name)) {
+  if (isavi(filepath)) {
     return ANIM_AVI;
   }
-#endif
-  type = IMB_ispic(name);
-  if (type) {
+#endif /* !_WIN32 */
+
+  /* Assume a single image is part of an image sequence. */
+  if (IMB_ispic(filepath)) {
     return ANIM_SEQUENCE;
   }
 
   return ANIM_NONE;
 }
 
-bool IMB_isanim(const char *filename)
+bool IMB_isanim(const char *filepath)
 {
   int type;
 
-  type = imb_get_anim_type(filename);
+  type = imb_get_anim_type(filepath);
 
   return (type && type != ANIM_SEQUENCE);
 }
 
 bool IMB_isfloat(const ImBuf *ibuf)
 {
-  const ImFileType *type;
-
-  for (type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
-    if (type->ftype(type, ibuf)) {
-      return (type->flag & IM_FTYPE_FLOAT) != 0;
+  const ImFileType *type = IMB_file_type_from_ibuf(ibuf);
+  if (type != NULL) {
+    if (type->flag & IM_FTYPE_FLOAT) {
+      return true;
     }
   }
   return false;
