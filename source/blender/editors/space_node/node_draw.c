@@ -768,7 +768,8 @@ static bool is_socket_spectral(bNodeSocket *sock, bNode *node)
                                                                SH_NODE_TEX_SKY_SPECTRAL,
                                                                SH_NODE_BLACKBODY_SPECTRAL,
                                                                SH_NODE_GAUSSIAN_SPECTRUM)) &&
-          sock->type == SOCK_RGBA);
+          sock->type == SOCK_RGBA) ||
+         (sock->type == SOCK_VECTOR && STREQ(sock->name, "Subsurface Radius"));
 }
 
 /* Usual convention here would be node_socket_get_color(), but that's already used (for setting a
