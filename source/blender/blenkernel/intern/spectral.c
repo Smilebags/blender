@@ -79,10 +79,10 @@ void xyz_to_linear_srgb(const float *xyz, float *r_srgb)
 
 void BKE_curvemapping_init_cie1931(CurveMapping *cumap)
 {
-  const float curve_size = 80;
+  const float curve_size = 830 - 360 + 1;
 
-  for (int i = 0; i < 3; i++) {
-    CurveMap *curve_map = &cumap->cm[i];
+  for (int channel = 0; channel < 3; channel++) {
+    CurveMap *curve_map = &cumap->cm[channel];
 
     if (curve_map->curve) {
       MEM_freeN(curve_map->curve);
@@ -90,14 +90,14 @@ void BKE_curvemapping_init_cie1931(CurveMapping *cumap)
     curve_map->totpoint = curve_size;
     curve_map->curve = MEM_callocN(curve_map->totpoint * sizeof(CurveMapPoint), "curve points");
 
-    for (int j = 0; j < curve_size; j++) {
-      float wavelength = lerp(MIN_WAVELENGTH, MAX_WAVELENGTH, j / (curve_size - 1.0f));
+    for (int i = 0; i < curve_size; i++) {
+      float wavelength = i + 360;
       float xyz[3];
       wavelength_to_xyz(wavelength, xyz);
 
-      curve_map->curve[j].x = wavelength;
-      curve_map->curve[j].y = xyz[i];
-      curve_map->curve[j].flag |= CUMA_HANDLE_VECTOR;
+      curve_map->curve[i].x = wavelength;
+      curve_map->curve[i].y = wavelength_xyz_lookup[i][channel];
+      curve_map->curve[i].flag |= CUMA_HANDLE_VECTOR;
     }
   }
 
