@@ -523,7 +523,7 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
   vector<float> wavelength_importance(WAVELENGTH_IMPORTANCE_TABLE_SIZE);
 
   for (int i = 0; i < WAVELENGTH_IMPORTANCE_TABLE_SIZE; i++) {
-    wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]);
+    wavelength_importance[i] = reduce_add_f(camera_response_function_curve[i]) + 0.1;
     if (use_custom_wavelength_importance) {
       wavelength_importance[i] *= wavelength_importance_curve[i];
     }
