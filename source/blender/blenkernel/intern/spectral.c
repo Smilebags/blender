@@ -59,13 +59,13 @@ void wavelength_to_xyz(const float wavelength, float *r_xyz)
 
 void wavelength_to_xyz_from_crf(CurveMapping *cumap, const float wavelength, float *r_xyz)
 {
-  if (cumap && cumap->cm[0].table && cumap->cm[1].table && cumap->cm[2].table) {
-    float wavelengths[3] = {wavelength, wavelength, wavelength};
-    BKE_curvemapping_evaluate3F(cumap, r_xyz, wavelengths);
-  }
-  else {
+  if (!cumap) {
     r_xyz[0] = r_xyz[1] = r_xyz[2] = 0.0f;
   }
+
+  float wavelengths[3] = {wavelength, wavelength, wavelength};
+  BKE_curvemapping_init(cumap);
+  BKE_curvemapping_evaluate3F(cumap, r_xyz, wavelengths);
 }
 
 void xyz_to_linear_srgb(const float *xyz, float *r_srgb)
