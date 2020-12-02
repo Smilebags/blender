@@ -870,13 +870,15 @@ class VIEW3D_MT_editor_menus(Menu):
 
         if gp_edit:
             if obj and obj.mode == 'PAINT_GPENCIL':
-                layout.menu("VIEW3D_MT_paint_gpencil")
+                layout.menu("VIEW3D_MT_draw_gpencil")
             elif obj and obj.mode == 'EDIT_GPENCIL':
                 layout.menu("VIEW3D_MT_edit_gpencil")
                 layout.menu("VIEW3D_MT_edit_gpencil_stroke")
                 layout.menu("VIEW3D_MT_edit_gpencil_point")
             elif obj and obj.mode == 'WEIGHT_GPENCIL':
                 layout.menu("VIEW3D_MT_weight_gpencil")
+            if obj and obj.mode == 'VERTEX_GPENCIL':
+                layout.menu("VIEW3D_MT_paint_gpencil")
 
         elif edit_object:
             layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
@@ -1820,6 +1822,15 @@ class VIEW3D_MT_select_edit_armature(Menu):
         layout.operator("object.select_pattern", text="Select Pattern...")
 
 
+class VIEW3D_MT_paint_gpencil(Menu):
+    bl_label = "Paint"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("gpencil.stroke_reset_vertex_color")
+
+
 class VIEW3D_MT_select_gpencil(Menu):
     bl_label = "Select"
 
@@ -2130,8 +2141,7 @@ class VIEW3D_MT_add(Menu):
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
         if context.preferences.experimental.use_new_hair_type:
             layout.operator("object.hair_add", text="Hair", icon='OUTLINER_OB_HAIR')
-        if context.preferences.experimental.use_new_point_cloud_type:
-            layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
+        layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", icon='OUTLINER_OB_VOLUME')
         layout.operator_menu_enum("object.gpencil_add", "type", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
 
@@ -4853,7 +4863,7 @@ class VIEW3D_MT_gpencil_simplify(Menu):
         layout.operator("gpencil.stroke_sample", text="Sample")
 
 
-class VIEW3D_MT_paint_gpencil(Menu):
+class VIEW3D_MT_draw_gpencil(Menu):
     bl_label = "Draw"
 
     def draw(self, _context):
@@ -7588,6 +7598,7 @@ classes = (
     VIEW3D_MT_edit_mesh_split,
     VIEW3D_MT_edit_mesh_showhide,
     VIEW3D_MT_paint_gpencil,
+    VIEW3D_MT_draw_gpencil,
     VIEW3D_MT_assign_material,
     VIEW3D_MT_edit_gpencil,
     VIEW3D_MT_edit_gpencil_stroke,
