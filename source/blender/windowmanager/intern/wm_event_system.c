@@ -1204,7 +1204,7 @@ static wmOperator *wm_operator_create(wmWindowManager *wm,
       RNA_STRUCT_END;
     }
     else {
-      LISTBASE_FOREACH (wmOperatorTypeMacro *, macro, &op->opm->type->macro) {
+      LISTBASE_FOREACH (wmOperatorTypeMacro *, macro, &ot->macro) {
         wmOperatorType *otm = WM_operatortype_find(macro->idname, 0);
         wmOperator *opm = wm_operator_create(wm, otm, macro->ptr, NULL);
 
@@ -2293,6 +2293,11 @@ static int wm_handler_fileselect_do(bContext *C,
       }
 
       wm_handler_op_context(C, handler, ctx_win->eventstate);
+      ScrArea *handler_area = CTX_wm_area(C);
+      /* Make sure new context area is ready, the operator callback may operate on it. */
+      if (handler_area) {
+        ED_area_do_refresh(C, handler_area);
+      }
 
       /* Needed for #UI_popup_menu_reports. */
 

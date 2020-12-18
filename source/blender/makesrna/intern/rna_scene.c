@@ -1812,7 +1812,9 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
 static char *rna_SceneRenderView_path(PointerRNA *ptr)
 {
   SceneRenderView *srv = (SceneRenderView *)ptr->data;
-  return BLI_sprintfN("render.views[\"%s\"]", srv->name);
+  char srv_name_esc[sizeof(srv->name) * 2];
+  BLI_str_escape(srv_name_esc, srv->name, sizeof(srv_name_esc));
+  return BLI_sprintfN("render.views[\"%s\"]", srv_name_esc);
 }
 
 static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
@@ -2196,6 +2198,11 @@ static char *rna_UnifiedPaintSettings_path(PointerRNA *UNUSED(ptr))
 static char *rna_CurvePaintSettings_path(PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings.curve_paint_settings");
+}
+
+static char *rna_SequencerToolSettings_path(PointerRNA *UNUSED(ptr))
+{
+  return BLI_strdup("tool_settings.sequencer_tool_settings");
 }
 
 /* generic function to recalc geometry */
@@ -3582,6 +3589,38 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "custom_bevel_profile_preset");
   RNA_def_property_struct_type(prop, "CurveProfile");
   RNA_def_property_ui_text(prop, "Curve Profile Widget", "Used for defining a profile's path");
+
+  /* Sequencer tool settings */
+  prop = RNA_def_property(srna, "sequencer_tool_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "SequencerToolSettings");
+  RNA_def_property_ui_text(prop, "Sequencer Tool Settings", NULL);
+}
+
+static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem scale_fit_methods[] = {
+      {SEQ_SCALE_TO_FIT, "FIT", 0, "Scale to Fit", "Scale image to fit within the canvas"},
+      {SEQ_SCALE_TO_FILL, "FILL", 0, "Scale to Fill", "Scale image to completely fill the canvas"},
+      {SEQ_STRETCH_TO_FILL, "STRETCH", 0, "Stretch to Fill", "Stretch image to fill the canvas"},
+      {SEQ_USE_ORIGINAL_SIZE,
+       "ORIGINAL",
+       0,
+       "Use Original Size",
+       "Keep image at its original size"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  srna = RNA_def_struct(brna, "SequencerToolSettings", NULL);
+  RNA_def_struct_path_func(srna, "rna_SequencerToolSettings_path");
+  RNA_def_struct_ui_text(srna, "Sequencer Tool Settings", "");
+
+  prop = RNA_def_property(srna, "fit_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, scale_fit_methods);
+  RNA_def_property_ui_text(prop, "Fit Method", "Scale fit method");
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA *brna)
@@ -3995,15 +4034,9 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ViewLayerEEVEE", NULL);
   RNA_def_struct_ui_text(srna, "Eevee Settings", "View layer settings for Eevee");
 
-  prop = RNA_def_property(srna, "use_pass_volume_scatter", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "render_passes", EEVEE_RENDER_PASS_VOLUME_SCATTER);
-  RNA_def_property_ui_text(prop, "Volume Scatter", "Deliver volume scattering pass");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
-
-  prop = RNA_def_property(srna, "use_pass_volume_transmittance", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, NULL, "render_passes", EEVEE_RENDER_PASS_VOLUME_TRANSMITTANCE);
-  RNA_def_property_ui_text(prop, "Volume Transmittance", "Deliver volume transmittance pass");
+  prop = RNA_def_property(srna, "use_pass_volume_direct", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "render_passes", EEVEE_RENDER_PASS_VOLUME_LIGHT);
+  RNA_def_property_ui_text(prop, "Volume Light", "Deliver volume direct light pass");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 
   prop = RNA_def_property(srna, "use_pass_bloom", PROP_BOOLEAN, PROP_NONE);
@@ -4207,7 +4240,7 @@ void rna_def_view_layer_common(StructRNA *srna, const bool scene)
   prop = RNA_def_property(srna, "use_ztransp", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "layflag", SCE_LAY_ZTRA);
   RNA_def_property_ui_text(
-      prop, "ZTransp", "Render Z-Transparent faces in this Layer (on top of Solid and Halos)");
+      prop, "Z-Transparent", "Render Z-transparent faces in this layer (on top of Solid and Halos)");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
   }
@@ -7993,6 +8026,7 @@ void RNA_def_scene(BlenderRNA *brna)
   rna_def_gpencil_interpolate(brna);
   rna_def_unified_paint_settings(brna);
   rna_def_curve_paint_settings(brna);
+  rna_def_sequencer_tool_settings(brna);
   rna_def_statvis(brna);
   rna_def_unit_settings(brna);
   rna_def_scene_image_format_data(brna);
