@@ -2347,7 +2347,7 @@ classes = (
     CYCLES_RENDER_PT_motion_blur_curve,
     CYCLES_RENDER_PT_spectral_rendering,
     CYCLES_RENDER_PT_spectral_rendering_crf,
-    # CYCLES_RENDER_PT_spectral_rendering_wavelength_importance,
+    CYCLES_RENDER_PT_spectral_rendering_wavelength_importance,
     CYCLES_RENDER_PT_film,
     CYCLES_RENDER_PT_film_pixel_filter,
     CYCLES_RENDER_PT_film_transparency,
