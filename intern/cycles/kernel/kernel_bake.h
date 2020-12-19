@@ -494,8 +494,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
 {
   ShaderData sd;
   PathState state = {0};
-  /* TODO(Spectral Cycles): Looks like Sobol generator cannot be used here, causes crash. */
-  //   state.wavelengths = generate_wavelengths(kg, &state);
+  state.wavelengths = generate_wavelengths(kg, &state);
   uint4 in = input[i];
 
   /* setup ray */
@@ -522,12 +521,8 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
 
-  /* TODO(Spectral Cycles): Looks like CMFs and other kernel tables are not available here, causes
-   * crash. */
-  //   float3 color = wavelength_intensities_to_linear(
-  //       kg, shader_background_eval(&sd), state.wavelengths);
-
-  float3 color = make_float3(0.0f, 1.0f, 0.0f);
+  float3 color = wavelength_intensities_to_linear(
+      kg, shader_background_eval(&sd), state.wavelengths);
 
   /* write output */
   output[i] += make_float4(color.x, color.y, color.z, 0.0f);
