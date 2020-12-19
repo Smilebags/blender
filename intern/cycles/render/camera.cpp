@@ -529,6 +529,23 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
     }
   }
 
+  /* Normalize wavelength importance curve so that the brightness of the render would always remain
+   * the same. The area under the curve must be equal for both wavelength importance and CRF
+   * curves. */
+  float crf_area = 0.0f;
+  float wavelength_importance_area = 0.0f;
+  for (int i = 0; i < WAVELENGTH_IMPORTANCE_TABLE_SIZE - 1; i++) {
+    crf_area += (reduce_add_f(camera_response_function_curve[i]) +
+                 reduce_add_f(camera_response_function_curve[i + 1])) /
+                2.0f;
+    wavelength_importance_area += (wavelength_importance[i] + wavelength_importance[i + 1]) / 2.0f;
+  }
+
+  const float factor = crf_area / wavelength_importance_area;
+  for (int i = 0; i < WAVELENGTH_IMPORTANCE_TABLE_SIZE; i++) {
+    wavelength_importance[i] *= factor;
+  }
+
   wavelength_importance_offset = scene->lookup_tables->add_table(dscene, wavelength_importance);
   kernel_camera.wavelength_importance_offset = (int)wavelength_importance_offset;
 
