@@ -15,9 +15,9 @@ ccl_device_inline bool shadow_intersections_has_remaining(const uint num_hits)
 }
 
 #ifdef __TRANSPARENT_SHADOWS__
-ccl_device_inline float3 integrate_transparent_surface_shadow(KernelGlobals kg,
-                                                              IntegratorShadowState state,
-                                                              const int hit)
+ccl_device_inline SceneLinearColor integrate_transparent_surface_shadow(KernelGlobals kg,
+                                                                     IntegratorShadowState state,
+                                                                     const int hit)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_SURFACE);
 
@@ -58,7 +58,7 @@ ccl_device_inline void integrate_transparent_volume_shadow(KernelGlobals kg,
                                                            IntegratorShadowState state,
                                                            const int hit,
                                                            const int num_recorded_hits,
-                                                           ccl_private float3 *ccl_restrict
+                                                           ccl_private SceneLinearColor *ccl_restrict
                                                                throughput)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_VOLUME);
@@ -104,7 +104,7 @@ ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
     if (hit < num_recorded_hits || !shadow_intersections_has_remaining(num_hits)) {
 #  ifdef __VOLUME__
       if (!integrator_state_shadow_volume_stack_is_empty(kg, state)) {
-        float3 throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
+        SceneLinearColor throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
         integrate_transparent_volume_shadow(kg, state, hit, num_recorded_hits, &throughput);
         if (is_zero(throughput)) {
           return true;
@@ -117,8 +117,8 @@ ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
 
     /* Surface shaders. */
     if (hit < num_recorded_hits) {
-      const float3 shadow = integrate_transparent_surface_shadow(kg, state, hit);
-      const float3 throughput = INTEGRATOR_STATE(state, shadow_path, throughput) * shadow;
+      const SceneLinearColor shadow = integrate_transparent_surface_shadow(kg, state, hit);
+      const SceneLinearColor throughput = INTEGRATOR_STATE(state, shadow_path, throughput) * shadow;
       if (is_zero(throughput)) {
         return true;
       }

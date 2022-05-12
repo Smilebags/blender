@@ -17,8 +17,8 @@
 CCL_NAMESPACE_BEGIN
 
 typedef struct MicrofacetExtra {
-  float3 color, cspec0;
-  float3 fresnel_color;
+  SceneLinearColor color, cspec0;
+  SceneLinearColor fresnel_color;
   float clearcoat;
 } MicrofacetExtra;
 
@@ -233,11 +233,11 @@ ccl_device_forceinline float3 microfacet_sample_stretched(KernelGlobals kg,
  *
  * Else it is simply white
  */
-ccl_device_forceinline float3 reflection_color(ccl_private const MicrofacetBsdf *bsdf,
-                                               float3 L,
-                                               float3 H)
+ccl_device_forceinline SceneLinearColor reflection_color(ccl_private const MicrofacetBsdf *bsdf,
+                                                      float3 L,
+                                                      float3 H)
 {
-  float3 F = make_float3(1.0f, 1.0f, 1.0f);
+  SceneLinearColor F = one_scene_linear_color();
   bool use_fresnel = (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_FRESNEL_ID ||
                       bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_CLEARCOAT_ID);
   if (use_fresnel) {
@@ -325,7 +325,7 @@ ccl_device int bsdf_microfacet_ggx_fresnel_setup(ccl_private MicrofacetBsdf *bsd
 ccl_device int bsdf_microfacet_ggx_clearcoat_setup(ccl_private MicrofacetBsdf *bsdf,
                                                    ccl_private const ShaderData *sd)
 {
-  bsdf->extra->cspec0 = saturate3(bsdf->extra->cspec0);
+  bsdf->extra->cspec0 = saturatef(bsdf->extra->cspec0);
 
   bsdf->alpha_x = saturatef(bsdf->alpha_x);
   bsdf->alpha_y = bsdf->alpha_x;
@@ -357,10 +357,10 @@ ccl_device void bsdf_microfacet_ggx_blur(ccl_private ShaderClosure *sc, float ro
   bsdf->alpha_y = fmaxf(roughness, bsdf->alpha_y);
 }
 
-ccl_device float3 bsdf_microfacet_ggx_eval_reflect(ccl_private const ShaderClosure *sc,
-                                                   const float3 I,
-                                                   const float3 omega_in,
-                                                   ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_microfacet_ggx_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                          const float3 I,
+                                                          const float3 omega_in,
+                                                          ccl_private float *pdf)
 {
   ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
   float alpha_x = bsdf->alpha_x;
@@ -451,12 +451,12 @@ ccl_device float3 bsdf_microfacet_ggx_eval_reflect(ccl_private const ShaderClosu
     /* eq. 20 */
     float common = D * 0.25f / cosNO;
 
-    float3 F = reflection_color(bsdf, omega_in, m);
+    SceneLinearColor F = reflection_color(bsdf, omega_in, m);
     if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_CLEARCOAT_ID) {
       F *= 0.25f * bsdf->extra->clearcoat;
     }
 
-    float3 out = F * G * common;
+    SceneLinearColor out = F * G * common;
 
     /* eq. 2 in distribution of visible normals sampling
      * `pm = Dw = G1o * dot(m, I) * D / dot(N, I);` */
@@ -469,13 +469,13 @@ ccl_device float3 bsdf_microfacet_ggx_eval_reflect(ccl_private const ShaderClosu
     return out;
   }
 
-  return make_float3(0.0f, 0.0f, 0.0f);
+  return zero_scene_linear_color();
 }
 
-ccl_device float3 bsdf_microfacet_ggx_eval_transmit(ccl_private const ShaderClosure *sc,
-                                                    const float3 I,
-                                                    const float3 omega_in,
-                                                    ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_microfacet_ggx_eval_transmit(ccl_private const ShaderClosure *sc,
+                                                           const float3 I,
+                                                           const float3 omega_in,
+                                                           ccl_private float *pdf)
 {
   ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
   float alpha_x = bsdf->alpha_x;
@@ -530,7 +530,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(ccl_private const ShaderClos
   float out = G * fabsf(cosHI * cosHO) * common;
   *pdf = G1o * fabsf(cosHO * cosHI) * common;
 
-  return make_float3(out, out, out);
+  return make_scene_linear_color(out);
 }
 
 ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
@@ -541,7 +541,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
                                           float3 dIdy,
                                           float randu,
                                           float randv,
-                                          ccl_private float3 *eval,
+                                          ccl_private SceneLinearColor *eval,
                                           ccl_private float3 *omega_in,
                                           ccl_private float3 *domega_in_dx,
                                           ccl_private float3 *domega_in_dy,
@@ -588,7 +588,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
           if (alpha_x * alpha_y <= 1e-7f) {
             /* some high number for MIS */
             *pdf = 1e6f;
-            *eval = make_float3(1e6f, 1e6f, 1e6f);
+            *eval = make_scene_linear_color(1e6f);
 
             bool use_fresnel = (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_FRESNEL_ID ||
                                 bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_CLEARCOAT_ID);
@@ -664,7 +664,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
             float common = (G1o * D) * 0.25f / cosNO;
             *pdf = common;
 
-            float3 F = reflection_color(bsdf, *omega_in, m);
+            SceneLinearColor F = reflection_color(bsdf, *omega_in, m);
 
             *eval = G1i * common * F;
           }
@@ -722,7 +722,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
         if (alpha_x * alpha_y <= 1e-7f || fabsf(m_eta - 1.0f) < 1e-4f) {
           /* some high number for MIS */
           *pdf = 1e6f;
-          *eval = make_float3(1e6f, 1e6f, 1e6f);
+          *eval = make_scene_linear_color(1e6f);
           label = LABEL_TRANSMIT | LABEL_SINGULAR;
         }
         else {
@@ -835,10 +835,10 @@ ccl_device_inline float bsdf_beckmann_aniso_G1(
   return ((2.181f * a + 3.535f) * a) / ((2.577f * a + 2.276f) * a + 1.0f);
 }
 
-ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(ccl_private const ShaderClosure *sc,
-                                                        const float3 I,
-                                                        const float3 omega_in,
-                                                        ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_microfacet_beckmann_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                               const float3 I,
+                                                               const float3 omega_in,
+                                                               ccl_private float *pdf)
 {
   ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
   float alpha_x = bsdf->alpha_x;
@@ -910,16 +910,17 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(ccl_private const Shader
      * pdf = pm * 0.25 / dot(m, I); */
     *pdf = G1o * common;
 
-    return make_float3(out, out, out);
+    return make_scene_linear_color(out);
   }
 
-  return make_float3(0.0f, 0.0f, 0.0f);
+  return zero_scene_linear_color();
 }
 
-ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(ccl_private const ShaderClosure *sc,
-                                                         const float3 I,
-                                                         const float3 omega_in,
-                                                         ccl_private float *pdf)
+ccl_device SceneLinearColor
+bsdf_microfacet_beckmann_eval_transmit(ccl_private const ShaderClosure *sc,
+                                       const float3 I,
+                                       const float3 omega_in,
+                                       ccl_private float *pdf)
 {
   ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
   float alpha_x = bsdf->alpha_x;
@@ -971,7 +972,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(ccl_private const Shade
   float out = G * fabsf(cosHI * cosHO) * common;
   *pdf = G1o * fabsf(cosHO * cosHI) * common;
 
-  return make_float3(out, out, out);
+  return make_scene_linear_color(out);
 }
 
 ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
@@ -982,7 +983,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
                                                float3 dIdy,
                                                float randu,
                                                float randv,
-                                               ccl_private float3 *eval,
+                                               ccl_private SceneLinearColor *eval,
                                                ccl_private float3 *omega_in,
                                                ccl_private float3 *domega_in_dx,
                                                ccl_private float3 *domega_in_dy,
@@ -1028,7 +1029,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
           if (alpha_x * alpha_y <= 1e-7f) {
             /* some high number for MIS */
             *pdf = 1e6f;
-            *eval = make_float3(1e6f, 1e6f, 1e6f);
+            *eval = make_scene_linear_color(1e6f);
             label = LABEL_REFLECT | LABEL_SINGULAR;
           }
           else {
@@ -1074,7 +1075,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
             float out = G * common;
             *pdf = G1o * common;
 
-            *eval = make_float3(out, out, out);
+            *eval = make_scene_linear_color(out);
           }
 
 #ifdef __RAY_DIFFERENTIALS__
@@ -1126,7 +1127,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
         if (alpha_x * alpha_y <= 1e-7f || fabsf(m_eta - 1.0f) < 1e-4f) {
           /* some high number for MIS */
           *pdf = 1e6f;
-          *eval = make_float3(1e6f, 1e6f, 1e6f);
+          *eval = make_scene_linear_color(1e6f);
           label = LABEL_TRANSMIT | LABEL_SINGULAR;
         }
         else {

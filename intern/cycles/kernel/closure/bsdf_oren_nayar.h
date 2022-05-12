@@ -15,10 +15,10 @@ typedef struct OrenNayarBsdf {
 
 static_assert(sizeof(ShaderClosure) >= sizeof(OrenNayarBsdf), "OrenNayarBsdf is too large!");
 
-ccl_device float3 bsdf_oren_nayar_get_intensity(ccl_private const ShaderClosure *sc,
-                                                float3 n,
-                                                float3 v,
-                                                float3 l)
+ccl_device SceneLinearColor bsdf_oren_nayar_get_intensity(ccl_private const ShaderClosure *sc,
+                                                       float3 n,
+                                                       float3 v,
+                                                       float3 l)
 {
   ccl_private const OrenNayarBsdf *bsdf = (ccl_private const OrenNayarBsdf *)sc;
   float nl = max(dot(n, l), 0.0f);
@@ -28,7 +28,7 @@ ccl_device float3 bsdf_oren_nayar_get_intensity(ccl_private const ShaderClosure 
   if (t > 0.0f)
     t /= max(nl, nv) + FLT_MIN;
   float is = nl * (bsdf->a + bsdf->b * t);
-  return make_float3(is, is, is);
+  return make_scene_linear_color(is);
 }
 
 ccl_device int bsdf_oren_nayar_setup(ccl_private OrenNayarBsdf *bsdf)
@@ -47,10 +47,10 @@ ccl_device int bsdf_oren_nayar_setup(ccl_private OrenNayarBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_oren_nayar_eval_reflect(ccl_private const ShaderClosure *sc,
-                                               const float3 I,
-                                               const float3 omega_in,
-                                               ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_oren_nayar_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                      const float3 I,
+                                                      const float3 omega_in,
+                                                      ccl_private float *pdf)
 {
   ccl_private const OrenNayarBsdf *bsdf = (ccl_private const OrenNayarBsdf *)sc;
   if (dot(bsdf->N, omega_in) > 0.0f) {
@@ -79,7 +79,7 @@ ccl_device int bsdf_oren_nayar_sample(ccl_private const ShaderClosure *sc,
                                       float3 dIdy,
                                       float randu,
                                       float randv,
-                                      ccl_private float3 *eval,
+                                      ccl_private SceneLinearColor *eval,
                                       ccl_private float3 *omega_in,
                                       ccl_private float3 *domega_in_dx,
                                       ccl_private float3 *domega_in_dy,
@@ -99,7 +99,7 @@ ccl_device int bsdf_oren_nayar_sample(ccl_private const ShaderClosure *sc,
   }
   else {
     *pdf = 0.0f;
-    *eval = make_float3(0.0f, 0.0f, 0.0f);
+    *eval = zero_scene_linear_color();
   }
 
   return LABEL_REFLECT | LABEL_DIFFUSE;

@@ -55,7 +55,7 @@ ccl_device int bsdf_diffuse_sample(ccl_private const ShaderClosure *sc,
                                    float3 dIdy,
                                    float randu,
                                    float randv,
-                                   ccl_private float3 *eval,
+                                   ccl_private SceneLinearColor *eval,
                                    ccl_private float3 *omega_in,
                                    ccl_private float3 *domega_in_dx,
                                    ccl_private float3 *domega_in_dy,
@@ -68,7 +68,7 @@ ccl_device int bsdf_diffuse_sample(ccl_private const ShaderClosure *sc,
   sample_cos_hemisphere(N, randu, randv, omega_in, pdf);
 
   if (dot(Ng, *omega_in) > 0.0f) {
-    *eval = make_float3(*pdf, *pdf, *pdf);
+    *eval = make_scene_linear_color(*pdf);
 #ifdef __RAY_DIFFERENTIALS__
     // TODO: find a better approximation for the diffuse bounce
     *domega_in_dx = (2 * dot(N, dIdx)) * N - dIdx;
@@ -119,7 +119,7 @@ ccl_device int bsdf_translucent_sample(ccl_private const ShaderClosure *sc,
                                        float3 dIdy,
                                        float randu,
                                        float randv,
-                                       ccl_private float3 *eval,
+                                       ccl_private SceneLinearColor *eval,
                                        ccl_private float3 *omega_in,
                                        ccl_private float3 *domega_in_dx,
                                        ccl_private float3 *domega_in_dy,
@@ -132,7 +132,7 @@ ccl_device int bsdf_translucent_sample(ccl_private const ShaderClosure *sc,
   // distribution over the hemisphere
   sample_cos_hemisphere(-N, randu, randv, omega_in, pdf);
   if (dot(Ng, *omega_in) < 0) {
-    *eval = make_float3(*pdf, *pdf, *pdf);
+    *eval = make_scene_linear_color(*pdf);
 #ifdef __RAY_DIFFERENTIALS__
     // TODO: find a better approximation for the diffuse bounce
     *domega_in_dx = -((2 * dot(N, dIdx)) * N - dIdx);

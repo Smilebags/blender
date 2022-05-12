@@ -7,7 +7,7 @@ CCL_NAMESPACE_BEGIN
 
 /* VOLUME EXTINCTION */
 
-ccl_device void volume_extinction_setup(ccl_private ShaderData *sd, float3 weight)
+ccl_device void volume_extinction_setup(ccl_private ShaderData *sd, SceneLinearColor weight)
 {
   if (sd->flag & SD_EXTINCTION) {
     sd->closure_transparent_extinction += weight;
@@ -48,10 +48,11 @@ ccl_device int volume_henyey_greenstein_setup(ccl_private HenyeyGreensteinVolume
   return SD_SCATTER;
 }
 
-ccl_device float3 volume_henyey_greenstein_eval_phase(ccl_private const ShaderVolumeClosure *svc,
-                                                      const float3 I,
-                                                      float3 omega_in,
-                                                      ccl_private float *pdf)
+ccl_device SceneLinearColor
+volume_henyey_greenstein_eval_phase(ccl_private const ShaderVolumeClosure *svc,
+                                    const float3 I,
+                                    float3 omega_in,
+                                    ccl_private float *pdf)
 {
   float g = svc->g;
 
@@ -64,7 +65,7 @@ ccl_device float3 volume_henyey_greenstein_eval_phase(ccl_private const ShaderVo
     *pdf = single_peaked_henyey_greenstein(cos_theta, g);
   }
 
-  return make_float3(*pdf, *pdf, *pdf);
+  return make_scene_linear_color(*pdf);
 }
 
 ccl_device float3
@@ -105,7 +106,7 @@ ccl_device int volume_henyey_greenstein_sample(ccl_private const ShaderVolumeClo
                                                float3 dIdy,
                                                float randu,
                                                float randv,
-                                               ccl_private float3 *eval,
+                                               ccl_private SceneLinearColor *eval,
                                                ccl_private float3 *omega_in,
                                                ccl_private float3 *domega_in_dx,
                                                ccl_private float3 *domega_in_dy,
@@ -115,7 +116,7 @@ ccl_device int volume_henyey_greenstein_sample(ccl_private const ShaderVolumeClo
 
   /* note that I points towards the viewer and so is used negated */
   *omega_in = henyey_greenstrein_sample(-I, g, randu, randv, pdf);
-  *eval = make_float3(*pdf, *pdf, *pdf); /* perfect importance sampling */
+  *eval = make_scene_linear_color(*pdf); /* perfect importance sampling */
 
 #ifdef __RAY_DIFFERENTIALS__
   /* todo: implement ray differential estimation */
@@ -128,10 +129,10 @@ ccl_device int volume_henyey_greenstein_sample(ccl_private const ShaderVolumeClo
 
 /* VOLUME CLOSURE */
 
-ccl_device float3 volume_phase_eval(ccl_private const ShaderData *sd,
-                                    ccl_private const ShaderVolumeClosure *svc,
-                                    float3 omega_in,
-                                    ccl_private float *pdf)
+ccl_device SceneLinearColor volume_phase_eval(ccl_private const ShaderData *sd,
+                                           ccl_private const ShaderVolumeClosure *svc,
+                                           float3 omega_in,
+                                           ccl_private float *pdf)
 {
   return volume_henyey_greenstein_eval_phase(svc, sd->I, omega_in, pdf);
 }
@@ -140,7 +141,7 @@ ccl_device int volume_phase_sample(ccl_private const ShaderData *sd,
                                    ccl_private const ShaderVolumeClosure *svc,
                                    float randu,
                                    float randv,
-                                   ccl_private float3 *eval,
+                                   ccl_private SceneLinearColor *eval,
                                    ccl_private float3 *omega_in,
                                    ccl_private differential3 *domega_in,
                                    ccl_private float *pdf)
@@ -164,34 +165,34 @@ ccl_device int volume_phase_sample(ccl_private const ShaderData *sd,
  * unnecessary work in volumes and subsurface scattering. */
 #define VOLUME_THROUGHPUT_EPSILON 1e-6f
 
-ccl_device float3 volume_color_transmittance(float3 sigma, float t)
+ccl_device SceneLinearColor volume_color_transmittance(SceneLinearColor sigma, float t)
 {
   return exp3(-sigma * t);
 }
 
-ccl_device float volume_channel_get(float3 value, int channel)
+ccl_device float volume_channel_get(SceneLinearColor value, int channel)
 {
-  return (channel == 0) ? value.x : ((channel == 1) ? value.y : value.z);
+  return GET_CHANNEL(value, channel);
 }
 
-ccl_device int volume_sample_channel(float3 albedo,
-                                     float3 throughput,
+ccl_device int volume_sample_channel(SceneLinearColor albedo,
+                                     SceneLinearColor throughput,
                                      float rand,
-                                     ccl_private float3 *pdf)
+                                     ccl_private SceneLinearColor *pdf)
 {
   /* Sample color channel proportional to throughput and single scattering
    * albedo, to significantly reduce noise with many bounce, following:
    *
    * "Practical and Controllable Subsurface Scattering for Production Path
    *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
-  float3 weights = fabs(throughput * albedo);
+  SceneLinearColor weights = fabs(throughput * albedo);
   float sum_weights = weights.x + weights.y + weights.z;
 
   if (sum_weights > 0.0f) {
     *pdf = weights / sum_weights;
   }
   else {
-    *pdf = make_float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
+    *pdf = make_scene_linear_color(1.0f / 3.0f);
   }
 
   if (rand < pdf->x) {

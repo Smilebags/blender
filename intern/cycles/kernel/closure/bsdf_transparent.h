@@ -11,7 +11,7 @@
 CCL_NAMESPACE_BEGIN
 
 ccl_device void bsdf_transparent_setup(ccl_private ShaderData *sd,
-                                       const float3 weight,
+                                       const SceneLinearColor weight,
                                        uint32_t path_flag)
 {
   /* Check cutoff weight. */
@@ -84,7 +84,7 @@ ccl_device int bsdf_transparent_sample(ccl_private const ShaderClosure *sc,
                                        float3 dIdy,
                                        float randu,
                                        float randv,
-                                       ccl_private float3 *eval,
+                                       ccl_private SceneLinearColor *eval,
                                        ccl_private float3 *omega_in,
                                        ccl_private float3 *domega_in_dx,
                                        ccl_private float3 *domega_in_dy,
@@ -97,7 +97,7 @@ ccl_device int bsdf_transparent_sample(ccl_private const ShaderClosure *sc,
   *domega_in_dy = -dIdy;
 #endif
   *pdf = 1;
-  *eval = make_float3(1, 1, 1);
+  *eval = one_scene_linear_color();
   return LABEL_TRANSMIT | LABEL_TRANSPARENT;
 }
 

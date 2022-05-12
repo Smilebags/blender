@@ -65,7 +65,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals kg,
   shader_eval_surface<KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT &
                       ~(KERNEL_FEATURE_NODE_RAYTRACE | KERNEL_FEATURE_NODE_LIGHT_PATH)>(
       kg, INTEGRATOR_STATE_NULL, &sd, NULL, path_flag);
-  float3 color = shader_background_eval(&sd);
+  SceneLinearColor color = shader_background_eval(&sd);
 
 #ifdef __KERNEL_DEBUG_NAN__
   if (!isfinite3_safe(color)) {

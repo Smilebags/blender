@@ -31,10 +31,10 @@ ccl_device int bsdf_ashikhmin_velvet_setup(ccl_private VelvetBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClosure *sc,
-                                                     const float3 I,
-                                                     const float3 omega_in,
-                                                     ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                            const float3 I,
+                                                            const float3 omega_in,
+                                                            ccl_private float *pdf)
 {
   ccl_private const VelvetBsdf *bsdf = (ccl_private const VelvetBsdf *)sc;
   float m_invsigma2 = bsdf->invsigma2;
@@ -91,7 +91,7 @@ ccl_device int bsdf_ashikhmin_velvet_sample(ccl_private const ShaderClosure *sc,
                                             float3 dIdy,
                                             float randu,
                                             float randv,
-                                            ccl_private float3 *eval,
+                                            ccl_private SceneLinearColor *eval,
                                             ccl_private float3 *omega_in,
                                             ccl_private float3 *domega_in_dx,
                                             ccl_private float3 *domega_in_dy,
@@ -129,7 +129,7 @@ ccl_device int bsdf_ashikhmin_velvet_sample(ccl_private const ShaderClosure *sc,
 
       float power = 0.25f * (D * G) / cosNO;
 
-      *eval = make_float3(power, power, power);
+      *eval = make_scene_linear_color(power);
 
 #ifdef __RAY_DIFFERENTIALS__
       // TODO: find a better approximation for the retroreflective bounce

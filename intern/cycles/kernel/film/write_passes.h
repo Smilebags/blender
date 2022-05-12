@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "kernel/util/color.h"
+
 #ifdef __KERNEL_GPU__
 #  define __ATOMIC_PASS_WRITE__
 #endif
@@ -55,6 +57,14 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *ccl_restrict b
   buffer[2] += value.z;
   buffer[3] += value.w;
 #endif
+}
+
+template<typename ConstIntegratorGenericState>
+ccl_device_inline void kernel_write_pass_scene_linear_color(
+                                                        ccl_global float *ccl_restrict buffer,
+                                                        SceneLinearColor value)
+{
+  kernel_write_pass_float3(buffer, value);
 }
 
 ccl_device_inline float kernel_read_pass_float(ccl_global float *ccl_restrict buffer)

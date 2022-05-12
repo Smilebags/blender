@@ -4,6 +4,7 @@
 #pragma once
 
 #include "kernel/sample/pattern.h"
+#include "kernel/util/lookup_table.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -75,7 +76,7 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
 #ifdef __DENOISING_FEATURES__
   if (kernel_data.kernel_features & KERNEL_FEATURE_DENOISING) {
     INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_DENOISING_FEATURES;
-    INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) = one_float3();
+    INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) = one_scene_linear_color();
   }
 #endif
 }

@@ -103,7 +103,7 @@ ccl_device_inline int bsdf_sample(KernelGlobals kg,
                                   ccl_private const ShaderClosure *sc,
                                   float randu,
                                   float randv,
-                                  ccl_private float3 *eval,
+                                  ccl_private SceneLinearColor *eval,
                                   ccl_private float3 *omega_in,
                                   ccl_private differential3 *domega_in,
                                   ccl_private float *pdf)
@@ -458,7 +458,7 @@ ccl_device
 #else
 ccl_device_inline
 #endif
-    float3
+    SceneLinearColor
     bsdf_eval(KernelGlobals kg,
               ccl_private ShaderData *sd,
               ccl_private const ShaderClosure *sc,
@@ -466,7 +466,7 @@ ccl_device_inline
               const bool is_transmission,
               ccl_private float *pdf)
 {
-  float3 eval = zero_float3();
+  SceneLinearColor eval = zero_scene_linear_color();
 
   if (!is_transmission) {
     switch (sc->type) {
