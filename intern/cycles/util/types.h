@@ -89,6 +89,7 @@ CCL_NAMESPACE_END
 #include "util/types_float3.h"
 #include "util/types_float4.h"
 #include "util/types_float8.h"
+#include "util/types_scene_linear_color.h"
 
 #include "util/types_vector3.h"
 

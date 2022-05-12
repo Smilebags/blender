@@ -65,12 +65,12 @@ ccl_device void subsurface_random_walk_remap(const float albedo,
   *sigma_t = sigma_t_prime / (1.0f - g);
 }
 
-ccl_device void subsurface_random_walk_coefficients(const float3 albedo,
-                                                    const float3 radius,
+ccl_device void subsurface_random_walk_coefficients(const SceneLinearColor albedo,
+                                                    const SceneLinearColor radius,
                                                     const float anisotropy,
-                                                    ccl_private float3 *sigma_t,
-                                                    ccl_private float3 *alpha,
-                                                    ccl_private float3 *throughput)
+                                                    ccl_private SceneLinearColor *sigma_t,
+                                                    ccl_private SceneLinearColor *alpha,
+                                                    ccl_private SceneLinearColor *throughput)
 {
   float sigma_t_x, sigma_t_y, sigma_t_z;
   float alpha_x, alpha_y, alpha_z;
@@ -151,12 +151,10 @@ ccl_device_forceinline float3 direction_from_cosine(float3 D, float cos_theta, f
   return dir.x * T + dir.y * B + dir.z * D;
 }
 
-ccl_device_forceinline float3 subsurface_random_walk_pdf(float3 sigma_t,
-                                                         float t,
-                                                         bool hit,
-                                                         ccl_private float3 *transmittance)
+ccl_device_forceinline SceneLinearColor subsurface_random_walk_pdf(
+    SceneLinearColor sigma_t, float t, bool hit, ccl_private SceneLinearColor *transmittance)
 {
-  float3 T = volume_color_transmittance(sigma_t, t);
+  SceneLinearColor T = volume_color_transmittance(sigma_t, t);
   if (transmittance) {
     *transmittance = T;
   }
@@ -212,14 +210,14 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 
   /* Convert subsurface to volume coefficients.
    * The single-scattering albedo is named alpha to avoid confusion with the surface albedo. */
-  const float3 albedo = INTEGRATOR_STATE(state, subsurface, albedo);
-  const float3 radius = INTEGRATOR_STATE(state, subsurface, radius);
+  const SceneLinearColor albedo = INTEGRATOR_STATE(state, subsurface, albedo);
+  const SceneLinearColor radius = INTEGRATOR_STATE(state, subsurface, radius);
   const float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
 
-  float3 sigma_t, alpha;
-  float3 throughput = INTEGRATOR_STATE_WRITE(state, path, throughput);
+  SceneLinearColor sigma_t, alpha;
+  SceneLinearColor throughput = INTEGRATOR_STATE_WRITE(state, path, throughput);
   subsurface_random_walk_coefficients(albedo, radius, anisotropy, &sigma_t, &alpha, &throughput);
-  float3 sigma_s = sigma_t * alpha;
+  SceneLinearColor sigma_s = sigma_t * alpha;
 
   /* Theoretically it should be better to use the exact alpha for the channel we're sampling at
    * each bounce, but in practice there doesn't seem to be a noticeable difference in exchange
@@ -254,10 +252,10 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const float guided_fraction = 1.0f - fmaxf(0.5f, powf(fabsf(anisotropy), 0.125f));
 
 #ifdef SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL
-  float3 sigma_s_star = sigma_s * (1.0f - anisotropy);
-  float3 sigma_t_star = sigma_t - sigma_s + sigma_s_star;
-  float3 sigma_t_org = sigma_t;
-  float3 sigma_s_org = sigma_s;
+  SceneLinearColor sigma_s_star = sigma_s * (1.0f - anisotropy);
+  SceneLinearColor sigma_t_star = sigma_t - sigma_s + sigma_s_star;
+  SceneLinearColor sigma_t_org = sigma_t;
+  SceneLinearColor sigma_s_org = sigma_s;
   const float anisotropy_org = anisotropy;
   const float guided_fraction_org = guided_fraction;
 #endif
@@ -269,7 +267,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 #ifdef SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL
     // shadow with local variables according to depth
     float anisotropy, guided_fraction;
-    float3 sigma_s, sigma_t;
+    SceneLinearColor sigma_s, sigma_t;
     if (bounce <= SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL) {
       anisotropy = anisotropy_org;
       guided_fraction = guided_fraction_org;
@@ -286,7 +284,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 
     /* Sample color channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, &rng_state, PRNG_PHASE_CHANNEL);
-    float3 channel_pdf;
+    SceneLinearColor channel_pdf;
     int channel = volume_sample_channel(alpha, throughput, rphase, &channel_pdf);
     float sample_sigma_t = volume_channel_get(sigma_t, channel);
     float randt = path_state_rng_1D(kg, &rng_state, PRNG_SCATTER_DISTANCE);
@@ -412,16 +410,18 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
     /* Advance to new scatter location. */
     ray.P += t * ray.D;
 
-    float3 transmittance;
-    float3 pdf = subsurface_random_walk_pdf(sigma_t, t, hit, &transmittance);
+    SceneLinearColor transmittance;
+    SceneLinearColor pdf = subsurface_random_walk_pdf(sigma_t, t, hit, &transmittance);
     if (bounce > 0) {
       /* Compute PDF just like we do for classic sampling, but with the stretched sigma_t. */
-      float3 guided_pdf = subsurface_random_walk_pdf(forward_stretching * sigma_t, t, hit, NULL);
+      SceneLinearColor guided_pdf = subsurface_random_walk_pdf(
+          forward_stretching * sigma_t, t, hit, NULL);
 
       if (have_opposite_interface) {
         /* First step of MIS: Depending on geometry we might have two methods for guided
          * sampling, so perform MIS between them. */
-        float3 back_pdf = subsurface_random_walk_pdf(backward_stretching * sigma_t, t, hit, NULL);
+        SceneLinearColor back_pdf = subsurface_random_walk_pdf(
+            backward_stretching * sigma_t, t, hit, NULL);
         guided_pdf = mix(
             guided_pdf * forward_pdf_factor, back_pdf * backward_pdf_factor, backward_fraction);
       }

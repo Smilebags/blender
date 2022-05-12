@@ -3,6 +3,8 @@
 
 #pragma once
 
+// TODO(chris cook): Clarify the use of SceneLinearColor in this file
+
 #ifdef __KERNEL_CPU__
 #  include <fenv.h>
 #endif
@@ -20,7 +22,7 @@ typedef struct PrincipledHairBSDF {
   SHADER_CLOSURE_BASE;
 
   /* Absorption coefficient. */
-  float3 sigma;
+  SceneLinearColor sigma;
   /* Variance of the underlying logistic distribution. */
   float v;
   /* Scale factor of the underlying logistic distribution. */
@@ -167,7 +169,7 @@ ccl_device_inline float longitudinal_scattering(
 }
 
 /* Combine the three values using their luminances. */
-ccl_device_inline float4 combine_with_energy(KernelGlobals kg, float3 c)
+ccl_device_inline float4 combine_with_energy(KernelGlobals kg, SceneLinearColor c)
 {
   return make_float4(c.x, c.y, c.z, linear_rgb_to_gray(kg, c));
 }
@@ -216,7 +218,7 @@ ccl_device int bsdf_principled_hair_setup(ccl_private ShaderData *sd,
 /* Given the Fresnel term and transmittance, generate the attenuation terms for each bounce. */
 ccl_device_inline void hair_attenuation(KernelGlobals kg,
                                         float f,
-                                        float3 T,
+                                        SceneLinearColor T,
                                         ccl_private float4 *Ap)
 {
   /* Primary specular (R). */
@@ -266,11 +268,7 @@ ccl_device_inline void hair_alpha_angles(float sin_theta_i,
 }
 
 /* Evaluation function for our shader. */
-ccl_device float3 bsdf_principled_hair_eval(KernelGlobals kg,
-                                            ccl_private const ShaderData *sd,
-                                            ccl_private const ShaderClosure *sc,
-                                            const float3 omega_in,
-                                            ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_principled_hair_eval(KernelGlobals kg,
 {
   kernel_assert(isfinite3_safe(sd->P) && isfinite_safe(sd->ray_length));
 
@@ -349,7 +347,7 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals kg,
                                            ccl_private ShaderData *sd,
                                            float randu,
                                            float randv,
-                                           ccl_private float3 *eval,
+                                           ccl_private SceneLinearColor *eval,
                                            ccl_private float3 *omega_in,
                                            ccl_private float3 *domega_in_dx,
                                            ccl_private float3 *domega_in_dy,
@@ -385,16 +383,18 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals kg,
   float cos_gamma_t = cos_from_sin(sin_gamma_t);
   float gamma_t = safe_asinf(sin_gamma_t);
 
-  float3 T = exp3(-bsdf->sigma * (2.0f * cos_gamma_t / cos_theta_t));
-  float4 Ap[4];
-  hair_attenuation(kg, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Ap);
+  SceneLinearColor T = exp(-bsdf->sigma * (2.0f * cos_gamma_t / cos_theta_t));
+  SceneLinearColor Ap[4];
+  float Ap_energy[4];
+  hair_attenuation(
+      kg, state, fresnel_dielectric_cos(cos_theta_o * cos_gamma_o, bsdf->eta), T, Ap, Ap_energy);
 
   int p = 0;
   for (; p < 3; p++) {
-    if (u[0].x < Ap[p].w) {
+    if (u[0].x < Ap_energy[p]) {
       break;
     }
-    u[0].x -= Ap[p].w;
+    u[0].x -= Ap_energy[p];
   }
 
   float v = bsdf->v;
@@ -429,35 +429,40 @@ ccl_device int bsdf_principled_hair_sample(KernelGlobals kg,
 
   hair_alpha_angles(sin_theta_i, cos_theta_i, bsdf->alpha, angles);
 
-  float4 F;
+  SceneLinearColor F;
+  float F_energy;
   float Mp, Np;
 
   /* Primary specular (R). */
   Mp = longitudinal_scattering(angles[0], angles[1], sin_theta_o, cos_theta_o, bsdf->m0_roughness);
   Np = azimuthal_scattering(phi, 0, bsdf->s, gamma_o, gamma_t);
   F = Ap[0] * Mp * Np;
-  kernel_assert(isfinite3_safe(float4_to_float3(F)));
+  F_energy = Ap_energy[0] * Mp * Np;
+  kernel_assert(is_finite(F) && is_finite(F_energy));
 
   /* Transmission (TT). */
   Mp = longitudinal_scattering(angles[2], angles[3], sin_theta_o, cos_theta_o, 0.25f * bsdf->v);
   Np = azimuthal_scattering(phi, 1, bsdf->s, gamma_o, gamma_t);
   F += Ap[1] * Mp * Np;
-  kernel_assert(isfinite3_safe(float4_to_float3(F)));
+  F_energy += Ap_energy[1] * Mp * Np;
+  kernel_assert(is_finite(F) && is_finite(F_energy));
 
   /* Secondary specular (TRT). */
   Mp = longitudinal_scattering(angles[4], angles[5], sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = azimuthal_scattering(phi, 2, bsdf->s, gamma_o, gamma_t);
   F += Ap[2] * Mp * Np;
-  kernel_assert(isfinite3_safe(float4_to_float3(F)));
+  F_energy += Ap_energy[2] * Mp * Np;
+  kernel_assert(is_finite(F) && is_finite(F_energy));
 
   /* Residual component (TRRT+). */
   Mp = longitudinal_scattering(sin_theta_i, cos_theta_i, sin_theta_o, cos_theta_o, 4.0f * bsdf->v);
   Np = M_1_2PI_F;
   F += Ap[3] * Mp * Np;
-  kernel_assert(isfinite3_safe(float4_to_float3(F)));
+  F_energy += Ap_energy[3] * Mp * Np;
+  kernel_assert(is_finite(F) && is_finite(F_energy));
 
-  *eval = float4_to_float3(F);
-  *pdf = F.w;
+  *eval = F;
+  *pdf = F_energy;
 
   *omega_in = X * sin_theta_i + Y * cos_theta_i * cosf(phi_i) + Z * cos_theta_i * sinf(phi_i);
 
@@ -489,25 +494,33 @@ ccl_device_inline float bsdf_principled_hair_albedo_roughness_scale(
   return (((((0.245f * x) + 5.574f) * x - 10.73f) * x + 2.532f) * x - 0.215f) * x + 5.969f;
 }
 
-ccl_device float3 bsdf_principled_hair_albedo(ccl_private const ShaderClosure *sc)
+ccl_device SceneLinearColor bsdf_principled_hair_albedo(ccl_private const ShaderClosure *sc)
 {
   ccl_private PrincipledHairBSDF *bsdf = (ccl_private PrincipledHairBSDF *)sc;
-  return exp3(-sqrt(bsdf->sigma) * bsdf_principled_hair_albedo_roughness_scale(bsdf->v));
+  return exp(-sqrt(bsdf->sigma) * bsdf_principled_hair_albedo_roughness_scale(bsdf->v));
 }
 
-ccl_device_inline float3
-bsdf_principled_hair_sigma_from_reflectance(const float3 color, const float azimuthal_roughness)
+ccl_device_inline SceneLinearColor bsdf_principled_hair_sigma_from_reflectance(
+    const SceneLinearColor color, const float azimuthal_roughness)
 {
-  const float3 sigma = log3(color) /
-                       bsdf_principled_hair_albedo_roughness_scale(azimuthal_roughness);
+  const SceneLinearColor sigma = log(color) /
+                              bsdf_principled_hair_albedo_roughness_scale(azimuthal_roughness);
   return sigma * sigma;
 }
 
-ccl_device_inline float3 bsdf_principled_hair_sigma_from_concentration(const float eumelanin,
-                                                                       const float pheomelanin)
+template<typename ConstIntegratorGenericState>
+ccl_device_inline SceneLinearColor
+bsdf_principled_hair_sigma_from_concentration(KernelGlobals kg,
+                                              ConstIntegratorGenericState state,
+                                              uint32_t path_flag,
+                                              const float eumelanin,
+                                              const float pheomelanin)
 {
-  return eumelanin * make_float3(0.506f, 0.841f, 1.653f) +
-         pheomelanin * make_float3(0.343f, 0.733f, 1.924f);
+  const float3 eumelanin_color = make_float3(0.506f, 0.841f, 1.653f);
+  const float3 pheomelanin_color = make_float3(0.343f, 0.733f, 1.924f);
+
+  return eumelanin * rgb_to_spectrum(kg, state, eumelanin_color, path_flag) +
+         pheomelanin * rgb_to_spectrum(kg, state, pheomelanin_color, path_flag);
 }
 
 CCL_NAMESPACE_END

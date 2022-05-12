@@ -32,7 +32,7 @@ ccl_device_inline float calculate_avg_principled_sheen_brdf(float3 N, float3 I)
   return schlick_fresnel(NdotI) * NdotI;
 }
 
-ccl_device float3
+ccl_device SceneLinearColor
 calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, ccl_private float *pdf)
 {
   float NdotL = dot(N, L);
@@ -40,14 +40,14 @@ calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, ccl_priv
 
   if (NdotL < 0 || NdotV < 0) {
     *pdf = 0.0f;
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return zero_scene_linear_color();
   }
 
   float LdotH = dot(L, H);
 
   float value = schlick_fresnel(LdotH) * NdotL;
 
-  return make_float3(value, value, value);
+  return make_scene_linear_color(value);
 }
 
 ccl_device int bsdf_principled_sheen_setup(ccl_private const ShaderData *sd,
@@ -59,10 +59,10 @@ ccl_device int bsdf_principled_sheen_setup(ccl_private const ShaderData *sd,
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_principled_sheen_eval_reflect(ccl_private const ShaderClosure *sc,
-                                                     const float3 I,
-                                                     const float3 omega_in,
-                                                     ccl_private float *pdf)
+ccl_device SceneLinearColor bsdf_principled_sheen_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                            const float3 I,
+                                                            const float3 omega_in,
+                                                            ccl_private float *pdf)
 {
   ccl_private const PrincipledSheenBsdf *bsdf = (ccl_private const PrincipledSheenBsdf *)sc;
 
@@ -97,7 +97,7 @@ ccl_device int bsdf_principled_sheen_sample(ccl_private const ShaderClosure *sc,
                                             float3 dIdy,
                                             float randu,
                                             float randv,
-                                            ccl_private float3 *eval,
+                                            ccl_private SceneLinearColor *eval,
                                             ccl_private float3 *omega_in,
                                             ccl_private float3 *domega_in_dx,
                                             ccl_private float3 *domega_in_dy,

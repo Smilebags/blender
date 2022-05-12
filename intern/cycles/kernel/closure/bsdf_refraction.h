@@ -43,7 +43,7 @@ ccl_device int bsdf_refraction_sample(ccl_private const ShaderClosure *sc,
                                       float3 dIdy,
                                       float randu,
                                       float randv,
-                                      ccl_private float3 *eval,
+                                      ccl_private SceneLinearColor *eval,
                                       ccl_private float3 *omega_in,
                                       ccl_private float3 *domega_in_dx,
                                       ccl_private float3 *domega_in_dy,
@@ -77,7 +77,7 @@ ccl_device int bsdf_refraction_sample(ccl_private const ShaderClosure *sc,
   if (!inside && fresnel != 1.0f) {
     /* Some high number for MIS. */
     *pdf = 1e6f;
-    *eval = make_float3(1e6f, 1e6f, 1e6f);
+    *eval = make_scene_linear_color(1e6f);
     *omega_in = T;
 #ifdef __RAY_DIFFERENTIALS__
     *domega_in_dx = dTdx;

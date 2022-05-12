@@ -62,7 +62,7 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   /* TODO: does aliasing like this break automatic SoA in CUDA? */
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  float3 light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+  SceneLinearColor light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
   if (is_zero(light_eval)) {
     return;
   }

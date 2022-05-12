@@ -14,7 +14,8 @@
 CCL_NAMESPACE_BEGIN
 
 /* Evaluate shader on light. */
-ccl_device_noinline_cpu float3
+
+ccl_device_noinline_cpu SceneLinearColor
 light_sample_shader_eval(KernelGlobals kg,
                          IntegratorState state,
                          ccl_private ShaderData *ccl_restrict emission_sd,
@@ -22,7 +23,7 @@ light_sample_shader_eval(KernelGlobals kg,
                          float time)
 {
   /* setup shading at emitter */
-  float3 eval = zero_float3();
+  SceneLinearColor eval = zero_scene_linear_color();
 
   if (shader_constant_emission_eval(kg, ls->shader, &eval)) {
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, ls->D) > 0.0f) {
@@ -82,7 +83,7 @@ light_sample_shader_eval(KernelGlobals kg,
 
   if (ls->lamp != LAMP_NONE) {
     ccl_global const KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
-    eval *= make_float3(klight->strength[0], klight->strength[1], klight->strength[2]);
+    eval *= make_scene_linear_color(load_float3(klight->strength));
   }
 
   return eval;

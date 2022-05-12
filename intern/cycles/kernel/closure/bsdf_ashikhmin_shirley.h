@@ -39,7 +39,7 @@ ccl_device_inline float bsdf_ashikhmin_shirley_roughness_to_exponent(float rough
   return 2.0f / (roughness * roughness) - 2.0f;
 }
 
-ccl_device_forceinline float3
+ccl_device_forceinline SceneLinearColor
 bsdf_ashikhmin_shirley_eval_reflect(ccl_private const ShaderClosure *sc,
                                     const float3 I,
                                     const float3 omega_in,
@@ -137,7 +137,7 @@ ccl_device int bsdf_ashikhmin_shirley_sample(ccl_private const ShaderClosure *sc
                                              float3 dIdy,
                                              float randu,
                                              float randv,
-                                             ccl_private float3 *eval,
+                                             ccl_private SceneLinearColor *eval,
                                              ccl_private float3 *omega_in,
                                              ccl_private float3 *domega_in_dx,
                                              ccl_private float3 *domega_in_dy,
@@ -214,7 +214,7 @@ ccl_device int bsdf_ashikhmin_shirley_sample(ccl_private const ShaderClosure *sc
     if (fmaxf(bsdf->alpha_x, bsdf->alpha_y) <= 1e-4f) {
       /* Some high number for MIS. */
       *pdf = 1e6f;
-      *eval = make_float3(1e6f, 1e6f, 1e6f);
+      *eval = make_scene_linear_color(1e6f);
       label = LABEL_REFLECT | LABEL_SINGULAR;
     }
     else {

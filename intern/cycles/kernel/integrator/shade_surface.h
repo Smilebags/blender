@@ -42,13 +42,13 @@ ccl_device_forceinline bool integrate_surface_holdout(KernelGlobals kg,
 
   if (((sd->flag & SD_HOLDOUT) || (sd->object_flag & SD_OBJECT_HOLDOUT_MASK)) &&
       (path_flag & PATH_RAY_TRANSPARENT_BACKGROUND)) {
-    const float3 holdout_weight = shader_holdout_apply(kg, sd);
+    const SceneLinearColor holdout_weight = shader_holdout_apply(kg, sd);
     if (kernel_data.background.transparent) {
-      const float3 throughput = INTEGRATOR_STATE(state, path, throughput);
+      const SceneLinearColor throughput = INTEGRATOR_STATE(state, path, throughput);
       const float transparent = average(holdout_weight * throughput);
       kernel_accum_holdout(kg, state, path_flag, transparent, render_buffer);
     }
-    if (isequal_float3(holdout_weight, one_float3())) {
+    if (is_equal(holdout_weight, one_scene_linear_color())) {
       return false;
     }
   }
@@ -67,7 +67,7 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   /* Evaluate emissive closure. */
-  float3 L = shader_emissive_eval(sd);
+  SceneLinearColor L = shader_emissive_eval(sd);
 
 #  ifdef __HAIR__
   if (!(path_flag & PATH_RAY_MIS_SKIP) && (sd->flag & SD_USE_MIS) &&
@@ -335,7 +335,7 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
 #endif
 
   /* Update throughput. */
-  float3 throughput = INTEGRATOR_STATE(state, path, throughput);
+  SceneLinearColor throughput = INTEGRATOR_STATE(state, path, throughput);
   throughput *= bsdf_eval_sum(&bsdf_eval) / bsdf_pdf;
   INTEGRATOR_STATE_WRITE(state, path, throughput) = throughput;
 
@@ -404,7 +404,7 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   path_state_rng_2D(kg, rng_state, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
 
   float3 ao_N;
-  const float3 ao_weight = shader_bsdf_ao(
+  const SceneLinearColor ao_weight = shader_bsdf_ao(
       kg, sd, kernel_data.integrator.ao_additive_factor, &ao_N);
 
   float3 ao_D;
@@ -442,7 +442,8 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   const uint16_t bounce = INTEGRATOR_STATE(state, path, bounce);
   const uint16_t transparent_bounce = INTEGRATOR_STATE(state, path, transparent_bounce);
   uint32_t shadow_flag = INTEGRATOR_STATE(state, path, flag) | PATH_RAY_SHADOW_FOR_AO;
-  const float3 throughput = INTEGRATOR_STATE(state, path, throughput) * shader_bsdf_alpha(kg, sd);
+  const SceneLinearColor throughput = INTEGRATOR_STATE(state, path, throughput) *
+                                   shader_bsdf_alpha(kg, sd);
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, render_pixel_index) = INTEGRATOR_STATE(
       state, path, render_pixel_index);
