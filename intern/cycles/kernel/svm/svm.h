@@ -30,6 +30,28 @@ CCL_NAMESPACE_BEGIN
 
 /* Stack */
 
+ccl_device_inline SceneLinearColor stack_load_scene_linear_color(float *stack, uint a)
+{
+  kernel_assert(a + KERNEL_CHANNELS_PER_RAY - 1 < SVM_STACK_SIZE);
+
+  SceneLinearColor f;
+  FOREACH_CHANNEL(i)
+  {
+    GET_CHANNEL(f, i) = stack[a + i];
+  }
+  return f;
+}
+
+ccl_device_inline void stack_store_scene_linear_color(float *stack, uint a, SceneLinearColor f)
+{
+  kernel_assert(a + KERNEL_CHANNELS_PER_RAY - 1 < SVM_STACK_SIZE);
+
+  FOREACH_CHANNEL(i)
+  {
+    stack[a + i] = GET_CHANNEL(f, i);
+  }
+}
+
 ccl_device_inline float3 stack_load_float3(ccl_private float *stack, uint a)
 {
   kernel_assert(a + 2 < SVM_STACK_SIZE);

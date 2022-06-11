@@ -83,7 +83,7 @@ light_sample_shader_eval(KernelGlobals kg,
 
   if (ls->lamp != LAMP_NONE) {
     ccl_global const KernelLight *klight = &kernel_tex_fetch(__lights, ls->lamp);
-    eval *= make_scene_linear_color(load_float3(klight->strength));
+    eval *= load_scene_linear_color(klight->strength);
   }
 
   return eval;

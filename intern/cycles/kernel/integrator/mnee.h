@@ -858,7 +858,7 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
    * 2. ls needs to contain the last interface data for the light shader to
    *    evaluate properly */
   float3 light_eval = light_sample_shader_eval(kg, state, sd_mnee, ls, sd->time);
-  bsdf_eval_mul3(throughput, light_eval / ls->pdf);
+  bsdf_eval_mul(throughput, light_eval / ls->pdf);
 
   /* Generalized geometry term. */
 
@@ -941,7 +941,7 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
      * divided by corresponding sampled pdf:
      * fr(vi)_do / pdf_dh(vi) x |do/dh| x |n.wo / n.h| */
     float3 bsdf_contribution = mnee_eval_bsdf_contribution(v.bsdf, wi, wo);
-    bsdf_eval_mul3(throughput, bsdf_contribution);
+    bsdf_eval_mul(throughput, bsdf_contribution);
   }
 
   return true;
