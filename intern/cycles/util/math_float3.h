@@ -556,6 +556,15 @@ ccl_device_inline float3 ensure_finite3(float3 v)
   return v;
 }
 
+ccl_device_inline float3 load_float3(ccl_private const float *v)
+{
+  // #ifdef __KERNEL_SSE__
+  //   return float4(_mm_loadu_ps(v));
+  // #else
+  return make_float3(v[0], v[1], v[2]);
+  // #endif
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_MATH_FLOAT3_H__ */

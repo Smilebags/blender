@@ -286,7 +286,7 @@ ccl_device_forceinline SceneLinearColor bssrdf_eval(const SceneLinearColor radiu
 ccl_device_forceinline float bssrdf_pdf(const SceneLinearColor radius, float r)
 {
   SceneLinearColor pdf = bssrdf_eval(radius, r);
-  return reduce_add_f(pdf) / bssrdf_num_channels(radius);
+  return reduce_add(pdf) / bssrdf_num_channels(radius);
 }
 
 /* Setup */

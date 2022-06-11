@@ -134,8 +134,6 @@ ccl_device_forceinline void kernel_write_denoising_features_volume(KernelGlobals
                                                                    ccl_global float *ccl_restrict
                                                                        render_buffer)
 {
-  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-
   ccl_global float *buffer = kernel_pass_pixel_render_buffer(kg, state, render_buffer);
   const SceneLinearColor denoising_feature_throughput = INTEGRATOR_STATE(
       state, path, denoising_feature_throughput);
@@ -151,7 +149,8 @@ ccl_device_forceinline void kernel_write_denoising_features_volume(KernelGlobals
 
   if (kernel_data.film.pass_denoising_albedo != PASS_UNUSED) {
     /* Write albedo. */
-    const SceneLinearColor denoising_albedo = ensure_finite(denoising_feature_throughput * albedo);
+    const SceneLinearColor denoising_albedo = ensure_finite3(denoising_feature_throughput *
+                                                             albedo);
     kernel_write_pass_scene_linear_color(buffer + kernel_data.film.pass_denoising_albedo, denoising_albedo);
   }
 }

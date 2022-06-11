@@ -346,7 +346,8 @@ ccl_device_inline void kernel_accum_emission_or_background_pass(
       const SceneLinearColor denoising_feature_throughput = INTEGRATOR_STATE(
           state, path, denoising_feature_throughput);
       const SceneLinearColor denoising_albedo = denoising_feature_throughput * contribution;
-      kernel_write_pass_scene_linear_color(buffer + kernel_data.film.pass_denoising_albedo, denoising_albedo, path_flag);
+      kernel_write_pass_scene_linear_color(buffer + kernel_data.film.pass_denoising_albedo,
+                                           denoising_albedo);
     }
   }
 #  endif /* __DENOISING_FEATURES__ */
@@ -411,7 +412,7 @@ ccl_device_inline void kernel_accum_emission_or_background_pass(
 
   /* Single write call for GPU coherence. */
   if (pass_offset != PASS_UNUSED) {
-    kernel_write_pass_scene_linear_color(buffer + pass_offset, contribution, path_flag);
+    kernel_write_pass_scene_linear_color(buffer + pass_offset, contribution);
   }
 #endif /* __PASSES__ */
 }
@@ -524,8 +525,7 @@ ccl_device_inline void kernel_accum_light(KernelGlobals kg,
       const SceneLinearColor shadowed_throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
       const SceneLinearColor shadow = safe_divide_float3_float3(shadowed_throughput, unshadowed_throughput) *
                                    kernel_data.film.pass_shadow_scale;
-      kernel_write_pass_scene_linear_color(
-          kg, state, buffer + kernel_data.film.pass_shadow, shadow);
+      kernel_write_pass_scene_linear_color(buffer + kernel_data.film.pass_shadow, shadow);
     }
   }
 #endif

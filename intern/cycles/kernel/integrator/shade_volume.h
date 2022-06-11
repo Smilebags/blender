@@ -360,7 +360,7 @@ ccl_device SceneLinearColor volume_distance_pdf(float max_t, SceneLinearColor si
   SceneLinearColor full_transmittance = volume_color_transmittance(sigma_t, max_t);
   SceneLinearColor transmittance = volume_color_transmittance(sigma_t, sample_t);
 
-  return safe_divide(sigma_t * transmittance, one_scene_linear_color() - full_transmittance);
+  return safe_divide_color(sigma_t * transmittance, one_scene_linear_color() - full_transmittance);
 }
 
 /* Emission */
@@ -764,7 +764,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
     bsdf_eval_mul(&phase_eval, mis_weight);
   }
 
-  bsdf_eval_mul3(&phase_eval, light_eval / ls->pdf);
+  bsdf_eval_mul(&phase_eval, light_eval / ls->pdf);
 
   /* Path termination. */
   const float terminate = path_state_rng_light_termination(kg, rng_state);
@@ -808,8 +808,8 @@ ccl_device_forceinline void integrate_volume_direct_light(
     else {
       /* Direct light, no diffuse/glossy distinction needed for volumes. */
       shadow_flag |= PATH_RAY_VOLUME_PASS;
-      pass_diffuse_weight = packed_float3(one_scene_linear_color());
-      pass_glossy_weight = packed_float3(zero_scene_linear_color());
+      pass_diffuse_weight = PackedSceneLinearColor(one_scene_linear_color());
+      pass_glossy_weight = PackedSceneLinearColor(zero_scene_linear_color());
     }
 
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, pass_diffuse_weight) = pass_diffuse_weight;
@@ -905,6 +905,7 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
   }
 
   /* Update path state */
+  INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = phase_pdf;
   INTEGRATOR_STATE_WRITE(state, path, mis_ray_t) = 0.0f;
   INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = fminf(
       phase_pdf, INTEGRATOR_STATE(state, path, min_ray_pdf));

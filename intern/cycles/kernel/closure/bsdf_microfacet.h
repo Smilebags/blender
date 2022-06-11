@@ -325,7 +325,7 @@ ccl_device int bsdf_microfacet_ggx_fresnel_setup(ccl_private MicrofacetBsdf *bsd
 ccl_device int bsdf_microfacet_ggx_clearcoat_setup(ccl_private MicrofacetBsdf *bsdf,
                                                    ccl_private const ShaderData *sd)
 {
-  bsdf->extra->cspec0 = saturatef(bsdf->extra->cspec0);
+  bsdf->extra->cspec0 = saturate3(bsdf->extra->cspec0);
 
   bsdf->alpha_x = saturatef(bsdf->alpha_x);
   bsdf->alpha_y = bsdf->alpha_x;

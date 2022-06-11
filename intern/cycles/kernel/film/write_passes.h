@@ -59,7 +59,6 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *ccl_restrict b
 #endif
 }
 
-template<typename ConstIntegratorGenericState>
 ccl_device_inline void kernel_write_pass_scene_linear_color(
                                                         ccl_global float *ccl_restrict buffer,
                                                         SceneLinearColor value)

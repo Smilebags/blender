@@ -849,7 +849,7 @@ ccl_device_noinline int svm_node_closure_bsdf(KernelGlobals kg,
             float eumelanin = melanin * (1.0f - melanin_redness);
             float pheomelanin = melanin * melanin_redness;
             SceneLinearColor melanin_sigma = bsdf_principled_hair_sigma_from_concentration(
-                kg, state, eumelanin, pheomelanin);
+                eumelanin, pheomelanin);
 
             /* Optional tint. */
             SceneLinearColor tint = stack_load_scene_linear_color(stack, tint_ofs);
@@ -867,8 +867,7 @@ ccl_device_noinline int svm_node_closure_bsdf(KernelGlobals kg,
           default: {
             /* Fallback to brownish hair, same as defaults for melanin. */
             kernel_assert(!"Invalid Principled Hair parametrization!");
-            bsdf->sigma = bsdf_principled_hair_sigma_from_concentration(
-                kg, state, 0.0f, 0.8054375f);
+            bsdf->sigma = bsdf_principled_hair_sigma_from_concentration(0.0f, 0.8054375f);
             break;
           }
         }
@@ -1112,8 +1111,8 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
     if (intensity > CLOSURE_WEIGHT_CUTOFF) {
       float3 blackbody_tint = stack_load_float3(stack, node.w);
-      float3 bb = blackbody_tint * intensity *
-                  rec709_to_rgb(kg, svm_math_blackbody_color_rec709(T));
+      SceneLinearColor bb = blackbody_tint * intensity *
+                            rec709_to_rgb(kg, svm_math_blackbody_color_rec709(T));
       emission_setup(sd, bb);
     }
   }
